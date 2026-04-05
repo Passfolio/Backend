@@ -1,6 +1,6 @@
 package com.capstone.passfolio.domain.auth.oauth2.dto;
 
-import com.capstone.passfolio.common.util.HmacUtil;
+import com.capstone.passfolio.system.util.HmacUtil;
 import com.capstone.passfolio.domain.user.entity.User;
 import com.capstone.passfolio.domain.user.entity.enums.Role;
 import lombok.AllArgsConstructor;

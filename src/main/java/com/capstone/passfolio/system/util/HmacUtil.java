@@ -1,4 +1,4 @@
-package com.capstone.passfolio.common.util;
+package com.capstone.passfolio.system.util;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
