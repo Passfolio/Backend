@@ -14,9 +14,7 @@ public class OAuth2UserDto {
     private Role role;
     private String nickname;
     private String username;
-    private String email;
     private String profileImageUrl;
-    private boolean isEmailVerified;
 
     public static OAuth2UserDto of(Role role, OAuth2Response oAuth2Response, HmacUtil hmacUtil) {
         return OAuth2UserDto.builder()
