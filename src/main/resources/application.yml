@@ -1,0 +1,132 @@
+server: # t3.small environment setup -> need to be optimized
+  tomcat:
+    threads:
+      max: 120
+      min-spare: 20
+
+spring:
+  # Time Zone Setup ---------------------------------------------------------
+  jackson:
+    time-zone: Asia/Seoul # ?? ??? ??? KST? ??
+    serialization:
+      write-dates-as-timestamps: false # WHAT
+
+  # Run Profile Environment
+  profiles:
+    active: dev # ??? ?? dev, ??? ?? prod
+
+  # Database Setup ---------------------------------------------------------
+  ## RDB Setup ---------------------------------------------------------
+  datasource:
+    url: jdbc:postgresql://${DB_HOST}:${DB_PORT:5432}/${DB_NAME}?reWriteBatchedInserts=true&stringtype=unspecified
+    driver-class-name: org.postgresql.Driver
+    username: ${DB_USERNAME:root}
+    password: ${DB_PASSWORD}
+    hikari:
+      maximum-pool-size: 6 # HikariCP Recommendation : vCPU * 2 + alpha
+      minimum-idle: 6       # ????? ? ?? ?? ??? ??
+      connection-timeout: 30000 # 30? ??
+
+  ## NoSQL (Redis) Setup ---------------------------------------------------------
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      lettuce:
+        pool:
+          max-active: 8 # 48
+          max-idle: 8 # 32
+          min-idle: 2 # 8
+          max-wait: 1000ms # 5000ms
+
+  # AWS Storage Setup ---------------------------------------------------------
+  cloud:
+    aws:
+      s3:
+        bucket: ${AWS_S3_BUCKET_NAME}
+      region:
+        static: ap-northeast-2
+
+  # Security Setup ---------------------------------------------------------
+  ## OAuth2 Setup
+  security:
+    oauth2:
+      client:
+        registration:
+          github:
+            client-id: ${OAUTH_GITHUB_CLIENT_ID}
+            client-secret: ${OAUTH_GITHUB_CLIENT_SECRET}
+            client-name: GitHub
+            authorization-grant-type: authorization_code
+            redirect-uri: "{baseUrl}/login/oauth2/code/{registrationId}"
+            scope:
+              - read:user
+              - user:email
+              - repo
+              - read:org
+
+# Utils Section ----------------------------------------------
+app:
+  cookie:
+    secure: false
+    cookie-atk: "ATK"
+    cookie-rtk: "RTK"
+    same-site: "Strict"
+    atk-apply-path: "/"
+    rtk-apply-path: "/api/v1"
+
+  # Ex: "http://localhost:5173/oauth/callback,https://domain.com/oauth/callback"
+  front-redirect-uri: "${FRONT_REDIRECT_URI:http://localhost:5173/oauth/callback}"
+  # Ex: "http://localhost:5173,https://domain.com"
+  front-base-url: "${FRONT_BASE_URL:http://localhost:5173}"
+  allowed-origins: "${ALLOWED_ORIGINS:http://localhost:5173,http://localhost:3000}"
+  backend-base-url: "${BACKEND_BASE_URL:http://localhost:8080}"
+
+hmac:
+  secret: ${HMAC_SECRET_KEY} # at least 32 characters long
+
+cdn:
+  base-url: ${CDN_BASE_URL:} # CDN? ??? ??, ??? ? ??? (S3 URL ??)
+
+### OAuth2
+github:
+  token:
+    encryption-key: ${GITHUB_TOKEN_ENCRYPTION_KEY} # AES-256 key (32 bytes, Base64 encoded)
+    ttl-hours: 8
+  cache:
+    repos-ttl-minutes: 5
+
+ratelimit:
+  enabled: true
+  redis:
+    timeout-fail-open: 200ms     # limiter ?? ? ??? ??
+    timeout-fail-closed: 500ms   # auth? ???? ?? ??
+  expiration:
+    refill-to-max-jitter: 10s
+  failure:
+    mode: FAIL_OPEN             # ??? FAIL_OPEN, auth? ????? failClosed=true? ???
+  key:
+    namespace: ratelimit
+    user-prefix: user
+    ip-prefix: ip
+  logging:
+    backend-error-min-interval-ms: 1000
+  proxy:
+    trusted-cidrs: ${TRUSTED_CIDRS} # ex. 172.18.0.0/20,172.39.16.0/20, ...
+
+# Monitoring Setup ------------------------------------------------------------
+management:
+  endpoints:
+    web:
+      base-path: ${ACTUATOR_ENDPOINT} # ?? ?? ??
+      exposure:
+        include: "health,prometheus" # health? prometheus? ?? (env, beans ? ??)
+  endpoint:
+    health:
+      show-details: always # DB, Disk, Redis ?? ?? ?? ??
+    prometheus:
+      enabled: true # Prometheus Scrape ???
+  metrics:
+    tags:
+      application: ${spring.application.name:Passfolio}

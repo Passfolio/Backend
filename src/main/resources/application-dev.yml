@@ -1,0 +1,35 @@
+spring:
+  config:
+    activate:
+      on-profile: dev # dev 프로필이 활성화될 때만 적용하겠다.
+
+  jpa:
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+    hibernate:
+      ddl-auto: create
+    properties:
+      hibernate:
+        format_sql: true
+        show-sql: true
+
+  cloud:
+    aws:
+      credentials:
+        access-key: ${AWS_IAM_ACCESS_KEY} # // Only Local 환경에서만
+        secret-key: ${AWS_IAM_SECRET_KEY} # // Only Local 환경에서만
+
+logging:
+  level:
+    org.hibernate.SQL: debug
+    org.hibernate.type: trace
+
+jwt:
+  secret: ${JWT_SECRET_KEY:ZGVva2l2ZXNlcnZlcnRlYW1hbmRvdGhlcnNmaWdodGluZw==}
+  atk-exp-min: ${JWT_ACCESS_TOKEN_EXPIRATION_MINUTES:30}
+  rtk-exp-week: ${JWT_REFRESH_TOKEN_EXPIRATION_WEEKS:2}
+
+app:
+  # 개발 환경 테스트용: localhost:5173과 localhost:3000 모두 지원
+  # Origin/Referer 헤더에 따라 자동으로 선택됨
+  front-redirect-uri: "${FRONT_REDIRECT_URI:http://localhost:5173/oauth/callback,http://localhost:3000/oauth/callback}"
+  front-base-url: "${FRONT_BASE_URL:http://localhost:5173,http://localhost:3000}"

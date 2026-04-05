@@ -1,0 +1,18 @@
+server:
+  forward-headers-strategy: framework
+
+spring:
+  jpa:
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+    hibernate:
+      ddl-auto: update
+
+logging:
+  level:
+    org.hibernate.SQL: off # select u1_0.id, u1_0.username, u1_0.email from user u1_0 이런거 안찍겠다.
+    org.hibernate.type: off # select * from user where email=?binding parameter [1] as [VARCHAR] - [test@example.com] 이런거 안찍겠다.
+
+jwt:
+  secret: ${JWT_SECRET_KEY}
+  atk-exp-min: ${JWT_ACCESS_TOKEN_EXPIRATION_MINUTES:30}
+  rtk-exp-week: ${JWT_REFRESH_TOKEN_EXPIRATION_WEEKS:2}
