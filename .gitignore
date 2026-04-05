@@ -1,0 +1,64 @@
+HELP.md
+.gradle
+build/
+!gradle/wrapper/gradle-wrapper.jar
+!**/src/main/**/build/
+!**/src/test/**/build/
+
+### STS ###
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings
+.springBeans
+.sts4-cache
+bin/
+!**/src/main/**/bin/
+!**/src/test/**/bin/
+
+### IntelliJ IDEA ###
+.idea
+*.iws
+*.iml
+*.ipr
+out/
+!**/src/main/**/out/
+!**/src/test/**/out/
+
+### NetBeans ###
+/nbproject/private/
+/nbbuild/
+/dist/
+/nbdist/
+/.nb-gradle/
+
+### VS Code ###
+.vscode/
+
+### Environment ###
+.env
+
+### Ignore Documents ###
+# 헷갈릴만한 기술적 요소를 기록하면서 개발하고 싶은 팀원을 위한 디렉터리
+description/
+
+# 팀 인원이 개발하면서 투두 리스트나 방향성 적어가면서 개발할 수 있는 디렉터리
+passfolio-workspace/
+
+# 성능 테스트 등 JUnit 외적인 테스트
+test-scenario/
+
+### swp files ###
+.swp
+
+### Frontend ###
+frontend/
+
+### Test resources  ###
+src/test/resources/application.yml
+
+### AI Agent
+docs/
+.claude/
+CLAUDE.md
