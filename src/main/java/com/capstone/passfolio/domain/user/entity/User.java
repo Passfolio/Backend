@@ -1,5 +1,6 @@
 package com.capstone.passfolio.domain.user.entity;
 
+import com.capstone.passfolio.common.auditor.TimeBaseEntity;
 import com.capstone.passfolio.domain.auth.oauth2.entity.enums.ProviderType;
 import com.capstone.passfolio.domain.user.entity.enums.Role;
 import jakarta.persistence.*;
@@ -17,7 +18,7 @@ import lombok.experimental.SuperBuilder;
 @Table(name = "users", uniqueConstraints = {
         @UniqueConstraint(name = "USER_USERNAME", columnNames = "username")}
 )
-public class User {
+public class User extends TimeBaseEntity {
     // TODO: Change to Snowflake
     @Id @GeneratedValue(strategy= GenerationType.IDENTITY)
     private Long id;
