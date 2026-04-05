@@ -1,5 +1,6 @@
 package com.capstone.passfolio.domain.auth.oauth2.dto;
 
+import com.capstone.passfolio.domain.auth.oauth2.entity.enums.ProviderType;
 import com.capstone.passfolio.system.util.HmacUtil;
 import com.capstone.passfolio.domain.user.entity.User;
 import com.capstone.passfolio.domain.user.entity.enums.Role;
@@ -15,6 +16,8 @@ public class OAuth2UserDto {
     private String nickname;
     private String username;
     private String profileImageUrl;
+    private ProviderType providerType;
+    private String providerId; // Hashed Data Using HmacUtils
 
     public static OAuth2UserDto of(Role role, OAuth2Response oAuth2Response, HmacUtil hmacUtil) {
         return OAuth2UserDto.builder()
@@ -23,6 +26,8 @@ public class OAuth2UserDto {
                 .nickname(suggestNickname(oAuth2Response, hmacUtil))
                 .username(generateUsername(oAuth2Response, hmacUtil))
                 .profileImageUrl(oAuth2Response.getProfileImageUrl())
+                .providerId(oAuth2Response.getProviderId())
+                .providerType(ProviderType.from(oAuth2Response.getProvider()))
                 .build();
     }
 
@@ -33,6 +38,8 @@ public class OAuth2UserDto {
                 .nickname(user.getNickname())
                 .username(user.getUsername())
                 .profileImageUrl(user.getProfileImageUrl())
+                .providerId(user.getProviderId())
+                .providerType(user.getProviderType())
                 .build();
     }
 
@@ -42,6 +49,8 @@ public class OAuth2UserDto {
                 .nickname(this.nickname)
                 .username(this.username)
                 .profileImageUrl(this.profileImageUrl)
+                .providerId(this.providerId)
+                .providerType(this.providerType)
                 .build();
     }
 
@@ -51,11 +60,8 @@ public class OAuth2UserDto {
     }
 
     private static String suggestNickname(OAuth2Response oAuth2Response, HmacUtil hmacUtil) {
-        // 닉네임 null/blank 시 대체.
-        String nickname = oAuth2Response.getNickname();
-
+        String nickname = oAuth2Response.getNickname(); // 닉네임 null/blank 시 대체.
         if (!nickname.isEmpty()) return nickname;
-
         String hashedId = hmacUtil.hmacSha256Base64(oAuth2Response.getProviderId());
 
         return "user_" + oAuth2Response.getProvider() + "_" + hashedId;
