@@ -2,7 +2,6 @@ package com.capstone.passfolio.system.security.jwt.config;
 
 import com.capstone.passfolio.system.security.config.RequestMatcherHolder;
 import com.capstone.passfolio.system.security.jwt.repository.TokenRedisRepository;
-import com.capstone.passfolio.system.security.jwt.service.TokenService;
 import com.capstone.passfolio.system.security.jwt.util.JwtTokenProvider;
 import com.capstone.passfolio.system.security.jwt.util.JwtTokenResolver;
 import com.capstone.passfolio.system.security.jwt.util.JwtTokenValidator;
@@ -86,12 +85,10 @@ public class JwtConfig {
             UserLoadService userLoadService,
             JwtTokenValidator jwtTokenValidator,
             RequestMatcherHolder requestMatcherHolder,
-            ObjectMapper objectMapper,
-            TokenService tokenService,
-            CookieUtils cookieUtils
+            ObjectMapper objectMapper
     ) {
         return new JwtAuthenticationFilter(
                 jwtTokenResolver, userLoadService, jwtTokenValidator,
-                requestMatcherHolder, objectMapper, tokenService, cookieUtils);
+                requestMatcherHolder, objectMapper);
     }
 }
