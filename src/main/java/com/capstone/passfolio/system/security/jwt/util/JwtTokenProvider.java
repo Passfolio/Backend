@@ -54,6 +54,7 @@ public class JwtTokenProvider {
     public JwtDto.TokenData createAccessToken(JwtDto.TokenOptionWrapper tokenOption, String refreshUuid) {
         String jti = UUID.randomUUID().toString();
         LocalDateTime exp = LocalDateTime.now().plusMinutes(accessTokenExpirationMinutes);
+        // LocalDateTime exp = LocalDateTime.now().plusMinutes(2); // Refresh Test
 
         String token = Jwts.builder()
                 .subject(getSubject(tokenOption.getUserPrincipal()))
