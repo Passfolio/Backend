@@ -43,14 +43,7 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
         final OAuth2UserDto oAuth2UserDto = OAuth2UserDto.of(Role.USER, oAuth2Response, hmacUtil);
 
         log.info("Check Whether if the user is already SocialUser");
-        // DB에는 해시된 providerId가 저장되어 있으므로, 비교 전에 해시 처리 필요
-        String hashedProviderId = hmacUtil.hmacSha256Base64(oAuth2Response.getProviderId());
-        ProviderType providerType = ProviderType.from(oAuth2Response.getProvider());
-
-        User user = userRepository.findByProviderIdAndProviderType(
-                hashedProviderId,
-                providerType
-        ).orElse(null);
+        User user = userRepository.findByUsername(generateUsername(oAuth2Response, hmacUtil)).orElse(null);
 
         if (user != null) {
             log.info("🟢 Find existing OAuth2User");
@@ -89,5 +82,10 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
             default -> throw new OAuth2AuthenticationException(ErrorCode.OAUTH_BAD_REQUEST.getMessage());
         }
         return oAuth2Response;
+    }
+
+    private static String generateUsername(OAuth2Response oAuth2Response, HmacUtil hmacUtil) {
+        String hashedId = hmacUtil.hmacSha256Base64(oAuth2Response.getProviderId());
+        return oAuth2Response.getProvider() + "_" + hashedId;
     }
 }

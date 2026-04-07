@@ -37,13 +37,6 @@ public class User extends TimeBaseEntity {
     @Builder.Default
     private Role role = Role.USER;
 
-    @Column(name = "provider_type", nullable = false, length = 20)
-    @Enumerated(EnumType.STRING)
-    private ProviderType providerType;
-
-    @Column(name = "provider_id", nullable = false)
-    private String providerId; // Hashed Data Using HmacUtils
-
     @PrePersist // INSERT 되기 전 실행 (새로운 User 저장 시)
     @PreUpdate  // UPDATE 되기 전 실행 (기존 User 수정 시)
     private void normalize() {
