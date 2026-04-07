@@ -65,7 +65,7 @@ dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-batch'
 
 	// RabbitMQ
-	implementation 'org.springframework.boot:spring-boot-starter-amqp'
+//	implementation 'org.springframework.boot:spring-boot-starter-amqp'
 
 	// Mutex (Distributed Lock)
 	implementation 'org.redisson:redisson-spring-boot-starter:3.27.0'
