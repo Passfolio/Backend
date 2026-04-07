@@ -8,6 +8,7 @@ import com.capstone.passfolio.system.security.jwt.util.JwtTokenResolver;
 import com.capstone.passfolio.system.security.jwt.util.JwtTokenValidator;
 import com.capstone.passfolio.system.util.CookieUtils;
 import com.capstone.passfolio.system.util.UserLoadService;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
 import lombok.extern.slf4j.Slf4j;
@@ -16,7 +17,6 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.util.StringUtils;
-import tools.jackson.databind.ObjectMapper;
 
 import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
