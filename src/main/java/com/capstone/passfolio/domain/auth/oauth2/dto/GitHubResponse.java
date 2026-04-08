@@ -26,5 +26,16 @@ public class GitHubResponse implements OAuth2Response {
         Object avatarUrl = attributes.get("avatar_url");
         return (avatarUrl == null) ? null : avatarUrl.toString();
     }
+
+    public String getLogin() {
+        Object login = attributes.get("login");
+        return (login == null) ? null : login.toString();
+    }
+
+    public Long getGithubNumericId() {
+        Object id = attributes.get("id");
+        if (id == null) return null;
+        return Long.valueOf(id.toString());
+    }
 }
 
