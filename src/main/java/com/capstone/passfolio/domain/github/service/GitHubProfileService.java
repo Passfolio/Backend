@@ -1,7 +1,7 @@
 package com.capstone.passfolio.domain.github.service;
 
 import com.capstone.passfolio.domain.github.client.GitHubApiClient;
-import com.capstone.passfolio.domain.github.dto.*;
+import com.capstone.passfolio.domain.github.dto.GitHubDto;
 import com.capstone.passfolio.domain.github.repository.GitHubTokenRedisRepository;
 import com.capstone.passfolio.domain.github.util.GitHubCursorUtils;
 import com.capstone.passfolio.domain.user.entity.User;
@@ -12,9 +12,8 @@ import com.capstone.passfolio.system.exception.model.RestException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Service;
-
 import org.springframework.http.ResponseEntity;
+import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.Optional;
@@ -34,17 +33,17 @@ public class GitHubProfileService {
 
     private static final int PER_PAGE = 6;
 
-    public GitHubProfileResponse getProfile(Long userId) {
+    public GitHubDto.ProfileResponse getProfile(Long userId) {
         Optional<String> cached = tokenRedisRepository.getCachedProfile(userId);
         if (cached.isPresent()) {
-            GitHubProfileResponse hit = deserialize(cached.get(), GitHubProfileResponse.class);
+            GitHubDto.ProfileResponse hit = deserialize(cached.get(), GitHubDto.ProfileResponse.class);
             if (hit != null) return hit;
         }
 
         try {
             String token = resolveAccessToken(userId);
-            GitHubApiProfileDto api = gitHubApiClient.fetchProfile(token);
-            GitHubProfileResponse response = GitHubProfileResponse.builder()
+            GitHubDto.ApiProfile api = gitHubApiClient.fetchProfile(token);
+            GitHubDto.ProfileResponse response = GitHubDto.ProfileResponse.builder()
                     .login(api.getLogin())
                     .name(api.getName())
                     .avatarUrl(api.getAvatarUrl())
@@ -61,11 +60,11 @@ public class GitHubProfileService {
         }
     }
 
-    public GitHubRepoListResponse getPublicRepos(Long userId, String cursor) {
+    public GitHubDto.RepoListResponse getPublicRepos(Long userId, String cursor) {
         return getPersonalRepos(userId, "public", cursor);
     }
 
-    public GitHubRepoListResponse getPrivateRepos(Long userId, String cursor) {
+    public GitHubDto.RepoListResponse getPrivateRepos(Long userId, String cursor) {
         return getPersonalRepos(userId, "private", cursor);
     }
 
@@ -81,19 +80,19 @@ public class GitHubProfileService {
      *   <li>현재 청크 소진 + GraphQL 마지막 페이지 → nextCursor = null</li>
      * </ul>
      */
-    public GitHubRepoListResponse getOrgRepos(Long userId, String cursor) {
+    public GitHubDto.RepoListResponse getOrgRepos(Long userId, String cursor) {
         var orgCursor = GitHubCursorUtils.decodeOrgCursor(cursor);
         String cacheKey = "organization:" + requireNonNullElse(orgCursor.after(), "") + ":" + orgCursor.offset();
 
         Optional<String> cached = tokenRedisRepository.getCachedRepos(userId, cacheKey, 0);
         if (cached.isPresent()) {
-            GitHubRepoListResponse hit = deserialize(cached.get(), GitHubRepoListResponse.class);
+            GitHubDto.RepoListResponse hit = deserialize(cached.get(), GitHubDto.RepoListResponse.class);
             if (hit != null) return hit;
         }
 
         String token = resolveAccessToken(userId);
 
-        GitHubGraphQLContributedReposResponse graphqlResponse =
+        GitHubDto.ContributedReposResponse graphqlResponse =
                 gitHubApiClient.fetchContributedReposGraphQL(token, orgCursor.after());
 
         var contributedTo = graphqlResponse.getData().getViewer().getRepositoriesContributedTo();
@@ -101,8 +100,9 @@ public class GitHubProfileService {
         String graphqlEndCursor = contributedTo.getPageInfo().getEndCursor();
 
         // 현재 GraphQL 청크에서 org repo 전체 추출
-        List<GitHubRepoDto> allOrgInChunk = requireNonNullElse(contributedTo.getNodes(),
-                        List.<GitHubGraphQLContributedReposResponse.RepoNode>of())
+        List<GitHubDto.RepoItem> allOrgInChunk = requireNonNullElse(
+                        contributedTo.getNodes(),
+                        List.<GitHubDto.ContributedReposResponse.RepoNode>of())
                 .stream()
                 .filter(node -> "Organization".equals(node.getOwner().getTypename()))
                 .map(node -> {
@@ -112,7 +112,7 @@ public class GitHubProfileService {
                     String language = node.getPrimaryLanguage() != null
                             ? node.getPrimaryLanguage().getName()
                             : null;
-                    return GitHubRepoDto.builder()
+                    return GitHubDto.RepoItem.builder()
                             .name(repoName)
                             .description(node.getDescription())
                             .language(language)
@@ -122,7 +122,7 @@ public class GitHubProfileService {
 
         // offset 적용 후 PER_PAGE 만큼 잘라서 반환
         int offset = orgCursor.offset();
-        List<GitHubRepoDto> pageRepos = allOrgInChunk.stream()
+        List<GitHubDto.RepoItem> pageRepos = allOrgInChunk.stream()
                 .skip(offset)
                 .limit(PER_PAGE)
                 .toList();
@@ -140,7 +140,7 @@ public class GitHubProfileService {
             nextCursor = null;
         }
 
-        GitHubRepoListResponse response = GitHubRepoListResponse.builder()
+        GitHubDto.RepoListResponse response = GitHubDto.RepoListResponse.builder()
                 .type("organization")
                 .perPage(pageRepos.size())
                 .nextCursor(nextCursor)
@@ -152,24 +152,24 @@ public class GitHubProfileService {
     }
 
     // affiliation=owner 로 본인 소유 repo만 조회 (org repo 제외)
-    private GitHubRepoListResponse getPersonalRepos(Long userId, String visibility, String cursor) {
+    private GitHubDto.RepoListResponse getPersonalRepos(Long userId, String visibility, String cursor) {
         int page = GitHubCursorUtils.decodePage(cursor);
 
         Optional<String> cached = tokenRedisRepository.getCachedRepos(userId, visibility, page);
         if (cached.isPresent()) {
-            GitHubRepoListResponse hit = deserialize(cached.get(), GitHubRepoListResponse.class);
+            GitHubDto.RepoListResponse hit = deserialize(cached.get(), GitHubDto.RepoListResponse.class);
             if (hit != null) return hit;
         }
 
         String token = resolveAccessToken(userId);
-        ResponseEntity<List<GitHubApiRepoDto>> entity = gitHubApiClient.fetchPersonalRepos(token, visibility, page);
-        List<GitHubApiRepoDto> apiRepos = requireNonNullElse(entity.getBody(), List.of());
-        List<GitHubRepoDto> repos = toRepoDtos(apiRepos);
+        ResponseEntity<List<GitHubDto.ApiRepo>> entity = gitHubApiClient.fetchPersonalRepos(token, visibility, page);
+        List<GitHubDto.ApiRepo> apiRepos = requireNonNullElse(entity.getBody(), List.of());
+        List<GitHubDto.RepoItem> repos = toRepoItems(apiRepos);
 
         // GitHub Link 헤더로 다음 페이지 존재 여부 판단.
         // item 개수 == PER_PAGE 비교는 총 개수가 PER_PAGE 배수일 때 빈 페이지를 오판하므로 사용하지 않는다.
         boolean hasMore = hasNextPage(entity.getHeaders().getFirst("Link"));
-        GitHubRepoListResponse response = GitHubRepoListResponse.builder()
+        GitHubDto.RepoListResponse response = GitHubDto.RepoListResponse.builder()
                 .type(visibility)
                 .perPage(PER_PAGE)
                 .nextCursor(GitHubCursorUtils.encodeCursor(page + 1, hasMore))
@@ -188,9 +188,9 @@ public class GitHubProfileService {
         return linkHeader != null && linkHeader.contains("rel=\"next\"");
     }
 
-    private List<GitHubRepoDto> toRepoDtos(List<GitHubApiRepoDto> apiRepos) {
+    private List<GitHubDto.RepoItem> toRepoItems(List<GitHubDto.ApiRepo> apiRepos) {
         return apiRepos.stream()
-                .map(r -> GitHubRepoDto.builder()
+                .map(r -> GitHubDto.RepoItem.builder()
                         .name(r.getName())
                         .description(r.getDescription())
                         .language(r.getLanguage())
@@ -210,10 +210,10 @@ public class GitHubProfileService {
         }
     }
 
-    private GitHubProfileResponse fallbackProfileFromDb(Long userId) {
+    private GitHubDto.ProfileResponse fallbackProfileFromDb(Long userId) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new RestException(ErrorCode.USER_NOT_FOUND));
-        return GitHubProfileResponse.builder()
+        return GitHubDto.ProfileResponse.builder()
                 .login(user.getGithubLogin())
                 .name(user.getNickname())
                 .avatarUrl(user.getProfileImageUrl())
