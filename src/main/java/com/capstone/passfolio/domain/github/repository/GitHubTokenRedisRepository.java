@@ -53,4 +53,22 @@ public class GitHubTokenRedisRepository {
     public Optional<String> getCachedRepos(Long userId, String type, int page) {
         return Optional.ofNullable(stringRedisTemplate.opsForValue().get(keyRepos(userId, type, page)));
     }
+
+    // --- Profile Cache ---
+
+    private String keyProfile(Long userId) { return "github:profile:" + userId; }
+
+    public void cacheProfile(Long userId, String jsonData) {
+        stringRedisTemplate.opsForValue().set(keyProfile(userId), jsonData, Duration.ofMinutes(10));
+    }
+
+    public Optional<String> getCachedProfile(Long userId) {
+        return Optional.ofNullable(stringRedisTemplate.opsForValue().get(keyProfile(userId)));
+    }
+
+    // --- 캐시 무효화 ---
+
+    public void invalidateProfileCache(Long userId) {
+        stringRedisTemplate.delete(keyProfile(userId));
+    }
 }
