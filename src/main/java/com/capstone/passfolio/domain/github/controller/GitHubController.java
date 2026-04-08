@@ -1,7 +1,6 @@
 package com.capstone.passfolio.domain.github.controller;
 
-import com.capstone.passfolio.domain.github.dto.GitHubProfileResponse;
-import com.capstone.passfolio.domain.github.dto.GitHubRepoListResponse;
+import com.capstone.passfolio.domain.github.dto.GitHubDto;
 import com.capstone.passfolio.domain.github.service.GitHubProfileService;
 import com.capstone.passfolio.system.exception.dto.ErrorResponse;
 import com.capstone.passfolio.system.exception.model.ErrorCode;
@@ -64,7 +63,7 @@ public class GitHubController {
             description = "프로필 조회 성공",
             content = @Content(
                 mediaType = "application/json",
-                schema = @Schema(implementation = GitHubProfileResponse.class),
+                schema = @Schema(implementation = GitHubDto.ProfileResponse.class),
                 examples = @ExampleObject(
                     name = "성공 응답",
                     value = """
@@ -134,7 +133,7 @@ public class GitHubController {
         )
     })
     @GetMapping("/profile")
-    public GitHubProfileResponse getProfile(
+    public GitHubDto.ProfileResponse getProfile(
             @Parameter(hidden = true)
             @AuthenticationPrincipal UserPrincipal userPrincipal) {
         return gitHubProfileService.getProfile(userPrincipal.getUserId());
@@ -178,7 +177,7 @@ public class GitHubController {
             description = "저장소 목록 조회 성공",
             content = @Content(
                 mediaType = "application/json",
-                schema = @Schema(implementation = GitHubRepoListResponse.class),
+                schema = @Schema(implementation = GitHubDto.RepoListResponse.class),
                 examples = {
                     @ExampleObject(
                         name = "public/private 응답 (6개 단위 페이지네이션)",
@@ -321,7 +320,7 @@ public class GitHubController {
         )
     })
     @GetMapping("/repos")
-    public GitHubRepoListResponse getRepos(
+    public GitHubDto.RepoListResponse getRepos(
             @Parameter(hidden = true)
             @AuthenticationPrincipal UserPrincipal userPrincipal,
 
