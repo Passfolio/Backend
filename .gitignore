@@ -62,3 +62,5 @@ src/test/resources/application.yml
 docs/
 .claude/
 CLAUDE.md
+AGEMTS.md
+.codex/
