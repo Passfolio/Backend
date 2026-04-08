@@ -58,9 +58,12 @@ frontend/
 ### Test resources  ###
 src/test/resources/application.yml
 
-### AI Agent
+### AI Agent ###
 docs/
 .claude/
 CLAUDE.md
 AGEMTS.md
 .codex/
+
+### ETC ### 
+projectRule
