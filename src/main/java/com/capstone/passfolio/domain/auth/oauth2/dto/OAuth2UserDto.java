@@ -1,6 +1,5 @@
 package com.capstone.passfolio.domain.auth.oauth2.dto;
 
-import com.capstone.passfolio.domain.auth.oauth2.entity.enums.ProviderType;
 import com.capstone.passfolio.system.util.HmacUtil;
 import com.capstone.passfolio.domain.user.entity.User;
 import com.capstone.passfolio.domain.user.entity.enums.Role;
@@ -37,12 +36,14 @@ public class OAuth2UserDto {
                 .build();
     }
 
-    public User toUser() {
+    public User toUser(Long githubId, String githubLogin) {
         return User.builder()
                 .role(this.role)
                 .nickname(this.nickname)
                 .username(this.username)
                 .profileImageUrl(this.profileImageUrl)
+                .githubId(githubId)
+                .githubLogin(githubLogin)
                 .build();
     }
 
