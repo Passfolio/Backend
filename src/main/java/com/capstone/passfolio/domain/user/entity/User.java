@@ -1,7 +1,6 @@
 package com.capstone.passfolio.domain.user.entity;
 
 import com.capstone.passfolio.common.auditor.TimeBaseEntity;
-import com.capstone.passfolio.domain.auth.oauth2.entity.enums.ProviderType;
 import com.capstone.passfolio.domain.user.entity.enums.Role;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
@@ -16,7 +15,8 @@ import lombok.experimental.SuperBuilder;
 @NoArgsConstructor
 @AllArgsConstructor
 @Table(name = "users", uniqueConstraints = {
-        @UniqueConstraint(name = "USER_USERNAME", columnNames = "username")}
+        @UniqueConstraint(name = "USER_USERNAME", columnNames = "username"),
+        @UniqueConstraint(name = "USER_GITHUB_ID", columnNames = "github_id")}
 )
 public class User extends TimeBaseEntity {
     // TODO: Change to Snowflake
@@ -27,7 +27,7 @@ public class User extends TimeBaseEntity {
     private String nickname;
 
     @Column(nullable = false)
-    private String username;
+    private String username;        // "github_<hmacSha256>" — 내부 식별자
 
     @Column
     private String profileImageUrl;
@@ -36,6 +36,12 @@ public class User extends TimeBaseEntity {
     @Enumerated(EnumType.STRING)
     @Builder.Default
     private Role role = Role.USER;
+
+    @Column(name = "github_id", nullable = false)
+    private Long githubId;          // GitHub numeric user ID
+
+    @Column(name = "github_login", nullable = false)
+    private String githubLogin;     // GitHub login handle (e.g. "hooby")
 
     @PrePersist // INSERT 되기 전 실행 (새로운 User 저장 시)
     @PreUpdate  // UPDATE 되기 전 실행 (기존 User 수정 시)
@@ -53,9 +59,10 @@ public class User extends TimeBaseEntity {
     // }
 
     // OAuth2 사용자 정보 업데이트 (login 시점에서 기존 DB 데이터와 매칭해서 다르면 업데이트. 사용자가 직접 수정 X)
-    public void updateOAuth2Info(String nickname, String email) {
+    public void updateOAuth2Info(String nickname, String profileImageUrl, String githubLogin) {
         this.nickname = nonBlankOrDefault(nickname, this.nickname);
-        this.profileImageUrl = nonBlankOrDefault(email, this.profileImageUrl);
+        this.profileImageUrl = nonBlankOrDefault(profileImageUrl, this.profileImageUrl);
+        this.githubLogin = nonBlankOrDefault(githubLogin, this.githubLogin);
     }
 
     public void updateProfileImageUrl(String profileImageUrl) {
