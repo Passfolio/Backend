@@ -35,7 +35,11 @@ public class GitHubResponse implements OAuth2Response {
     public Long getGithubNumericId() {
         Object id = attributes.get("id");
         if (id == null) return null;
-        return Long.valueOf(id.toString());
+        try {
+            return Long.valueOf(id.toString());
+        } catch (NumberFormatException e) {
+            return null;
+        }
     }
 }
 
