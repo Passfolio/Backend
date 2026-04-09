@@ -165,6 +165,10 @@ public final class GitHubCursorUtils {
             end++;
         }
         if (start == end) return 0;
-        return Integer.parseInt(json.substring(start, end));
+        try {
+            return Integer.parseInt(json.substring(start, end));
+        } catch (NumberFormatException e) {
+            throw new RestException(ErrorCode.BAD_REQUEST);
+        }
     }
 }
