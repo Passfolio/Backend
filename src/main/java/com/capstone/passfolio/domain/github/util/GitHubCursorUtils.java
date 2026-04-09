@@ -168,7 +168,7 @@ public final class GitHubCursorUtils {
         try {
             return Integer.parseInt(json.substring(start, end));
         } catch (NumberFormatException e) {
-            throw new RestException(ErrorCode.BAD_REQUEST);
+            throw new RestException(ErrorCode.GLOBAL_BAD_REQUEST);
         }
     }
 }

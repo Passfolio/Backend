@@ -21,14 +21,14 @@ public class UserDto {
     public static class UserResponse {
         @Schema(description = "PK", example = "1")
         private Long id;
-        @Schema(description = "이메일", example = "user@email.com")
-        private String email;
         @Schema(description = "사용자 역할", example = "USER | ADMIN")
         private Role role;
         @Schema(description = "사용자 닉네임", example = "hades")
         private String nickname;
         @Schema(description = "프로필 이미지 URL", example = "https://avatars.githubusercontent.com/u/12345")
         private String profileImageUrl;
+        @Schema(description = "GitHub Login Name", example = "Youcu")
+        private String githubLogin;
         @Schema(description = "계정 생성 시간", example = "KST Datetime")
         private LocalDateTime createdAt;
         @Schema(description = "마지막 정보 수정 시간", example = "KST Datetime")
@@ -40,10 +40,10 @@ public class UserDto {
                     .role(user.getRole())
                     .nickname(user.getNickname())
                     .profileImageUrl(user.getProfileImageUrl())
+                    .githubLogin(user.getGithubLogin())
                     .createdAt(user.getCreatedAt())
                     .lastModifiedAt(LocalDateTime.now())
                     .build();
         }
     }
 }
-
