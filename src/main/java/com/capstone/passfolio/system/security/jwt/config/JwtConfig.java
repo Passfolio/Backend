@@ -59,8 +59,11 @@ public class JwtConfig {
 
     @Bean
     @ConditionalOnMissingBean
-    public JwtTokenProvider jwtTokenProvider() {
-        return new JwtTokenProvider(secretKey);
+    public JwtTokenProvider jwtTokenProvider(
+            @Value("${jwt.atk-exp-min}") int accessTokenExpirationMinutes,
+            @Value("${jwt.rtk-exp-week}") int refreshTokenExpirationWeeks
+    ) {
+        return new JwtTokenProvider(secretKey, accessTokenExpirationMinutes, refreshTokenExpirationWeeks);
     }
 
     @Bean
