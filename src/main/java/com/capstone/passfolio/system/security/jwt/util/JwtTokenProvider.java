@@ -4,9 +4,7 @@ import com.capstone.passfolio.system.security.jwt.dto.JwtDto;
 import com.capstone.passfolio.system.security.jwt.dto.TokenType;
 import com.capstone.passfolio.system.security.model.UserPrincipal;
 import io.jsonwebtoken.Jwts;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 
 import javax.crypto.SecretKey;
 import java.time.LocalDateTime;
@@ -15,20 +13,21 @@ import java.util.Date;
 import java.util.UUID;
 
 @Slf4j
-@RequiredArgsConstructor
 public class JwtTokenProvider {
     private final SecretKey secretKey;
+    private final int accessTokenExpirationMinutes;
+    private final int refreshTokenExpirationWeeks;
 
-    @Value("${jwt.atk-exp-min}")
-    private int accessTokenExpirationMinutes;
-
-    @Value("${jwt.rtk-exp-week}")
-    private int refreshTokenExpirationWeeks;
+    public JwtTokenProvider(SecretKey secretKey, int accessTokenExpirationMinutes, int refreshTokenExpirationWeeks) {
+        this.secretKey = secretKey;
+        this.accessTokenExpirationMinutes = accessTokenExpirationMinutes;
+        this.refreshTokenExpirationWeeks = refreshTokenExpirationWeeks;
+    }
 
     public JwtDto.TokenData createRefreshToken(JwtDto.TokenOptionWrapper tokenOptions, String refreshUuid) {
         String jti = UUID.randomUUID().toString();
 
-        // 자동 로그인이면 RTK를 3개월로 상정한다.
+        // 자동 로그인이면 RTK를 12주로 상정한다.
         int rtkExpWeeks = tokenOptions.isRememberMe() ? 12 : refreshTokenExpirationWeeks;
 
         LocalDateTime exp = LocalDateTime.now().plusWeeks(rtkExpWeeks);
@@ -54,7 +53,6 @@ public class JwtTokenProvider {
     public JwtDto.TokenData createAccessToken(JwtDto.TokenOptionWrapper tokenOption, String refreshUuid) {
         String jti = UUID.randomUUID().toString();
         LocalDateTime exp = LocalDateTime.now().plusMinutes(accessTokenExpirationMinutes);
-        // LocalDateTime exp = LocalDateTime.now().plusMinutes(2); // Refresh Test
 
         String token = Jwts.builder()
                 .subject(getSubject(tokenOption.getUserPrincipal()))
@@ -100,6 +98,9 @@ public class JwtTokenProvider {
     }
 
     private String getSubject(UserPrincipal userPrincipal) {
+        if (userPrincipal == null) {
+            throw new IllegalArgumentException("userPrincipal must not be null when generating JWT subject");
+        }
         // OAuth2 사용자의 경우 userId가 null이므로 username을 subject로 사용
         return userPrincipal.getUserId() != null
                 ? userPrincipal.getUserId().toString()
