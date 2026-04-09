@@ -23,8 +23,7 @@ public class User extends TimeBaseEntity {
     @Id @GeneratedValue(strategy= GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false)
-    private String nickname;
+    private String nickname; // nullable 할 수 있음
 
     @Column(nullable = false)
     private String username;        // "github_<hmacSha256>" — 내부 식별자
