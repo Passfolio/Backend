@@ -18,28 +18,92 @@ public class DevSpecDto {
     @Builder
     @NoArgsConstructor
     @AllArgsConstructor
-    @Schema(description = "대학교 정보")
-    public static class UniversityInfo {
+    @Schema(description = "개발자 역량 업데이트 요청")
+    public static class DevSpecUpdateRequest {
         @Schema(description = "대학교명", example = "명지대학교")
         private String name;
 
-        @Schema(description = "대학교 도메인", example = "mju.ac.kr")
-        private String domain;
+        @Schema(description = "학제", example = "4년제")
+        private String educationType;
 
-        @Schema(description = "국가 코드", example = "KR")
-        private String countryCode;
+        @Schema(description = "본분교", example = "본교")
+        private String campusType;
 
-        @Schema(description = "국가", example = "Korea, Republic of")
-        private String country;
+        @Schema(description = "시/도", example = "경기")
+        private String region;
+
+        @Schema(description = "학과명", example = "컴퓨터공학과")
+        private String departmentName;
+
+        @Schema(description = "학력코드", example = "0")
+        private int educationLevelCode;
+
+        @Schema(description = "학력", example = "학사")
+        private String educationLevel;
+
+        @Schema(description = "전형/모집단위 페이지 URL", example = "https://example.com/admission")
+        private String pageUrl;
+    }
+
+    @Getter
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Schema(description = "대학교 정보")
+    public static class UniversityInfo {
+        @Schema(description = "대학교 ID", example = "1")
+        private Long id;
+
+        @Schema(description = "대학교명", example = "명지대학교")
+        private String name;
+
+        @Schema(description = "학제", example = "4년제")
+        private String educationType;
+
+        @Schema(description = "본분교", example = "본교")
+        private String campusType;
+
+        @Schema(description = "시/도", example = "경기")
+        private String region;
+
+        @Schema(description = "학과명", example = "컴퓨터공학과")
+        private String departmentName;
+
+        @Schema(description = "학력코드", example = "0")
+        private int educationLevelCode;
+
+        @Schema(description = "학력", example = "학사")
+        private String educationLevel;
+
+        @Schema(description = "전형/모집단위 페이지 URL", example = "https://example.com/admission")
+        private String pageUrl;
 
         public static UniversityInfo from(University university) {
             if (university == null) { return null; }
 
             return UniversityInfo.builder()
+                    .id(university.getId())
                     .name(university.getName())
-                    .domain(university.getDomain())
-                    .countryCode(university.getCountryCode())
-                    .country(university.getCountry())
+                    .educationType(university.getEducationType())
+                    .campusType(university.getCampusType())
+                    .region(university.getRegion())
+                    .departmentName(university.getDepartmentName())
+                    .educationLevelCode(university.getEducationLevelCode())
+                    .educationLevel(university.getEducationLevel())
+                    .pageUrl(university.getPageUrl())
+                    .build();
+        }
+
+        public University toEntity() {
+            return University.builder()
+                    .name(name)
+                    .educationType(educationType)
+                    .campusType(campusType)
+                    .region(region)
+                    .departmentName(departmentName)
+                    .educationLevelCode(educationLevelCode)
+                    .educationLevel(educationLevel)
+                    .pageUrl(pageUrl)
                     .build();
         }
     }
