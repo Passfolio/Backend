@@ -7,13 +7,13 @@ server: # t3.small environment setup -> need to be optimized
 spring:
   # Time Zone Setup ---------------------------------------------------------
   jackson:
-    time-zone: Asia/Seoul # ?? ??? ??? KST? ??
+    time-zone: Asia/Seoul # 모든 시간대 응답을 KST로 통일
     serialization:
       write-dates-as-timestamps: false # WHAT
 
   # Run Profile Environment
   profiles:
-    active: dev # ??? ?? dev, ??? ?? prod
+    active: dev # 개발할 때는 dev, 배포할 때는 prod
 
   # Database Setup ---------------------------------------------------------
   ## RDB Setup ---------------------------------------------------------
@@ -24,8 +24,8 @@ spring:
     password: ${DB_PASSWORD}
     hikari:
       maximum-pool-size: 6 # HikariCP Recommendation : vCPU * 2 + alpha
-      minimum-idle: 6       # ????? ? ?? ?? ??? ??
-      connection-timeout: 30000 # 30? ??
+      minimum-idle: 6       # 고정해두는 게 튀는 부하 방지에 유리
+      connection-timeout: 30000 # wait 30s
 
   ## NoSQL (Redis) Setup ---------------------------------------------------------
   data:
@@ -87,7 +87,7 @@ hmac:
   secret: ${HMAC_SECRET_KEY} # at least 32 characters long
 
 cdn:
-  base-url: ${CDN_BASE_URL:} # CDN? ??? ??, ??? ? ??? (S3 URL ??)
+  base-url: ${CDN_BASE_URL:} # CDN이 있다면 설정, 없으면 빈 문자열 (S3 URL 사용)
 
 ### OAuth2
 github:
@@ -100,8 +100,8 @@ github:
 ratelimit:
   enabled: true
   redis:
-    timeout-fail-open: 200ms     # limiter ?? ? ??? ??
-    timeout-fail-closed: 500ms   # auth? ???? ?? ??
+    timeout-fail-open: 200ms     # limiter 장애 시 빠르게 통과
+    timeout-fail-closed: 500ms   # auth는 차단하되 짧게 실패
   expiration:
     refill-to-max-jitter: 10s
   failure:
@@ -119,12 +119,12 @@ ratelimit:
 management:
   endpoints:
     web:
-      base-path: ${ACTUATOR_ENDPOINT} # ?? ?? ??
+      base-path: ${ACTUATOR_ENDPOINT} # Custom Path
       exposure:
         include: "health,prometheus" # health? prometheus? ?? (env, beans ? ??)
   endpoint:
     health:
-      show-details: always # DB, Disk, Redis ?? ?? ?? ??
+      show-details: always # DB, Disk, Redis -> Detail Connection Status
     prometheus:
       enabled: true # Prometheus Scrape ???
   metrics:
