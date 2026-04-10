@@ -1,6 +1,8 @@
 package com.capstone.passfolio.domain.user.entity;
 
 import com.capstone.passfolio.common.auditor.TimeBaseEntity;
+import com.capstone.passfolio.domain.spec.entity.Job;
+import com.capstone.passfolio.domain.spec.entity.University;
 import com.capstone.passfolio.domain.user.entity.enums.Role;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
@@ -43,6 +45,16 @@ public class User extends TimeBaseEntity {
     @Column(name = "github_login", nullable = false)
     private String githubLogin;     // GitHub login handle (e.g. "hooby")
 
+    // ----- Relation Area ----- //
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "university_id") // 고졸일 가능성
+    private University university;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "job_id", nullable = false)
+    private Job job;
+
+    // ----- Helper Methods Area ----- //
     @PrePersist // INSERT 되기 전 실행 (새로운 User 저장 시)
     @PreUpdate  // UPDATE 되기 전 실행 (기존 User 수정 시)
     private void normalize() {
