@@ -2,7 +2,6 @@ package com.capstone.passfolio.domain.user.entity;
 
 import com.capstone.passfolio.common.auditor.TimeBaseEntity;
 import com.capstone.passfolio.domain.spec.entity.Job;
-import com.capstone.passfolio.domain.spec.entity.University;
 import com.capstone.passfolio.domain.user.entity.enums.Role;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
