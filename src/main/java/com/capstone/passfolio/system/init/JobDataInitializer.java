@@ -5,6 +5,7 @@ import com.capstone.passfolio.domain.spec.entity.enums.JobTag;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.core.io.ClassPathResource;
@@ -17,22 +18,35 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
+@Slf4j
 @Component
 @RequiredArgsConstructor
 public class JobDataInitializer implements ApplicationRunner {
 
-    private static final int BATCH_SIZE = 500;
+    private static final int BATCH_SIZE = 50;
 
     private final ObjectMapper objectMapper;
     private final JdbcTemplate jdbcTemplate;
 
     @Override
     public void run(ApplicationArguments args) throws Exception {
-        InputStream is = new ClassPathResource("data/job_tables.json").getInputStream();
+
+        final String resourcePath = "data/job_tables.json";
+        long startedAtMs = System.currentTimeMillis();
+
+        log.info(
+                "[JobDataInitializer] Initializing started: resource={}, batchSize={}",
+                resourcePath,
+                BATCH_SIZE);
+
+        InputStream is = new ClassPathResource(resourcePath).getInputStream();
         JsonNode root = objectMapper.readTree(is);
 
         List<Job> buffer = new ArrayList<>(BATCH_SIZE);
         Iterator<Map.Entry<String, JsonNode>> fields = root.fields();
+
+        int totalProcessed = 0;
+        int batchesFlushed = 0;
 
         while (fields.hasNext()) {
             Map.Entry<String, JsonNode> entry = fields.next();
@@ -52,14 +66,38 @@ public class JobDataInitializer implements ApplicationRunner {
                 buffer.add(job);
                 if (buffer.size() == BATCH_SIZE) {
                     batchInsert(buffer);
+                    int flushed = buffer.size();
                     buffer.clear();
+                    totalProcessed += flushed;
+                    batchesFlushed++;
+                    log.info(
+                            "[JobDataInitializer] Initializing progress: totalProcessed={}, batchesFlushed={}, lastBatchSize={}",
+                            totalProcessed,
+                            batchesFlushed,
+                            flushed);
                 }
             }
         }
 
         if (!buffer.isEmpty()) {
             batchInsert(buffer);
+            int flushed = buffer.size();
+            buffer.clear();
+            totalProcessed += flushed;
+            batchesFlushed++;
+            log.info(
+                    "[JobDataInitializer] Initializing progress: totalProcessed={}, batchesFlushed={}, lastBatchSize={} (final partial batch)",
+                    totalProcessed,
+                    batchesFlushed,
+                    flushed);
         }
+
+        long elapsedMs = System.currentTimeMillis() - startedAtMs;
+        log.info(
+                "🟢[JobDataInitializer] Initializing completion: totalProcessed={}, batchesFlushed={}, elapsedMs={}",
+                totalProcessed,
+                batchesFlushed,
+                elapsedMs);
     }
 
     private Job mapToEntity(JsonNode node, JobTag tag) {
