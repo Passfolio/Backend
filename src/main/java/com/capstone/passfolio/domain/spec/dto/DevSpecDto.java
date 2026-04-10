@@ -1,18 +1,17 @@
 package com.capstone.passfolio.domain.spec.dto;
 
 import com.capstone.passfolio.domain.spec.entity.DevSpec;
+import com.capstone.passfolio.domain.spec.entity.DevSpecEducation;
 import com.capstone.passfolio.domain.spec.entity.DevSpecJob;
 import com.capstone.passfolio.domain.spec.entity.Job;
 import com.capstone.passfolio.domain.spec.entity.University;
 import com.capstone.passfolio.domain.spec.entity.enums.JobTag;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.*;
-import lombok.extern.slf4j.Slf4j;
 
 import java.util.Collections;
 import java.util.List;
 
-@Slf4j
 public class DevSpecDto {
     @Getter
     @Builder
@@ -20,29 +19,13 @@ public class DevSpecDto {
     @AllArgsConstructor
     @Schema(description = "개발자 역량 업데이트 요청")
     public static class DevSpecUpdateRequest {
-        @Schema(description = "대학교명", example = "명지대학교")
-        private String name;
+        @Schema(description = "경력 연차", example = "1")
+        private Integer experience;
 
-        @Schema(description = "학제", example = "4년제")
-        private String educationType;
-
-        @Schema(description = "본분교", example = "본교")
-        private String campusType;
-
-        @Schema(description = "시/도", example = "경기")
-        private String region;
-
-        @Schema(description = "학과명", example = "컴퓨터공학과")
-        private String departmentName;
-
-        @Schema(description = "학력코드", example = "0")
-        private int educationLevelCode;
-
-        @Schema(description = "학력", example = "학사")
-        private String educationLevel;
-
-        @Schema(description = "전형/모집단위 페이지 URL", example = "https://example.com/admission")
-        private String pageUrl;
+        @Schema(
+                description = "학력 이력: university 테이블 PK 목록. 배열 앞쪽이 display_order가 작은 항목(먼저 경험한 학력 등)으로 저장됩니다.",
+                example = "[1, 2, 3]")
+        private List<Long> educationUniversityIds;
     }
 
     @Getter
@@ -143,8 +126,8 @@ public class DevSpecDto {
         @Schema(description = "경력 연차", example = "1")
         private int experience;
 
-        @Schema(description = "대학교 정보")
-        private UniversityInfo university;
+        @Schema(description = "학력 이력(시간/노출 순서대로)")
+        private List<UniversityInfo> educationHistory;
 
         @Schema(description = "보유 직무 역량 목록")
         private List<JobInfo> jobs;
@@ -160,9 +143,17 @@ public class DevSpecDto {
                     .map(JobInfo::from)
                     .toList();
 
+            List<UniversityInfo> educationHistory = devSpec.getDevSpecEducations() == null
+                    ? Collections.emptyList()
+                    : devSpec.getDevSpecEducations()
+                    .stream()
+                    .map(DevSpecEducation::getUniversity)
+                    .map(UniversityInfo::from)
+                    .toList();
+
             return DevSpecResponse.builder()
                     .experience(devSpec.getExperience())
-                    .university(UniversityInfo.from(devSpec.getUniversity()))
+                    .educationHistory(educationHistory)
                     .jobs(jobInfos)
                     .build();
         }

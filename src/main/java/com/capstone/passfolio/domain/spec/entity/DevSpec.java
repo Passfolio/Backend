@@ -31,10 +31,10 @@ public class DevSpec {
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
-    // 한 대학교는 여러 유저를 보유할 수 있다.
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "university_id") // 고졸일 가능성
-    private University university;
+    @Builder.Default
+    @OneToMany(mappedBy = "devSpec", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OrderBy("displayOrder ASC")
+    private List<DevSpecEducation> devSpecEducations = new ArrayList<>();
 
     @Builder.Default
     @OneToMany(mappedBy = "devSpec", cascade = CascadeType.ALL, orphanRemoval = true)
