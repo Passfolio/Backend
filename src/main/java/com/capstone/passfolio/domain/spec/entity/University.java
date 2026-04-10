@@ -21,12 +21,24 @@ public class University {
     @Column(nullable = false)
     private String name; // 대학교명
 
+    @Column(nullable = false)
+    private String educationType; // 학제
+
+    @Column(nullable = false)
+    private String campusType; // 본분교
+
+    @Column(nullable = false)
+    private String region; // 시/도
+
+    @Column(nullable = false)
+    private String departmentName; // 학과명
+
+    @Column(nullable = false)
+    private int educationLevelCode; // 학력코드
+
+    @Column(nullable = false)
+    private String educationLevel; // 학력
+
     @Column(nullable = false, unique = true)
-    private String domain;
-
-    @Column(nullable = false)
-    private String countryCode; // Ex. KR
-
-    @Column(nullable = false)
-    private String country; // Korea, Republic of
+    private String pageUrl;
 }
