@@ -16,7 +16,7 @@ import lombok.NoArgsConstructor;
         uniqueConstraints = {
                 @UniqueConstraint(
                         name = "UK_DEV_SPEC_EDUCATION",
-                        columnNames = {"dev_spec_id", "university_id"}
+                        columnNames = {"dev_spec_id", "university_department_id"}
                 )
         }
 )
@@ -30,12 +30,9 @@ public class DevSpecEducation {
     private DevSpec devSpec;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "university_id", nullable = false)
-    private University university;
+    @JoinColumn(name = "university_department_id", nullable = false)
+    private UniversityDepartment universityDepartment;
 
-    /**
-     * 이력 노출 순서(오름차순). 동일 스펙 내에서 학사 → 석사 → 박사 등 시간 순을 표현할 때 사용.
-     */
     @Column(name = "display_order", nullable = false)
     private int displayOrder;
 }
