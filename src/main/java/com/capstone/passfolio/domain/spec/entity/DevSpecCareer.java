@@ -12,15 +12,15 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 @Table(
-        name = "dev_spec_job",
+        name = "dev_spec_career",
         uniqueConstraints = {
                 @UniqueConstraint(
-                        name = "UK_DEV_SPEC_JOB",
-                        columnNames = {"dev_spec_id", "job_id"}
+                        name = "UK_DEV_SPEC_CAREER",
+                        columnNames = {"dev_spec_id", "career_id"}
                 )
         }
 )
-public class DevSpecJob {
+public class DevSpecCareer {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -30,6 +30,6 @@ public class DevSpecJob {
     private DevSpec devSpec;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "job_id", nullable = false)
-    private Job job;
+    @JoinColumn(name = "career_id", nullable = false)
+    private Career career;
 }
