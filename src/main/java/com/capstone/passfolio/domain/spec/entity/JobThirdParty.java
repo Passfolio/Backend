@@ -1,6 +1,7 @@
 package com.capstone.passfolio.domain.spec.entity;
 
 import com.capstone.passfolio.domain.spec.entity.enums.JobTag;
+import com.capstone.passfolio.domain.spec.entity.enums.ThirdParty;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -13,22 +14,26 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 @Table(
-        name = "job",
+        name = "job_third_party",
         uniqueConstraints = {
                 @UniqueConstraint(
-                        name = "UK_JOB_KEYWORD_TAG",
-                        columnNames = {"job_keyword", "job_tag"}
+                        name = "UK_JOB_THIRD_PARTY",
+                        columnNames = {"job_code", "third_party"}
                 )
         }
 )
-public class Job {
-    @Id
-    private String id; // DataInitializer -> UuidGenerator.generate(jobTag:jobKeyword)
+public class JobThirdParty {
+    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
 
     @Column(nullable = false, updatable = false)
-    private String jobKeyword;
+    private String jobCode;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, updatable = false)
-    JobTag jobTag; // 3 정규화를 하는게 맞긴한데, 또 너무 쪼개버리면 Join 비용이 있으니까 타협함
+    ThirdParty thirdParty;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "job_id", nullable = false, updatable = false)
+    private Job job;
 }
