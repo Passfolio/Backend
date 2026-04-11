@@ -123,8 +123,8 @@ public class DevSpecDto {
     @Builder
     @NoArgsConstructor
     @AllArgsConstructor
-    @Schema(description = "개발 스펙 응답")
-    public static class DevSpecResponse {
+    @Schema(description = "개발 스펙 업데이트 응답")
+    public static class UpdateResponse {
         @Schema(description = "학력 이력(시간/노출 순서대로)")
         private List<UniversityInfo> educationHistory;
 
