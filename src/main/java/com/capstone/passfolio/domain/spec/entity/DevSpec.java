@@ -38,5 +38,5 @@ public class DevSpec {
 
     @Builder.Default
     @OneToMany(mappedBy = "devSpec", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<DevSpecJob> devSpecJobs = new ArrayList<>();
+    private List<DevSpecCareer> devSpecCareers = new ArrayList<>();
 }

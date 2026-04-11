@@ -1,15 +1,9 @@
 package com.capstone.passfolio.domain.spec.dto;
 
-import com.capstone.passfolio.domain.spec.entity.DevSpec;
-import com.capstone.passfolio.domain.spec.entity.DevSpecEducation;
-import com.capstone.passfolio.domain.spec.entity.DevSpecJob;
-import com.capstone.passfolio.domain.spec.entity.Job;
-import com.capstone.passfolio.domain.spec.entity.University;
-import com.capstone.passfolio.domain.spec.entity.enums.JobTag;
+import com.capstone.passfolio.domain.spec.entity.*;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.*;
 
-import java.util.Collections;
 import java.util.List;
 
 public class DevSpecDto {
@@ -18,14 +12,17 @@ public class DevSpecDto {
     @NoArgsConstructor
     @AllArgsConstructor
     @Schema(description = "개발자 역량 업데이트 요청")
-    public static class DevSpecUpdateRequest {
+    public static class UpdateRequest {
         @Schema(description = "경력 연차", example = "1")
-        private Integer experience;
+        private int experience;
 
         @Schema(
                 description = "학력 이력: university 테이블 PK 목록. 배열 앞쪽이 display_order가 작은 항목(먼저 경험한 학력 등)으로 저장됩니다.",
                 example = "[1, 2, 3]")
-        private List<Long> educationUniversityIds;
+        private List<Long> educationUniversityIds; // TODO: 대학교 검색 기능이 선행되어야 함
+
+        @Schema(description = "직무 정보 아이디 리스트", example = "['uuid1', 'uuid2', ...]")
+        private List<String> careerIds;
     }
 
     @Getter
@@ -58,7 +55,7 @@ public class DevSpecDto {
         @Schema(description = "학력", example = "학사")
         private String educationLevel;
 
-        @Schema(description = "전형/모집단위 페이지 URL", example = "https://example.com/admission")
+        @Schema(description = "학교 홈페이지", example = "https://mju.ac.kr")
         private String pageUrl;
 
         public static UniversityInfo from(University university) {
@@ -96,23 +93,28 @@ public class DevSpecDto {
     @NoArgsConstructor
     @AllArgsConstructor
     @Schema(description = "직무 정보")
-    public static class JobInfo {
-        @Schema(description = "직무 코드", example = "84")
-        private int jobCode;
+    public static class CareerInfo {
+        @Schema(description = "경력", example = "3년")
+        private int experience;
 
-        @Schema(description = "직무 키워드", example = "백엔드/서버개발")
-        private String jobKeyword;
+        @Schema(description = "직무 키워드 리스트", example = "백엔드")
+        private List<String> careerKeywords;
 
-        @Schema(description = "직무 태그", example = "ROLE")
-        private JobTag jobTag;
+        @Schema(description = "전문 분야 리스트", example = "검색엔진")
+        private List<String> careerMajors;
 
-        public static JobInfo from(Job job) {
-            if (job == null) { return null; }
+        @Schema(description = "기술 스택 리스트", example = "Spring Boot")
+        private List<String> careerSkills;
 
-            return JobInfo.builder()
-                    .jobCode(job.getJobCode())
-                    .jobKeyword(job.getJobKeyword())
-                    .jobTag(job.getJobTag())
+        public static CareerInfo of(
+                List<String> careerKeywords,
+                List<String> careerMajors,
+                List<String> careerSkills) {
+
+            return CareerInfo.builder()
+                    .careerKeywords(careerKeywords)
+                    .careerMajors(careerMajors)
+                    .careerSkills(careerMajors)
                     .build();
         }
     }
@@ -123,39 +125,10 @@ public class DevSpecDto {
     @AllArgsConstructor
     @Schema(description = "개발 스펙 응답")
     public static class DevSpecResponse {
-        @Schema(description = "경력 연차", example = "1")
-        private int experience;
-
         @Schema(description = "학력 이력(시간/노출 순서대로)")
         private List<UniversityInfo> educationHistory;
 
         @Schema(description = "보유 직무 역량 목록")
-        private List<JobInfo> jobs;
-
-        public static DevSpecResponse from(DevSpec devSpec) {
-            if (devSpec == null) { return null; }
-
-            List<JobInfo> jobInfos = devSpec.getDevSpecJobs() == null
-                    ? Collections.emptyList()
-                    : devSpec.getDevSpecJobs()
-                    .stream()
-                    .map(DevSpecJob::getJob)
-                    .map(JobInfo::from)
-                    .toList();
-
-            List<UniversityInfo> educationHistory = devSpec.getDevSpecEducations() == null
-                    ? Collections.emptyList()
-                    : devSpec.getDevSpecEducations()
-                    .stream()
-                    .map(DevSpecEducation::getUniversity)
-                    .map(UniversityInfo::from)
-                    .toList();
-
-            return DevSpecResponse.builder()
-                    .experience(devSpec.getExperience())
-                    .educationHistory(educationHistory)
-                    .jobs(jobInfos)
-                    .build();
-        }
+        private List<CareerInfo> careers;
     }
 }
