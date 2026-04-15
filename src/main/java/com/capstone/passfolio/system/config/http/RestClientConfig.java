@@ -1,5 +1,6 @@
 package com.capstone.passfolio.system.config.http;
 
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.client.JdkClientHttpRequestFactory;
@@ -11,6 +12,8 @@ import java.util.concurrent.Executors;
 
 @Configuration
 public class RestClientConfig {
+
+    public static final String GOV_DATA_REST_CLIENT = "govDataRestClient";
 
     @Bean
     public RestClient restClient() {
@@ -26,6 +29,26 @@ public class RestClientConfig {
         requestFactory.setReadTimeout(Duration.ofSeconds(5)); // 읽기 타임아웃 5초
 
         // 3. RestClient 빌드
+        return RestClient.builder()
+                .requestFactory(requestFactory)
+                .build();
+    }
+
+    /**
+     * 공공데이터포털 등 외부 공공 API용: 연결·읽기 타임아웃을 조금 넉넉히 둔다.
+     */
+    @Bean
+    @Qualifier(GOV_DATA_REST_CLIENT)
+    public RestClient govDataRestClient() {
+        HttpClient jdkHttpClient = HttpClient.newBuilder()
+                .version(HttpClient.Version.HTTP_2)
+                .connectTimeout(Duration.ofSeconds(3))
+                .executor(Executors.newVirtualThreadPerTaskExecutor())
+                .build();
+
+        JdkClientHttpRequestFactory requestFactory = new JdkClientHttpRequestFactory(jdkHttpClient);
+        requestFactory.setReadTimeout(Duration.ofSeconds(30));
+
         return RestClient.builder()
                 .requestFactory(requestFactory)
                 .build();
