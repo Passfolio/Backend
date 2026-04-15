@@ -33,3 +33,9 @@ app:
   # Origin/Referer 헤더에 따라 자동으로 선택됨
   front-redirect-uri: "${FRONT_REDIRECT_URI:http://localhost:5173/oauth/callback,http://localhost:3000/oauth/callback}"
   front-base-url: "${FRONT_BASE_URL:http://localhost:5173,http://localhost:3000}"
+
+springdoc:
+  swagger-ui:
+    enabled: true
+  api-docs:
+    enabled: true
