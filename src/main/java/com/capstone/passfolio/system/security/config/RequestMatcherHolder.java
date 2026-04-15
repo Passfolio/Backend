@@ -19,8 +19,9 @@ import java.util.concurrent.ConcurrentHashMap;
 @Component
 public class RequestMatcherHolder {
 
-    @Value("${management.endpoints.web.base-path}")
-    private String actuatorBasePath;
+    @Value("${management.endpoints.web.base-path}") private String actuatorBasePath;
+    @Value("${springdoc.swagger-ui.path}") private String swaggerUiPath;
+    @Value("${springdoc.api-docs.path}") private String swaggerSpecPath;
 
     // PathPattern 파서를 한 번만 준비 (thread-safe)
     private static final PathPatternParser PARSER = new PathPatternParser();
@@ -35,7 +36,10 @@ public class RequestMatcherHolder {
             new RequestInfo(HttpMethod.GET, "/api/v1/auth/logout/callback", null),
 
             // system
-            new RequestInfo(null, "/api/system/**", null),
+            new RequestInfo(null, "/api/v1/system/**", null),
+
+            // Swagger UI·OpenAPI가 /api/v1 아래에 있을 때: 만료 ATK/RTK 쿠키가 있어도 문서 접근 가능해야 함
+            new RequestInfo(null, "/api/v1/swagger/**", null),
 
             new RequestInfo(HttpMethod.GET, "/oembed", null),      // oEmbed JSON Provider
             new RequestInfo(HttpMethod.GET, "/share/**", null),    // Thymeleaf Share Page
@@ -45,8 +49,6 @@ public class RequestMatcherHolder {
             new RequestInfo(HttpMethod.GET,  "/*.ico", null),
             new RequestInfo(HttpMethod.GET,  "/resources/**", null),
             new RequestInfo(HttpMethod.GET,  "/error", null),
-            new RequestInfo(HttpMethod.GET,  "/swagger-ui/**", null),
-            new RequestInfo(HttpMethod.GET,  "/v3/api-docs/**", null),
             new RequestInfo(HttpMethod.GET,  "/", null),
 
             // robots (JWT 미적용 / permitAll)
@@ -61,7 +63,7 @@ public class RequestMatcherHolder {
     private final ConcurrentHashMap<String, RequestMatcher> reqMatcherCacheMap = new ConcurrentHashMap<>();
 
     /**
-     * 최소 권한이 주어진 요청에 대한 RequestMatcher 반환 (캐시)
+     * 최소 권한이 주어진 요청에 대한 RequestMatcher 반환
      */
     public RequestMatcher getRequestMatchersByMinRole(@Nullable Role minRole) {
         var key = (minRole == null ? "VISITOR" : minRole.name());
@@ -77,21 +79,31 @@ public class RequestMatcherHolder {
             if (!base.startsWith("/")) base = "/" + base;
             if (base.endsWith("/")) base = base.substring(0, base.length() - 1);
             String actuatorPattern = base + "/**";
+
             RequestMatcher actuatorMatcher = toRequestMatcher(
                     new RequestInfo(HttpMethod.GET, actuatorPattern, null)
             );
 
-            // 기존 + actuator 합치기
-            RequestMatcher[] merged = new RequestMatcher[matchers.length + 1];
+            RequestMatcher swaggerUiMatcher = swaggerTreeMatcher(swaggerUiPath);
+            RequestMatcher swaggerApiMatcher = swaggerTreeMatcher(swaggerSpecPath);
+
+            // 기존 + 동적 Path 합치기
+            RequestMatcher[] merged = new RequestMatcher[matchers.length + 3];
             System.arraycopy(matchers, 0, merged, 0, matchers.length);
+
+            // actuator
             merged[matchers.length] = actuatorMatcher;
+
+            // swagger
+            merged[matchers.length + 1] = swaggerUiMatcher;
+            merged[matchers.length + 2] = swaggerApiMatcher;
 
             return new OrRequestMatcher(merged);
         });
     }
 
     /**
-     * SecurityConfig에 직접 명시된 permitAll 엔드포인트들에 대한 RequestMatcher 반환 (캐시)
+     * SecurityConfig에 직접 명시된 permitAll 엔드포인트들에 대한 RequestMatcher 반환
      * @return SecurityConfig의 permitAll 엔드포인트면 true
      */
     public RequestMatcher getSecurityConfigPermitAllMatcher() {
@@ -104,7 +116,7 @@ public class RequestMatcherHolder {
     }
 
     /**
-     * /api/v1/**로 시작하는 모든 경로에 대한 RequestMatcher 반환 (캐시)
+     * /api/v1/**로 시작하는 모든 경로에 대한 RequestMatcher 반환
      * @return /api/v1/**로 시작하는 경로면 true
      */
     public RequestMatcher getApiRequestMatcher() {
@@ -124,6 +136,24 @@ public class RequestMatcherHolder {
     /**
      * 단일 항목을 PathPattern 기반 RequestMatcher 로 변환
      */
+    private static String normalizeSwaggerPath(String path) {
+        if (path == null || path.isBlank()) {
+            return "";
+        }
+        return path.startsWith("/") ? path : "/" + path;
+    }
+
+    /**
+     * springdoc 경로가 비어 있으면 {@code /**} 같은 위험한 패턴을 만들지 않고 매칭하지 않는다.
+     */
+    private RequestMatcher swaggerTreeMatcher(String configuredPath) {
+        String normalized = normalizeSwaggerPath(configuredPath);
+        if (normalized.isBlank()) {
+            return request -> false;
+        }
+        return toRequestMatcher(new RequestInfo(null, normalized + "/**", null));
+    }
+
     private RequestMatcher toRequestMatcher(RequestInfo info) {
         final PathPattern pattern = PARSER.parse(info.pattern());
         final HttpMethod method = info.method();

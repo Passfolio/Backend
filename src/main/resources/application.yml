@@ -141,3 +141,13 @@ management:
 aws:
   stepfunction:
     arn: ${STEP_FUNCTION_ARN:}
+
+# Swagger (Prod에선 Open 비활성화: 릴리즈 전까지만 오픈->주석처리)
+springdoc:
+  swagger-ui:
+    path: ${SWAGGER_UI_PATH}   # UI
+#      enabled: false
+  api-docs:
+    path: ${SWAGGER_JSON_PATH}  # JSON
+#      enabled: false
+# TODO: MANAGER 계정만 Swagger Path 허용
