@@ -10,10 +10,7 @@ import org.springframework.http.HttpStatus;
 @Builder
 @Schema(description = "에러 응답 DTO")
 public class ErrorResponse {
-    @Schema(description = "HTTP 상태 코드", example = "BAD_REQUEST", type = "string", allowableValues = {
-            "BAD_REQUEST", "UNAUTHORIZED", "FORBIDDEN", "NOT_FOUND", "CONFLICT",
-            "TOO_MANY_REQUESTS", "INTERNAL_SERVER_ERROR"
-    })
+    @Schema(description = "HTTP 상태 코드", example = "BAD_REQUEST", type = "string")
     public final HttpStatus status;
     
     @Schema(description = "에러 코드", example = "GLOBAL_INVALID_PARAMETER")
