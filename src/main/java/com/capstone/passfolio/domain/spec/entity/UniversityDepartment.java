@@ -14,19 +14,7 @@ import lombok.NoArgsConstructor;
 @Getter
 @NoArgsConstructor
 @AllArgsConstructor
-@Table(
-        name = "university_department",
-        uniqueConstraints = {
-                @UniqueConstraint(
-                        name = "UK_UNIVERSITY_DEPARTMENT",
-                        columnNames = {
-                                "university_id",
-                                "department_name",
-                                "education_level_code"
-                        }
-                )
-        }
-)
+@Table(name = "university_department")
 public class UniversityDepartment {
 
     @Id
@@ -38,11 +26,11 @@ public class UniversityDepartment {
     private University university;
 
     @Column(nullable = false, updatable = false)
-    private String departmentName;
+    private String department;
 
     @Column(nullable = false, updatable = false)
-    private int educationLevelCode;
+    private String degree;
 
     @Column(nullable = false, updatable = false)
-    private String educationLevel;
+    private String duration;
 }

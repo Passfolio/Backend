@@ -27,7 +27,7 @@ public class DevSpecEducation {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "dev_spec_id", nullable = false)
-    private DevSpec devSpec;
+    private DevSpec devSpec; // = a User
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "university_department_id", nullable = false)

@@ -15,9 +15,7 @@ import org.springframework.stereotype.Component;
 
 import java.io.InputStream;
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 
 @Slf4j
 @Component
@@ -32,33 +30,45 @@ public class UniversityDataInitializer implements ApplicationRunner {
 
     @Override
     public void run(ApplicationArguments args) throws Exception {
-
-        final String resourcePath = "data/2025_university_department_data_processed.json";
+        final String universityResourcePath = "data/universities.json";
+        final String departmentResourcePath = "data/university_department.json";
         long startedAtMs = System.currentTimeMillis();
 
         log.info(
-                "[UniversityDataInitializer] Initializing started: resource={}, universityBatch={}, departmentBatch={}",
-                resourcePath,
+                "[UniversityDataInitializer] Initializing started: universitiesResource={}, departmentsResource={}, universityBatch={}, departmentBatch={}",
+                universityResourcePath,
+                departmentResourcePath,
                 UNIVERSITY_BATCH_SIZE,
                 DEPARTMENT_BATCH_SIZE);
 
-        ClassPathResource resource = new ClassPathResource(resourcePath);
+        if (alreadyInitialized()) {
+            log.info("[UniversityDataInitializer] Skip initialization: data already exists in university and university_department tables");
+            return;
+        }
 
-        Map<String, University> uniqueUniversities = collectUniqueUniversities(resource);
-        insertUniversitiesInBatches(uniqueUniversities);
-
-        int totalDepartments = insertAllDepartments(resource);
+        int totalUniversities = insertAllUniversities(new ClassPathResource(universityResourcePath));
+        int totalDepartments = insertAllDepartments(new ClassPathResource(departmentResourcePath));
+        syncUniversityDepartmentIdentitySequence();
 
         long elapsedMs = System.currentTimeMillis() - startedAtMs;
         log.info(
-                "🟢[UniversityDataInitializer] Initializing completion: uniqueUniversities={}, departmentRowsProcessed={}, elapsedMs={}",
-                uniqueUniversities.size(),
+                "🟢[UniversityDataInitializer] Initializing completion: universitiesProcessed={}, departmentRowsProcessed={}, elapsedMs={}",
+                totalUniversities,
                 totalDepartments,
                 elapsedMs);
     }
 
-    private Map<String, University> collectUniqueUniversities(ClassPathResource resource) throws Exception {
-        Map<String, University> byId = new LinkedHashMap<>();
+    private boolean alreadyInitialized() {
+        Long universityCount = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM university", Long.class);
+        Long departmentCount = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM university_department", Long.class);
+        return universityCount != null && universityCount > 0
+                && departmentCount != null && departmentCount > 0;
+    }
+
+    private int insertAllUniversities(ClassPathResource resource) throws Exception {
+        List<University> buffer = new ArrayList<>(UNIVERSITY_BATCH_SIZE);
+        int total = 0;
+        int batches = 0;
 
         try (InputStream is = resource.getInputStream();
                 JsonParser parser = objectMapper.getFactory().createParser(is)) {
@@ -69,51 +79,35 @@ public class UniversityDataInitializer implements ApplicationRunner {
 
             while (parser.nextToken() == JsonToken.START_OBJECT) {
                 JsonNode node = objectMapper.readTree(parser);
-                ParsedRow row = parseRow(node);
-                if (row == null) {
-                    continue;
+                University row = parseUniversityRow(node);
+
+                if (row == null) { continue; }
+
+                buffer.add(row);
+                if (buffer.size() >= UNIVERSITY_BATCH_SIZE) {
+                    batchInsertUniversities(buffer);
+                    total += buffer.size();
+                    buffer.clear();
+                    batches++;
+                    log.info(
+                            "[UniversityDataInitializer] University insert progress: totalRows={}, batchesFlushed={}",
+                            total,
+                            batches);
                 }
-
-                String univId = University.deterministicId(
-                        row.name(),
-                        row.educationType(),
-                        row.campusType(),
-                        row.region());
-
-                byId.putIfAbsent(
-                        univId,
-                        University.builder()
-                                .id(univId)
-                                .name(row.name())
-                                .educationType(row.educationType())
-                                .campusType(row.campusType())
-                                .region(row.region())
-                                .pageUrl(row.pageUrl())
-                                .build());
             }
         }
 
-        log.info("[UniversityDataInitializer] Pass1 done: uniqueUniversities={}", byId.size());
-        return byId;
-    }
-
-    private void insertUniversitiesInBatches(Map<String, University> uniqueUniversities) {
-        List<University> buffer = new ArrayList<>(UNIVERSITY_BATCH_SIZE);
-        int batches = 0;
-        for (University u : uniqueUniversities.values()) {
-            buffer.add(u);
-            if (buffer.size() >= UNIVERSITY_BATCH_SIZE) {
-                batchInsertUniversities(buffer);
-                buffer.clear();
-                batches++;
-                log.info("[UniversityDataInitializer] University insert progress: batchesFlushed={}", batches);
-            }
-        }
         if (!buffer.isEmpty()) {
             batchInsertUniversities(buffer);
+            total += buffer.size();
             batches++;
-            log.info("[UniversityDataInitializer] University insert progress: batchesFlushed={} (final)", batches);
+            log.info(
+                    "[UniversityDataInitializer] University insert progress: totalRows={}, batchesFlushed={} (final)",
+                    total,
+                    batches);
         }
+
+        return total;
     }
 
     private int insertAllDepartments(ClassPathResource resource) throws Exception {
@@ -130,22 +124,12 @@ public class UniversityDataInitializer implements ApplicationRunner {
 
             while (parser.nextToken() == JsonToken.START_OBJECT) {
                 JsonNode node = objectMapper.readTree(parser);
-                ParsedRow row = parseRow(node);
+                DepartmentInsertRow row = parseDepartmentRow(node);
                 if (row == null) {
                     continue;
                 }
 
-                String univId = University.deterministicId(
-                        row.name(),
-                        row.educationType(),
-                        row.campusType(),
-                        row.region());
-
-                buffer.add(new DepartmentInsertRow(
-                        univId,
-                        row.departmentName(),
-                        row.educationLevelCode(),
-                        row.educationLevel()));
+                buffer.add(row);
 
                 if (buffer.size() >= DEPARTMENT_BATCH_SIZE) {
                     batchInsertDepartments(buffer);
@@ -173,29 +157,41 @@ public class UniversityDataInitializer implements ApplicationRunner {
         return total;
     }
 
-    private ParsedRow parseRow(JsonNode node) {
-        String name = normalizeName(getText(node, "학교명"));
-        if (name.isBlank()) {
+    private University parseUniversityRow(JsonNode node) {
+        String id = normalizeText(getText(node, "univ_uuid"));
+        String name = normalizeText(getText(node, "univ_name"));
+        String type = normalizeText(getText(node, "univ_type"));
+        String region = normalizeText(getText(node, "region"));
+        if (id.isBlank() || name.isBlank() || type.isBlank() || region.isBlank()) {
             return null;
         }
-        String educationType = normalizeText(getText(node, "학제"));
-        String campusType = normalizeText(getText(node, "본분교"));
-        String region = normalizeText(getText(node, "시도"));
-        String departmentName = normalizeText(getText(node, "학과명"));
-        if (departmentName.isBlank()) {
-            return null;
-        }
-        int educationLevelCode = getInt(node, "학력코드");
-        String educationLevel = normalizeText(getText(node, "학력"));
-        String pageUrl = normalizePageUrl(getText(node, "홈페이지"));
 
-        return new ParsedRow(name, educationType, campusType, region, departmentName, educationLevelCode, educationLevel, pageUrl);
+        return University.builder()
+                .id(id)
+                .name(name)
+                .type(type)
+                .region(region)
+                .build();
+    }
+
+    private DepartmentInsertRow parseDepartmentRow(JsonNode node) {
+        long id = getLong(node, "department_id");
+        String universityId = normalizeText(getText(node, "univ_uuid"));
+        String department = normalizeText(getText(node, "department"));
+        String degree = normalizeText(getText(node, "degree"));
+        String duration = normalizeText(getText(node, "duration"));
+
+        if (id <= 0 || universityId.isBlank() || department.isBlank() || degree.isBlank() || duration.isBlank()) {
+            return null;
+        }
+
+        return new DepartmentInsertRow(id, universityId, department, degree, duration);
     }
 
     private void batchInsertUniversities(List<University> list) {
         String sql = """
-                INSERT INTO university (id, name, education_type, campus_type, region, page_url)
-                VALUES (?, ?, ?, ?, ?, ?)
+                INSERT INTO university (id, name, type, region)
+                VALUES (?, ?, ?, ?)
                 ON CONFLICT (id) DO NOTHING
                 """;
 
@@ -203,26 +199,25 @@ public class UniversityDataInitializer implements ApplicationRunner {
                 (ps, entity) -> {
                     ps.setString(1, entity.getId());
                     ps.setString(2, entity.getName());
-                    ps.setString(3, entity.getEducationType());
-                    ps.setString(4, entity.getCampusType());
-                    ps.setString(5, entity.getRegion());
-                    ps.setString(6, entity.getPageUrl());
+                    ps.setString(3, entity.getType());
+                    ps.setString(4, entity.getRegion());
                 });
     }
 
     private void batchInsertDepartments(List<DepartmentInsertRow> rows) {
         String sql = """
-                INSERT INTO university_department (university_id, department_name, education_level_code, education_level)
-                VALUES (?, ?, ?, ?)
-                ON CONFLICT (university_id, department_name, education_level_code) DO NOTHING
+                INSERT INTO university_department (id, university_id, department, degree, duration)
+                VALUES (?, ?, ?, ?, ?)
+                ON CONFLICT (id) DO NOTHING
                 """;
 
         jdbcTemplate.batchUpdate(sql, rows, rows.size(),
                 (ps, row) -> {
-                    ps.setString(1, row.universityId());
-                    ps.setString(2, row.departmentName());
-                    ps.setInt(3, row.educationLevelCode());
-                    ps.setString(4, row.educationLevel());
+                    ps.setLong(1, row.id());
+                    ps.setString(2, row.universityId());
+                    ps.setString(3, row.department());
+                    ps.setString(4, row.degree());
+                    ps.setString(5, row.duration());
                 });
     }
 
@@ -231,18 +226,12 @@ public class UniversityDataInitializer implements ApplicationRunner {
         return value != null ? value.asText().trim() : "";
     }
 
-    private int getInt(JsonNode node, String field) {
+    private long getLong(JsonNode node, String field) {
         JsonNode value = node.get(field);
         if (value == null || value.isNull()) {
             return 0;
         }
-        return value.asInt(0);
-    }
-
-    private String normalizeName(String raw) {
-        return raw
-                .trim()
-                .replaceAll("\\s+", " ");
+        return value.asLong(0);
     }
 
     private String normalizeText(String raw) {
@@ -251,25 +240,22 @@ public class UniversityDataInitializer implements ApplicationRunner {
                 .replaceAll("\\s+", " ");
     }
 
-    private String normalizePageUrl(String raw) {
-        return raw == null ? "" : raw.trim();
+    private void syncUniversityDepartmentIdentitySequence() {
+        String sql = """
+                SELECT setval(
+                    pg_get_serial_sequence('university_department', 'id'),
+                    COALESCE((SELECT MAX(id) FROM university_department), 1),
+                    true
+                )
+                """;
+        jdbcTemplate.queryForObject(sql, Long.class);
     }
 
-    private record ParsedRow(
-            String name,
-            String educationType,
-            String campusType,
-            String region,
-            String departmentName,
-            int educationLevelCode,
-            String educationLevel,
-            String pageUrl
-    ) {}
-
     private record DepartmentInsertRow(
+            long id,
             String universityId,
-            String departmentName,
-            int educationLevelCode,
-            String educationLevel
+            String department,
+            String degree,
+            String duration
     ) {}
 }
