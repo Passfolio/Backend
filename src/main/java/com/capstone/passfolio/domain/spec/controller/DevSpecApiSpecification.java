@@ -5,6 +5,7 @@ import com.capstone.passfolio.system.exception.dto.ErrorResponse;
 import com.capstone.passfolio.system.security.model.UserPrincipal;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.ExampleObject;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -16,11 +17,115 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.MediaType;
 
+import java.util.List;
+
 @Tag(
         name = "DevSpec",
         description = "로그인 사용자 개발 스펙(학력·직무) API")
 @SecurityRequirement(name = "bearerAuth")
 public interface DevSpecApiSpecification {
+
+    @Operation(
+            summary = "개발 스펙 조회",
+            description = """
+                    현재 로그인한 사용자의 `dev_spec` 스냅샷을 반환합니다.
+
+                    - `dev_spec` 행이 없으면 경력 0, 빈 배열과 동일한 기본값을 돌려줍니다.
+                    - 저장에 필요한 id 목록(`universityDepartmentIds`, `careerIds`)은 **PATCH 요청**에만 보냅니다. 조회 응답에는 포함되지 않습니다.
+                    - `educationHistory`는 학교·학과 등 표시용 필드만 포함합니다.
+                    """)
+    @ApiResponses(
+            value = {
+                @ApiResponse(
+                        responseCode = "200",
+                        description = "조회 성공",
+                        content =
+                                @Content(
+                                        mediaType = MediaType.APPLICATION_JSON_VALUE,
+                                        schema = @Schema(implementation = DevSpecDto.UpdateResponse.class))),
+                @ApiResponse(
+                        responseCode = "401",
+                        description = "인증 실패",
+                        content =
+                                @Content(
+                                        mediaType = MediaType.APPLICATION_JSON_VALUE,
+                                        schema = @Schema(implementation = ErrorResponse.class))),
+                @ApiResponse(
+                        responseCode = "404",
+                        description = "DB에 사용자 행이 없을 때 (`USER_NOT_FOUND`)",
+                        content =
+                                @Content(
+                                        mediaType = MediaType.APPLICATION_JSON_VALUE,
+                                        schema = @Schema(implementation = ErrorResponse.class)))
+            })
+    DevSpecDto.UpdateResponse getMyDevSpec(@Parameter(hidden = true) UserPrincipal userPrincipal);
+
+    @Operation(
+            summary = "학력 이력 조회",
+            description = """
+                    로그인 사용자의 학력(`dev_spec_education` + `university_department`)만 시간 순으로 반환합니다.
+
+                    - `dev_spec`이 없으면 빈 배열 `[]`입니다.
+                    """)
+    @ApiResponses(
+            value = {
+                @ApiResponse(
+                        responseCode = "200",
+                        description = "조회 성공",
+                        content =
+                                @Content(
+                                        mediaType = MediaType.APPLICATION_JSON_VALUE,
+                                        array = @ArraySchema(schema = @Schema(implementation = DevSpecDto.EducationHistoryItem.class)))),
+                @ApiResponse(
+                        responseCode = "401",
+                        description = "인증 실패",
+                        content =
+                                @Content(
+                                        mediaType = MediaType.APPLICATION_JSON_VALUE,
+                                        schema = @Schema(implementation = ErrorResponse.class))),
+                @ApiResponse(
+                        responseCode = "404",
+                        description = "`USER_NOT_FOUND`",
+                        content =
+                                @Content(
+                                        mediaType = MediaType.APPLICATION_JSON_VALUE,
+                                        schema = @Schema(implementation = ErrorResponse.class)))
+            })
+    List<DevSpecDto.EducationHistoryItem> getMyEducationHistory(
+            @Parameter(hidden = true) UserPrincipal userPrincipal);
+
+    @Operation(
+            summary = "직무(Career) 조회",
+            description = """
+                    로그인 사용자의 경력 연차와 선택한 career 키워드(역할·전공·스킬 태그별)를 반환합니다.
+
+                    - `dev_spec`이 없으면 연차 0, 빈 키워드 목록과 동일한 값입니다.
+                    """)
+    @ApiResponses(
+            value = {
+                @ApiResponse(
+                        responseCode = "200",
+                        description = "조회 성공",
+                        content =
+                                @Content(
+                                        mediaType = MediaType.APPLICATION_JSON_VALUE,
+                                        schema = @Schema(implementation = DevSpecDto.CareerReadResponse.class))),
+                @ApiResponse(
+                        responseCode = "401",
+                        description = "인증 실패",
+                        content =
+                                @Content(
+                                        mediaType = MediaType.APPLICATION_JSON_VALUE,
+                                        schema = @Schema(implementation = ErrorResponse.class))),
+                @ApiResponse(
+                        responseCode = "404",
+                        description = "`USER_NOT_FOUND`",
+                        content =
+                                @Content(
+                                        mediaType = MediaType.APPLICATION_JSON_VALUE,
+                                        schema = @Schema(implementation = ErrorResponse.class)))
+            })
+    DevSpecDto.CareerReadResponse getMyCareer(@Parameter(hidden = true) UserPrincipal userPrincipal);
 
     @Operation(
             summary = "개발 스펙 업데이트",
@@ -48,7 +153,8 @@ public interface DevSpecApiSpecification {
                     - `universityDepartmentIds`·`careerIds`에 적은 id가 DB에 없으면 `400` + 메시지로 구분됩니다.
 
                     ## 응답
-                    - 저장된 학력을 `educationHistory`로, 직무 키워드는 태그별로 묶인 `careers` 배열(보통 1개 요소)로 돌려줍니다.
+                    - 표시용 스냅샷만 반환합니다. `experience`는 최상위에 한 번, 직무 키워드는 `careers`에 태그별로 묶입니다.
+                    - id 배열은 응답에 포함하지 않습니다. 수정 시에는 PATCH 요청에 `universityDepartmentIds`, `careerIds`를 다시 보냅니다.
                     """)
     @ApiResponses(
             value = {
@@ -66,10 +172,9 @@ public interface DevSpecApiSpecification {
                                                         value =
                                                                 """
                                                                 {
+                                                                  "experience": 3,
                                                                   "educationHistory": [
                                                                     {
-                                                                      "universityDepartmentId": 101,
-                                                                      "universityId": "974e3117-0247-58bf-a4bb-d6720754c59c",
                                                                       "name": "명지대학교",
                                                                       "type": "대학교",
                                                                       "region": "서울특별시",
@@ -80,7 +185,6 @@ public interface DevSpecApiSpecification {
                                                                   ],
                                                                   "careers": [
                                                                     {
-                                                                      "experience": 3,
                                                                       "careerKeywords": ["백엔드 개발자"],
                                                                       "careerMajors": ["검색엔진"],
                                                                       "careerSkills": ["Spring Boot", "Java"]
