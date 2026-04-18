@@ -39,4 +39,16 @@ public class DevSpec {
     @Builder.Default
     @OneToMany(mappedBy = "devSpec", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<DevSpecCareer> devSpecCareers = new ArrayList<>();
+
+    public void updateExperience(int experience) {
+        this.experience = experience;
+    }
+
+    /** 신규 사용자에 대한 빈 dev_spec (persist 시 {@code @MapsId}로 user_id 연결). */
+    public static DevSpec createFor(User user) {
+        return DevSpec.builder()
+                .user(user)
+                .experience(0)
+                .build();
+    }
 }

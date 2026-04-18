@@ -35,4 +35,12 @@ public class DevSpecEducation {
 
     @Column(name = "display_order", nullable = false)
     private int displayOrder;
+
+    public static DevSpecEducation of(DevSpec devSpec, UniversityDepartment universityDepartment, int displayOrder) {
+        return DevSpecEducation.builder()
+                .devSpec(devSpec)
+                .universityDepartment(universityDepartment)
+                .displayOrder(displayOrder)
+                .build();
+    }
 }
