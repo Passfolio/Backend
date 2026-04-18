@@ -38,6 +38,17 @@ services:
     networks:
       - backend-network
 
+  # SMTP 1025 → 앱 spring.mail, 웹 UI 8025 → 수신 메일 확인 (MailHog)
+  mailhog:
+    image: mailhog/mailhog:latest
+    container_name: mailhog-container
+    restart: unless-stopped
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+    networks:
+      - backend-network
+
 networks:
   backend-network:
 
