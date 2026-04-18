@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Passfolio - 이메일 인증</title>
+    <script>
+        function copyToClipboard() {
+            const verificationCode = document.getElementById("verificationCode").innerText.trim();
+            navigator.clipboard.writeText(verificationCode).then(() => {
+                alert("인증번호가 복사되었습니다!");
+            }).catch(err => {
+                console.error("복사 실패: ", err);
+            });
+        }
+    </script>
+</head>
+<body style="font-family: Arial, sans-serif; background-color: #f9f9f9; margin-top: 5px; padding: 0; display: flex; justify-content: center; align-items: center; min-height: 260px;">
+<div style="background-color: white; border: 2px solid #000; border-radius: 15px; padding: 30px 20px; width: 90%; max-width: 500px; box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);">
+
+    <div style="display: flex; align-items: center; margin-bottom: 25px;">
+        <div style="width: 24px; height: 24px; background-color: black; border-radius: 50%; margin-right: 16px; transform: translateY(1px);"></div>
+        <div style="font-size: 24px; font-weight: bold; color: #000; line-height: 1;">Passfolio</div>
+    </div>
+
+    <div style="text-align: center;">
+        <div style="font-size: 16px; color: #000; margin-bottom: 20px; line-height: 1.5;">
+            하단 인증번호를 통해 이메일 인증하세요.
+        </div>
+
+        <div style="display: inline-flex; justify-content: center; align-items: center; font-size: 20px; font-weight: bold; border: 2px solid #000; border-radius: 10px; padding: 10px 20px; width: auto; margin-bottom: 15px;">
+            <span id="verificationCode" th:text="${verificationCode}">000000</span>
+        </div>
+
+        <div style="font-size: 14px; color: #000;">
+            인증번호는 <b>5분간</b> 유효합니다.
+        </div>
+    </div>
+
+</div>
+</body>
+</html>

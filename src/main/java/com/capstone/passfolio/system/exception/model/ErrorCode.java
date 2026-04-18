@@ -30,6 +30,17 @@ public enum ErrorCode {
     // AUTH
     AUTH_USER_NOT_FOUND(HttpStatus.NOT_FOUND, "AUTH USER NOT FOUND", "등록된 유저를 찾을 수 없습니다."),
     AUTH_FORBIDDEN(HttpStatus.FORBIDDEN, "AUTH FORBIDDEN", "접근 권한이 없습니다."),
+    AUTH_EMAIL_NOT_ALLOWLISTED(
+            HttpStatus.FORBIDDEN,
+            "AUTH_EMAIL_NOT_ALLOWLISTED",
+            "허용된 이메일이 아닙니다. 환경 변수 SYSTEM_AUTH_EMAIL_ALLOWLIST(쉼표 구분)에 등록된 주소만 사용할 수 있습니다."),
+    AUTH_EMAIL_CODE_INVALID(HttpStatus.BAD_REQUEST, "AUTH_EMAIL_CODE_INVALID", "이메일 인증코드가 올바르지 않거나 만료되었습니다."),
+    AUTH_EMAIL_CODE_NOT_MATCHED(HttpStatus.BAD_REQUEST, "AUTH_EMAIL_CODE_NOT_MATCHED", "이메일 인증코드가 일치하지 않습니다."),
+    AUTH_EMAIL_NOT_VERIFIED(HttpStatus.UNAUTHORIZED, "AUTH_EMAIL_NOT_VERIFIED", "이메일 인증이 완료되지 않았습니다."),
+    AUTH_PASSWORD_NOT_MATCH(HttpStatus.UNAUTHORIZED, "AUTH_PASSWORD_NOT_MATCH", "비밀번호가 올바르지 않습니다."),
+    AUTH_SYSTEM_USER_REQUIRED(HttpStatus.BAD_REQUEST, "AUTH_SYSTEM_USER_REQUIRED", "시스템 로그인용 계정이 아닙니다. password가 설정된 사용자만 이용할 수 있습니다."),
+    SYSTEM_AUTH_DISABLED(HttpStatus.NOT_FOUND, "SYSTEM_AUTH_DISABLED", "시스템 로그인이 비활성화되어 있습니다."),
+    MAIL_CONNECTION_FAILED(HttpStatus.BAD_GATEWAY, "MAIL_CONNECTION_FAILED", "메일 서버에 연결할 수 없습니다."),
 
     // OAUTH
     OAUTH_BAD_REQUEST(HttpStatus.BAD_REQUEST, "OAUTH BAD REQUEST", "OAUTH에 대해 잘못된 요청입니다."),

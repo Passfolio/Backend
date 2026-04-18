@@ -18,6 +18,25 @@ spring:
         access-key: ${AWS_IAM_ACCESS_KEY} # // Only Local 환경에서만
         secret-key: ${AWS_IAM_SECRET_KEY} # // Only Local 환경에서만
 
+  # 기본: MailHog(localhost:1025, STARTTLS 끔). Gmail 쓰면 .env에 MAIL_HOST/PORT + MAIL_STARTTLS=true, MAIL_SMTP_AUTH=true
+  mail:
+    host: ${MAIL_HOST:localhost}
+    port: ${MAIL_PORT:1025}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
+    group: ${MAIL_GROUP:Passfolio (dev)}
+    properties:
+      mail:
+        smtp:
+          auth: ${MAIL_SMTP_AUTH:false}
+          debug: false
+          connectiontimeout: 10000
+          starttls:
+            enable: ${MAIL_STARTTLS:false}
+            required: ${MAIL_STARTTLS_REQUIRED:false}
+          writetimeout: 10000
+          timeout: 10000
+
 logging:
   level:
     org.hibernate.SQL: debug
@@ -33,6 +52,9 @@ app:
   # Origin/Referer 헤더에 따라 자동으로 선택됨
   front-redirect-uri: "${FRONT_REDIRECT_URI:http://localhost:5173/oauth/callback,http://localhost:3000/oauth/callback}"
   front-base-url: "${FRONT_BASE_URL:http://localhost:5173,http://localhost:3000}"
+  system-auth:
+    enabled: true
+    # .env 예: SYSTEM_AUTH_EMAIL_ALLOWLIST=dev@example.com,qa@example.com (비어 있으면 가입·메일 전부 거절)
 
 springdoc:
   swagger-ui:
