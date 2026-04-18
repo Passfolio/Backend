@@ -7,6 +7,8 @@ import com.capstone.passfolio.domain.spec.entity.DevSpecCareer;
 import com.capstone.passfolio.domain.spec.entity.DevSpecEducation;
 import com.capstone.passfolio.domain.spec.entity.UniversityDepartment;
 import com.capstone.passfolio.domain.spec.repository.CareerRepository;
+import com.capstone.passfolio.domain.spec.repository.DevSpecCareerRepository;
+import com.capstone.passfolio.domain.spec.repository.DevSpecEducationRepository;
 import com.capstone.passfolio.domain.spec.repository.DevSpecRepository;
 import com.capstone.passfolio.domain.spec.repository.UniversityDepartmentRepository;
 import com.capstone.passfolio.domain.user.entity.User;
@@ -21,6 +23,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -29,6 +32,8 @@ import java.util.stream.Collectors;
 public class DevSpecService {
     private final UserRepository userRepository;
     private final DevSpecRepository devSpecRepository;
+    private final DevSpecEducationRepository devSpecEducationRepository;
+    private final DevSpecCareerRepository devSpecCareerRepository;
     private final UniversityDepartmentRepository universityDepartmentRepository;
     private final CareerRepository careerRepository;
 
@@ -74,7 +79,51 @@ public class DevSpecService {
         devSpecRepository.save(devSpec);
 
         // SEQ 10. Return UpdateResponse
-        return DevSpecDto.UpdateResponse.from(devSpec, careers);
+        return DevSpecDto.UpdateResponse.from(devSpec, devSpec.getDevSpecEducations(), careers);
+    }
+
+    @Transactional(readOnly = true)
+    public DevSpecDto.UpdateResponse getMyDevSpec(UserPrincipal userPrincipal) {
+        User user = userRepository.findById(userPrincipal.getUserId())
+                .orElseThrow(() -> new RestException(ErrorCode.USER_NOT_FOUND));
+        Optional<DevSpec> specOpt = devSpecRepository.findById(user.getId());
+        if (specOpt.isEmpty()) {
+            return DevSpecDto.UpdateResponse.empty();
+        }
+        DevSpec devSpec = specOpt.get();
+        List<DevSpecEducation> educationRows =
+                devSpecEducationRepository.findAllWithUniversityByDevSpecId(user.getId());
+        List<Career> careers = devSpecCareerRepository.findAllWithCareerByDevSpecId(user.getId()).stream()
+                .map(DevSpecCareer::getCareer)
+                .toList();
+        return DevSpecDto.UpdateResponse.from(devSpec, educationRows, careers);
+    }
+
+    @Transactional(readOnly = true)
+    public List<DevSpecDto.EducationHistoryItem> getMyEducationHistory(UserPrincipal userPrincipal) {
+        User user = userRepository.findById(userPrincipal.getUserId())
+                .orElseThrow(() -> new RestException(ErrorCode.USER_NOT_FOUND));
+        if (!devSpecRepository.existsById(user.getId())) {
+            return List.of();
+        }
+        return devSpecEducationRepository.findAllWithUniversityByDevSpecId(user.getId()).stream()
+                .map(e -> DevSpecDto.EducationHistoryItem.from(e.getUniversityDepartment()))
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public DevSpecDto.CareerReadResponse getMyCareer(UserPrincipal userPrincipal) {
+        User user = userRepository.findById(userPrincipal.getUserId())
+                .orElseThrow(() -> new RestException(ErrorCode.USER_NOT_FOUND));
+        Optional<DevSpec> specOpt = devSpecRepository.findById(user.getId());
+        if (specOpt.isEmpty()) {
+            return DevSpecDto.CareerReadResponse.empty();
+        }
+        DevSpec devSpec = specOpt.get();
+        List<Career> careers = devSpecCareerRepository.findAllWithCareerByDevSpecId(user.getId()).stream()
+                .map(DevSpecCareer::getCareer)
+                .toList();
+        return DevSpecDto.CareerReadResponse.from(devSpec, careers);
     }
 
     private Map<Long, UniversityDepartment> loadDepartments(List<Long> departmentIds) {

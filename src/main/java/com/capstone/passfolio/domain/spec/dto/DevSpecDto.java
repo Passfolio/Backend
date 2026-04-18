@@ -2,6 +2,7 @@ package com.capstone.passfolio.domain.spec.dto;
 
 import com.capstone.passfolio.domain.spec.entity.Career;
 import com.capstone.passfolio.domain.spec.entity.DevSpec;
+import com.capstone.passfolio.domain.spec.entity.DevSpecEducation;
 import com.capstone.passfolio.domain.spec.entity.University;
 import com.capstone.passfolio.domain.spec.entity.UniversityDepartment;
 import com.capstone.passfolio.domain.spec.entity.enums.CareerTag;
@@ -47,14 +48,8 @@ public class DevSpecDto {
     @Builder
     @NoArgsConstructor
     @AllArgsConstructor
-    @Schema(description = "학력 이력 한 줄 (학교·학과·학력 확정)")
+    @Schema(description = "학력 이력 한 줄 (표시용; 저장 시 id는 PATCH 요청의 universityDepartmentIds로 전달)")
     public static class EducationHistoryItem {
-        @Schema(description = "university_department PK (클라이언트가 저장 시 전달)", example = "42")
-        private Long universityDepartmentId;
-
-        @Schema(description = "학교 인스턴스 UUID (univ_uuid_pk)", example = "f47ac10b-58cc-4372-a567-0e02b2c3d479")
-        private String universityId;
-
         @Schema(description = "대학교명", example = "명지대학교")
         private String name;
 
@@ -80,8 +75,6 @@ public class DevSpecDto {
             if (u == null) { return null; }
 
             return EducationHistoryItem.builder()
-                    .universityDepartmentId(row.getId())
-                    .universityId(u.getId())
                     .name(u.getName())
                     .type(u.getType())
                     .region(u.getRegion())
@@ -96,11 +89,8 @@ public class DevSpecDto {
     @Builder
     @NoArgsConstructor
     @AllArgsConstructor
-    @Schema(description = "직무 정보")
+    @Schema(description = "직무 태그 묶음 (역할·전공·스킬; 경력 연차는 상위 필드 experience)")
     public static class CareerInfo {
-        @Schema(description = "경력", example = "3년")
-        private int experience;
-
         @Schema(description = "직무 키워드 리스트", example = "백엔드")
         private List<String> careerKeywords;
 
@@ -122,7 +112,7 @@ public class DevSpecDto {
                     .build();
         }
 
-        public static CareerInfo from(int experience, List<Career> careers) {
+        public static CareerInfo from(List<Career> careers) {
             List<String> roles = new ArrayList<>();
             List<String> majors = new ArrayList<>();
             List<String> skills = new ArrayList<>();
@@ -138,7 +128,6 @@ public class DevSpecDto {
                 }
             }
             return CareerInfo.builder()
-                    .experience(experience)
                     .careerKeywords(roles)
                     .careerMajors(majors)
                     .careerSkills(skills)
@@ -150,21 +139,72 @@ public class DevSpecDto {
     @Builder
     @NoArgsConstructor
     @AllArgsConstructor
-    @Schema(description = "개발 스펙 업데이트 응답")
+    @Schema(description = "직무 조회 응답 (경력 연차는 한 번만 포함)")
+    public static class CareerReadResponse {
+        @Schema(description = "경력 연차")
+        private int experience;
+
+        @Schema(description = "직무 키워드(역할)")
+        private List<String> careerKeywords;
+
+        @Schema(description = "전문 분야")
+        private List<String> careerMajors;
+
+        @Schema(description = "기술 스택")
+        private List<String> careerSkills;
+
+        public static CareerReadResponse empty() {
+            return CareerReadResponse.builder()
+                    .experience(0)
+                    .careerKeywords(List.of())
+                    .careerMajors(List.of())
+                    .careerSkills(List.of())
+                    .build();
+        }
+
+        public static CareerReadResponse from(DevSpec devSpec, List<Career> careers) {
+            CareerInfo tags = CareerInfo.from(careers);
+            return CareerReadResponse.builder()
+                    .experience(devSpec.getExperience())
+                    .careerKeywords(tags.getCareerKeywords())
+                    .careerMajors(tags.getCareerMajors())
+                    .careerSkills(tags.getCareerSkills())
+                    .build();
+        }
+    }
+
+    @Getter
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Schema(description = "개발 스펙 조회·업데이트 응답 (표시용; id 목록은 PATCH 요청에만 사용)")
     public static class UpdateResponse {
+        @Schema(description = "경력 연차")
+        private int experience;
+
         @Schema(description = "학력 이력(시간/노출 순서대로)")
         private List<EducationHistoryItem> educationHistory;
 
-        @Schema(description = "보유 직무 역량 목록")
+        @Schema(description = "보유 직무 역량(태그별; 경력 연차는 상위 experience)")
         private List<CareerInfo> careers;
 
-        public static UpdateResponse from(DevSpec devSpec, List<Career> orderedCareers) {
-            List<EducationHistoryItem> educationHistory = devSpec.getDevSpecEducations().stream()
+        public static UpdateResponse empty() {
+            return UpdateResponse.builder()
+                    .experience(0)
+                    .educationHistory(List.of())
+                    .careers(List.of(CareerInfo.from(List.of())))
+                    .build();
+        }
+
+        public static UpdateResponse from(
+                DevSpec devSpec, List<DevSpecEducation> educationRows, List<Career> orderedCareers) {
+            List<EducationHistoryItem> educationHistory = educationRows.stream()
                     .map(e -> EducationHistoryItem.from(e.getUniversityDepartment()))
                     .toList();
             return UpdateResponse.builder()
+                    .experience(devSpec.getExperience())
                     .educationHistory(educationHistory)
-                    .careers(List.of(CareerInfo.from(devSpec.getExperience(), orderedCareers)))
+                    .careers(List.of(CareerInfo.from(orderedCareers)))
                     .build();
         }
     }
