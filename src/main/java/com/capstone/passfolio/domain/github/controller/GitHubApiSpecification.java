@@ -227,12 +227,14 @@ public interface GitHubApiSpecification {
                                                                 {
                                                                   "name": "my-project",
                                                                   "description": "개인 프로젝트 설명",
-                                                                  "language": "Java"
+                                                                  "language": "Java",
+                                                                  "htmlUrl": "https://github.com/hooby/my-project"
                                                                 },
                                                                 {
                                                                   "name": "portfolio-site",
                                                                   "description": null,
-                                                                  "language": "TypeScript"
+                                                                  "language": "TypeScript",
+                                                                  "htmlUrl": "https://github.com/hooby/portfolio-site"
                                                                 }
                                                               ]
                                                             }
@@ -249,17 +251,20 @@ public interface GitHubApiSpecification {
                                                                 {
                                                                   "name": "backend-service",
                                                                   "description": "팀 백엔드 서버",
-                                                                  "language": "Java"
+                                                                  "language": "Java",
+                                                                  "htmlUrl": "https://github.com/acme-corp/backend-service"
                                                                 },
                                                                 {
                                                                   "name": "frontend-app",
                                                                   "description": "팀 프론트엔드",
-                                                                  "language": "TypeScript"
+                                                                  "language": "TypeScript",
+                                                                  "htmlUrl": "https://github.com/acme-corp/frontend-app"
                                                                 },
                                                                 {
                                                                   "name": "infra-scripts",
                                                                   "description": null,
-                                                                  "language": "Shell"
+                                                                  "language": "Shell",
+                                                                  "htmlUrl": "https://github.com/acme-corp/infra-scripts"
                                                                 }
                                                               ]
                                                             }
@@ -276,7 +281,8 @@ public interface GitHubApiSpecification {
                                                                 {
                                                                   "name": "old-repo",
                                                                   "description": "오래된 저장소",
-                                                                  "language": "Python"
+                                                                  "language": "Python",
+                                                                  "htmlUrl": "https://github.com/hooby/old-repo"
                                                                 }
                                                               ]
                                                             }

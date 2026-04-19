@@ -40,8 +40,9 @@ public class GitHubTokenRedisRepository {
 
     // --- Repos Cache ---
 
+    /** 스키마(htmlUrl, fullName 등) 변경 시 버전 올려 기존 캐시 무효화 */
     private String keyRepos(Long userId, String type, int page) {
-        return "github:repos:" + userId + ":" + type + ":" + page;
+        return "github:repos:v2:" + userId + ":" + type + ":" + page;
     }
 
     public void cacheRepos(Long userId, String type, int page, String jsonData) {
