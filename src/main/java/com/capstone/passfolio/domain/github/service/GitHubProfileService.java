@@ -116,6 +116,8 @@ public class GitHubProfileService {
                             .name(repoName)
                             .description(node.getDescription())
                             .language(language)
+                            .htmlUrl("https://github.com/" + node.getNameWithOwner())
+                            .fullName(node.getNameWithOwner())
                             .build();
                 })
                 .toList();
@@ -194,6 +196,8 @@ public class GitHubProfileService {
                         .name(r.getName())
                         .description(r.getDescription())
                         .language(r.getLanguage())
+                        .htmlUrl(r.getHtmlUrl())
+                        .fullName(r.getFullName())
                         .build())
                 .toList();
     }

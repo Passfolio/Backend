@@ -1,42 +1,127 @@
 <!DOCTYPE html>
-<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<html lang="ko" xmlns:th="http://www.thymeleaf.org" style="background-color:#333333;">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <!-- 모바일 메일/웹뷰가 body CSS 배경을 무시할 때 다크 캔버스 힌트 + 흰 래퍼 방지 -->
+    <meta name="color-scheme" content="dark">
+    <meta name="supported-color-schemes" content="dark">
     <title>Passfolio - 이메일 인증</title>
-    <script>
-        function copyToClipboard() {
-            const verificationCode = document.getElementById("verificationCode").innerText.trim();
-            navigator.clipboard.writeText(verificationCode).then(() => {
-                alert("인증번호가 복사되었습니다!");
-            }).catch(err => {
-                console.error("복사 실패: ", err);
-            });
+    <!--[if mso]>
+    <noscript>
+        <xml>
+            <o:OfficeDocumentSettings>
+                <o:PixelsPerInch>96</o:PixelsPerInch>
+            </o:OfficeDocumentSettings>
+        </xml>
+    </noscript>
+    <![endif]-->
+    <style type="text/css">
+        /* Apple-style metallic text + Liquid Glass — 웹/일부 클라이언트용; 미지원 시 인라인 color로 대비 */
+        .glass-shell {
+            background: linear-gradient(165deg, rgba(255, 255, 255, 0.16) 0%, rgba(255, 255, 255, 0.06) 45%, rgba(255, 255, 255, 0.1) 100%);
+            -webkit-backdrop-filter: blur(28px) saturate(185%);
+            backdrop-filter: blur(28px) saturate(185%);
+            border: 1px solid rgba(255, 255, 255, 0.28);
+            border-radius: 26px;
+            box-shadow:
+                0 16px 48px rgba(0, 0, 0, 0.35),
+                inset 0 1px 0 rgba(255, 255, 255, 0.35),
+                inset 0 -1px 0 rgba(0, 0, 0, 0.12);
         }
-    </script>
+        .glass-code {
+            background: linear-gradient(155deg, rgba(255, 255, 255, 0.12) 0%, rgba(255, 255, 255, 0.04) 100%);
+            -webkit-backdrop-filter: blur(18px) saturate(160%);
+            backdrop-filter: blur(18px) saturate(160%);
+            border: 1px solid rgba(255, 255, 255, 0.22);
+            border-radius: 16px;
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2);
+        }
+        .apple-gradient-text {
+            font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            font-weight: 600;
+            letter-spacing: -0.02em;
+            background-image: linear-gradient(180deg, #ffffff 0%, #f5f5f7 22%, #a1a1a6 78%, #d1d1d6 100%);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            color: #f5f5f7;
+        }
+        .apple-gradient-code {
+            font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', Roboto, sans-serif;
+            font-weight: 700;
+            letter-spacing: 0.14em;
+            background-image: linear-gradient(128deg, #ffffff 0%, #e8f0ff 28%, #c4c4cc 62%, #f2f2f7 100%);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            color: #ffffff;
+        }
+        .apple-gradient-muted {
+            font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', Roboto, sans-serif;
+            font-weight: 500;
+            background-image: linear-gradient(180deg, #ebebf0 0%, #8e8e93 55%, #aeaeb2 100%);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            color: #d1d1d6;
+        }
+        .apple-gradient-accent {
+            font-weight: 700;
+            background-image: linear-gradient(90deg, #ffffff 0%, #64b5f6 45%, #ffffff 100%);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            color: #ffffff;
+        }
+        /* 일부 클라이언트가 body 배경을 무시할 때 html 루트 보조 */
+        html, body {
+            background-color: #333333 !important;
+        }
+    </style>
 </head>
-<body style="font-family: Arial, sans-serif; background-color: #f9f9f9; margin-top: 5px; padding: 0; display: flex; justify-content: center; align-items: center; min-height: 260px;">
-<div style="background-color: white; border: 2px solid #000; border-radius: 15px; padding: 30px 20px; width: 90%; max-width: 500px; box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);">
-
-    <div style="display: flex; align-items: center; margin-bottom: 25px;">
-        <div style="width: 24px; height: 24px; background-color: black; border-radius: 50%; margin-right: 16px; transform: translateY(1px);"></div>
-        <div style="font-size: 24px; font-weight: bold; color: #000; line-height: 1;">Passfolio</div>
-    </div>
-
-    <div style="text-align: center;">
-        <div style="font-size: 16px; color: #000; margin-bottom: 20px; line-height: 1.5;">
-            하단 인증번호를 통해 이메일 인증하세요.
-        </div>
-
-        <div style="display: inline-flex; justify-content: center; align-items: center; font-size: 20px; font-weight: bold; border: 2px solid #000; border-radius: 10px; padding: 10px 20px; width: auto; margin-bottom: 15px;">
-            <span id="verificationCode" th:text="${verificationCode}">000000</span>
-        </div>
-
-        <div style="font-size: 14px; color: #000;">
-            인증번호는 <b>5분간</b> 유효합니다.
-        </div>
-    </div>
-
-</div>
+<body bgcolor="#333333" style="margin:0;padding:0;width:100%;background-color:#333333 !important;-webkit-text-size-adjust:100%;-ms-text-size-adjust:100%;">
+<!-- bgcolor: Gmail/모바일이 CSS보다 신뢰하는 경우가 많음 -->
+<table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" bgcolor="#333333" style="width:100%;background-color:#333333 !important;border-collapse:collapse;mso-table-lspace:0;mso-table-rspace:0;">
+    <tr>
+        <td align="center" bgcolor="#333333" style="padding:36px 18px;background-color:#333333 !important;">
+            <table role="presentation" border="0" cellspacing="0" cellpadding="0" class="glass-shell" style="max-width:420px;width:100%;border-collapse:separate;background:linear-gradient(165deg,rgba(255,255,255,0.16) 0%,rgba(255,255,255,0.06) 45%,rgba(255,255,255,0.1) 100%);-webkit-backdrop-filter:blur(28px) saturate(185%);backdrop-filter:blur(28px) saturate(185%);border:1px solid rgba(255,255,255,0.28);border-radius:26px;box-shadow:0 16px 48px rgba(0,0,0,0.35),inset 0 1px 0 rgba(255,255,255,0.35),inset 0 -1px 0 rgba(0,0,0,0.12);">
+                <tr>
+                    <td style="padding:38px 30px 34px 30px;">
+                        <table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" style="border-collapse:collapse;">
+                            <tr>
+                                <td align="center" style="padding:0 0 30px 0;">
+                                    <img src="cid:passfolioLogo" alt="Passfolio" width="220" style="display:block; max-width:220px; width:100%; height:auto; margin:0 auto; border:0; outline:none; text-decoration:none; filter:drop-shadow(0 4px 16px rgba(0,0,0,0.35));" />
+                                </td>
+                            </tr>
+                            <tr>
+                                <td align="center" style="padding:0 0 26px 0; font-size:15px; line-height:1.65; color:#f5f5f7;">
+                                    <span class="apple-gradient-text" style="font-size:15px; line-height:1.65; color:#f5f5f7; background-image:linear-gradient(180deg,#ffffff 0%,#f5f5f7 22%,#a1a1a6 78%,#d1d1d6 100%);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;">하단 인증번호를 통해 이메일 인증하세요.</span>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td align="center" style="padding:0;">
+                                    <table role="presentation" border="0" cellspacing="0" cellpadding="0" align="center" class="glass-code" style="border-collapse:separate;margin:0 auto;background:linear-gradient(155deg,rgba(255,255,255,0.12) 0%,rgba(255,255,255,0.04) 100%);-webkit-backdrop-filter:blur(18px) saturate(160%);backdrop-filter:blur(18px) saturate(160%);border:1px solid rgba(255,255,255,0.22);border-radius:16px;box-shadow:inset 0 1px 0 rgba(255,255,255,0.2);">
+                                        <tr>
+                                            <td align="center" style="padding:18px 36px; min-width:160px;">
+                                                <span id="verificationCode" class="apple-gradient-code" style="font-size:28px; line-height:1.25; color:#ffffff; background-image:linear-gradient(128deg,#ffffff 0%,#e8f0ff 28%,#c4c4cc 62%,#f2f2f7 100%);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;" th:text="${verificationCode}">000000</span>
+                                            </td>
+                                        </tr>
+                                    </table>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td align="center" style="padding:26px 8px 0 8px; font-size:14px; line-height:1.65;">
+                                    <span class="apple-gradient-muted" style="font-size:14px; color:#d1d1d6; background-image:linear-gradient(180deg,#ebebf0 0%,#8e8e93 55%,#aeaeb2 100%);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;">인증번호는 </span><span class="apple-gradient-accent" style="font-size:14px; color:#ffffff; background-image:linear-gradient(90deg,#ffffff 0%,#64b5f6 45%,#ffffff 100%);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;">5분간</span><span class="apple-gradient-muted" style="font-size:14px; color:#d1d1d6; background-image:linear-gradient(180deg,#ebebf0 0%,#8e8e93 55%,#aeaeb2 100%);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;"> 유효합니다.</span>
+                                </td>
+                            </tr>
+                        </table>
+                    </td>
+                </tr>
+            </table>
+        </td>
+    </tr>
+</table>
 </body>
 </html>

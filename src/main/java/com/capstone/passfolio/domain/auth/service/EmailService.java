@@ -10,6 +10,7 @@ import jakarta.mail.internet.MimeMessage;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.dao.DataAccessException;
 import org.springframework.data.redis.RedisConnectionFailureException;
 import org.springframework.mail.MailException;
@@ -43,7 +44,7 @@ public class EmailService {
             log.info("🟡 Trying to send Email to {}", receiverEmail);
 
             MimeMessage mimeMessage = javaMailSender.createMimeMessage();
-            MimeMessageHelper mimeMessageHelper = new MimeMessageHelper(mimeMessage, false, "UTF-8");
+            MimeMessageHelper mimeMessageHelper = new MimeMessageHelper(mimeMessage, true, "UTF-8");
 
             mimeMessageHelper.setFrom(new InternetAddress(mailUsername, mailGroup, "UTF-8"));
             mimeMessageHelper.setTo(normalizedEmail);
@@ -52,6 +53,9 @@ public class EmailService {
 
             mimeMessageHelper.setSubject(EMAIL_SUBJECT);
             mimeMessageHelper.setText(setContext(verificationCode), true);
+
+            ClassPathResource logoResource = new ClassPathResource("templates/Passfolio_Main_logo.png");
+            mimeMessageHelper.addInline("passfolioLogo", logoResource, "image/png");
 
             javaMailSender.send(mimeMessage);
 
