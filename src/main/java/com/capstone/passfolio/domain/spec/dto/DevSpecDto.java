@@ -41,26 +41,20 @@ public class DevSpecDto {
         @Schema(description = "대학교명", example = "명지대학교")
         private String name;
 
-        @Schema(description = "학제", example = "4년제")
-        private String educationType;
-
-        @Schema(description = "본분교", example = "본교")
-        private String campusType;
+        @Schema(description = "대학교 타입", example = "대학교, 전문대학교, 대학원, ...")
+        private String type;
 
         @Schema(description = "시/도", example = "경기")
         private String region;
 
         @Schema(description = "학과명", example = "컴퓨터공학과")
-        private String departmentName;
+        private String department;
 
-        @Schema(description = "학력코드", example = "3")
-        private int educationLevelCode;
+        @Schema(description = "학위", example = "학사, 석사, ...")
+        private String degree;
 
-        @Schema(description = "학력", example = "대학교졸업(4년)")
-        private String educationLevel;
-
-        @Schema(description = "학교 홈페이지", example = "https://mju.ac.kr")
-        private String pageUrl;
+        @Schema(description = "학력 기간", example = "4년")
+        private String duration;
 
         public static EducationHistoryItem from(UniversityDepartment row) {
             if (row == null) { return null; }
@@ -72,13 +66,11 @@ public class DevSpecDto {
                     .universityDepartmentId(row.getId())
                     .universityId(u.getId())
                     .name(u.getName())
-                    .educationType(u.getEducationType())
-                    .campusType(u.getCampusType())
+                    .type(u.getType())
                     .region(u.getRegion())
-                    .departmentName(row.getDepartmentName())
-                    .educationLevelCode(row.getEducationLevelCode())
-                    .educationLevel(row.getEducationLevel())
-                    .pageUrl(u.getPageUrl())
+                    .department(row.getDepartment())
+                    .degree(row.getDegree())
+                    .duration(row.getDuration())
                     .build();
         }
     }
