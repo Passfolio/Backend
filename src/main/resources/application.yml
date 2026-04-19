@@ -83,6 +83,12 @@ app:
   allowed-origins: "${ALLOWED_ORIGINS:http://localhost:5173,http://localhost:3000}"
   backend-base-url: "${BACKEND_BASE_URL:http://localhost:8080}"
 
+  # 공공데이터포털 — 대학·학과 정보 (tn_pubr_public_univ_major_api)
+  gov-data:
+    univ-major:
+      base-url: "https://api.data.go.kr/openapi/tn_pubr_public_univ_major_api"
+      service-key: ${APP_GOV_DATA_UNIV_SERVICE_KEY:}
+
 hmac:
   secret: ${HMAC_SECRET_KEY} # at least 32 characters long
 
@@ -130,3 +136,8 @@ management:
   metrics:
     tags:
       application: ${spring.application.name:Passfolio}
+
+# AWS Service
+aws:
+  stepfunction:
+    arn: ${STEP_FUNCTION_ARN:}
