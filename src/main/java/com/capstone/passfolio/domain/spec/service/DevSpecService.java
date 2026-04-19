@@ -20,6 +20,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -54,32 +55,41 @@ public class DevSpecService {
         Map<Long, UniversityDepartment> departmentsById = loadDepartments(departmentIds);
         List<Career> careers = loadCareers(careerIds);
 
-        // SEQ 5. Define DevSpec
+        // SEQ 5. Define DevSpec (upsert)
         DevSpec devSpec = devSpecRepository.findById(foundUser.getId())
                 .orElseGet(() -> DevSpec.createFor(foundUser));
 
-        // SEQ 6. Update DevSpec a 'experience' field
+        // SEQ 6. Update DevSpec 'experience' field
         devSpec.updateExperience(request.getExperience());
 
-        // SEQ 7. Fill data to DevSpecEducation Bridge
-        devSpec.getDevSpecEducations().clear();
+        boolean isNew = devSpec.getId() == null;
+        if (isNew) {
+            // 신규: 자식 INSERT 전 부모 PK 확정 (@MapsId FK 무결성)
+            devSpecRepository.saveAndFlush(devSpec);
+        } else {
+            // 기존: 벌크 DELETE로 자식 행 선제 제거 (flush ordering 문제 방지, N+1 제거)
+            // 컬렉션 필드(getDevSpecEducations/Careers)는 접근하지 않아 lazy load 없음
+            devSpecEducationRepository.deleteAllByDevSpecId(devSpec.getId());
+            devSpecCareerRepository.deleteAllByDevSpecId(devSpec.getId());
+        }
+
+        // SEQ 7. Insert new DevSpecEducation rows
+        List<DevSpecEducation> newEducations = new ArrayList<>();
         for (int i = 0; i < departmentIds.size(); i++) {
-            Long deptId = departmentIds.get(i);
-            UniversityDepartment ud = departmentsById.get(deptId);
-            devSpec.getDevSpecEducations().add(DevSpecEducation.of(devSpec, ud, i));
+            newEducations.add(DevSpecEducation.of(devSpec, departmentsById.get(departmentIds.get(i)), i));
         }
+        devSpecEducationRepository.saveAll(newEducations);
 
-        // SEQ 8. Fill data to DevSpecCareer Bridge
-        devSpec.getDevSpecCareers().clear();
-        for (Career career : careers) {
-            devSpec.getDevSpecCareers().add(DevSpecCareer.of(devSpec, career));
-        }
+        // SEQ 8. Insert new DevSpecCareer rows
+        List<DevSpecCareer> newCareers = careers.stream()
+                .map(c -> DevSpecCareer.of(devSpec, c))
+                .toList();
+        devSpecCareerRepository.saveAll(newCareers);
 
-        // SEQ 9. Save DevSpec
-        devSpecRepository.save(devSpec);
+        // SEQ 9. (experience 변경은 트랜잭션 커밋 시 dirty checking으로 반영)
 
-        // SEQ 10. Return UpdateResponse
-        return DevSpecDto.UpdateResponse.from(devSpec, devSpec.getDevSpecEducations(), careers);
+        // SEQ 10. Return UpdateResponse — 로컬 리스트 사용 (stale 컬렉션 접근 방지)
+        return DevSpecDto.UpdateResponse.from(devSpec, newEducations, careers);
     }
 
     @Transactional(readOnly = true)
