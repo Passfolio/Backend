@@ -32,4 +32,11 @@ public class DevSpecCareer {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "career_id", nullable = false)
     private Career career;
+
+    public static DevSpecCareer of(DevSpec devSpec, Career career) {
+        return DevSpecCareer.builder()
+                .devSpec(devSpec)
+                .career(career)
+                .build();
+    }
 }
