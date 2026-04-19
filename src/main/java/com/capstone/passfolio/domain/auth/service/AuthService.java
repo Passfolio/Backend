@@ -1,7 +1,10 @@
 package com.capstone.passfolio.domain.auth.service;
 
+import com.capstone.passfolio.domain.github.client.GitHubOAuthRevokeClient;
+import com.capstone.passfolio.domain.github.repository.GitHubTokenRedisRepository;
 import com.capstone.passfolio.domain.user.entity.User;
 import com.capstone.passfolio.domain.user.repository.UserRepository;
+import com.capstone.passfolio.system.config.encryption.AesEncryptor;
 import com.capstone.passfolio.system.exception.model.ErrorCode;
 import com.capstone.passfolio.system.exception.model.RestException;
 import com.capstone.passfolio.system.security.jwt.dto.JwtDto;
@@ -27,6 +30,9 @@ public class AuthService {
     private final UserRepository userRepository;
     private final TokenService tokenService;
     private final CookieUtils cookieUtils;
+    private final GitHubTokenRedisRepository githubTokenRedisRepository;
+    private final GitHubOAuthRevokeClient githubOAuthRevokeClient;
+    private final AesEncryptor aesEncryptor;
 
     private final ClientRegistrationRepository clientRegistrationRepository;
 
@@ -48,6 +54,32 @@ public class AuthService {
         tokenService.clearTokensByAtkWithValidation(accessToken, refreshToken);
 
         // 2) 브라우저 쿠키 제거 (same name, same path, domain 등으로)
+        clearCookies(response);
+    }
+
+    @Transactional
+    public void revokeSession(UserPrincipal userPrincipal, HttpServletRequest request, HttpServletResponse response) {
+        String accessToken = jwtTokenResolver.parseTokenFromRequest(request)
+                .orElseThrow(() -> new RestException(ErrorCode.JWT_MISSING));
+
+        String refreshToken = jwtTokenResolver.parseRefreshTokenFromRequest(request)
+                .orElseThrow(() -> new RestException(ErrorCode.JWT_MISSING));
+
+        // 1) GitHub OAuth grant revoke (best-effort — 실패해도 로그아웃 진행)
+        githubTokenRedisRepository.getAccessToken(userPrincipal.getUserId()).ifPresent(encryptedToken -> {
+            try {
+                String plainToken = aesEncryptor.decrypt(encryptedToken);
+                githubOAuthRevokeClient.revokeGrant(plainToken);
+            } catch (Exception e) {
+                log.warn("⚠️ Failed to revoke GitHub grant for userId={}: {}", userPrincipal.getUserId(), e.getMessage());
+            }
+            githubTokenRedisRepository.deleteAccessToken(userPrincipal.getUserId());
+        });
+
+        // 2) JWT 블랙리스트 처리 + 허용 RTK 제거
+        tokenService.clearTokensByAtkWithValidation(accessToken, refreshToken);
+
+        // 3) 쿠키 제거
         clearCookies(response);
     }
 

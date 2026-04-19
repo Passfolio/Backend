@@ -48,8 +48,11 @@ public class DevSpecDto {
     @Builder
     @NoArgsConstructor
     @AllArgsConstructor
-    @Schema(description = "학력 이력 한 줄 (표시용; 저장 시 id는 PATCH 요청의 universityDepartmentIds로 전달)")
+    @Schema(description = "학력 이력 한 줄 (표시 + PATCH 시 universityDepartmentIds에 동일 PK 전달)")
     public static class EducationHistoryItem {
+        @Schema(description = "`university_department` PK (학과·학력 한 줄 식별자)", example = "101")
+        private Long universityDepartmentId;
+
         @Schema(description = "대학교명", example = "명지대학교")
         private String name;
 
@@ -75,6 +78,7 @@ public class DevSpecDto {
             if (u == null) { return null; }
 
             return EducationHistoryItem.builder()
+                    .universityDepartmentId(row.getId())
                     .name(u.getName())
                     .type(u.getType())
                     .region(u.getRegion())

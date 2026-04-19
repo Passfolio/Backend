@@ -114,6 +114,32 @@ public interface AuthApiSpecification {
     ResponseEntity<String> logout(HttpServletRequest request, HttpServletResponse response);
 
     @Operation(
+            summary = "세션 종료(GitHub OAuth 토큰 폐기)",
+            description =
+                    """
+                    현재 JWT를 무효화하고, Redis에 캐시된 GitHub OAuth 액세스 토큰을 폐기합니다.
+                    다음 로그인 시 GitHub OAuth를 다시 연결해야 합니다.
+
+                    ## 처리 흐름
+                    1. Redis에서 암호화된 GitHub access token 조회 → 복호화 후 GitHub grant DELETE (best-effort)
+                    2. ATK·RTK 블랙리스트 등록
+                    3. 쿠키 삭제
+                    """)
+    @SecurityRequirement(name = "bearerAuth")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "세션 종료 성공",
+                content = @Content(mediaType = MediaType.TEXT_PLAIN_VALUE,
+                        examples = @ExampleObject(name = "성공", value = "Session Revoked"))),
+        @ApiResponse(responseCode = "401", description = "인증 실패 (JWT 계열)",
+                content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE,
+                        schema = @Schema(implementation = ErrorResponse.class)))
+    })
+    ResponseEntity<String> revokeSession(
+            @Parameter(hidden = true) UserPrincipal userPrincipal,
+            HttpServletRequest request,
+            HttpServletResponse response);
+
+    @Operation(
             summary = "회원 탈퇴",
             description =
                     """
