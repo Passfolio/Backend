@@ -37,11 +37,15 @@ public class User extends TimeBaseEntity {
     @Builder.Default
     private Role role = Role.USER;
 
-    @Column(name = "github_id", nullable = false)
-    private Long githubId;          // GitHub numeric user ID
+    @Column(name = "github_id")
+    private Long githubId;          // GitHub numeric user ID (시스템 로그인 전용 계정은 NULL)
 
-    @Column(name = "github_login", nullable = false)
-    private String githubLogin;     // GitHub login handle (e.g. "hooby")
+    @Column(name = "github_login")
+    private String githubLogin;     // GitHub login handle (시스템 로그인 전용 계정은 NULL)
+
+    /** BCrypt 해시. 시스템 로그인(이메일+비밀번호) 계정만 설정. OAuth 전용은 NULL */
+    @Column(name = "password")
+    private String password;
 
     // ----- Helper Methods Area ----- //
     @PrePersist // INSERT 되기 전 실행 (새로운 User 저장 시)
@@ -74,5 +78,10 @@ public class User extends TimeBaseEntity {
 
     private <T> T nonBlankOrDefault(T newValue, T currentValue) {
         return newValue != null ? newValue : currentValue;
+    }
+
+    /** 시스템 로그인(이메일+비밀번호) 계정 여부 */
+    public boolean isSystemLoginUser() {
+        return password != null && !password.isBlank();
     }
 }
