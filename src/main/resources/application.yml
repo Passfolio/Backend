@@ -40,6 +40,25 @@ spring:
           min-idle: 2 # 8
           max-wait: 1000ms # 5000ms
 
+  mail:
+    host: ${MAIL_HOST}
+    port: ${MAIL_PORT:1025}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
+    group: ${MAIL_GROUP:Passfolio}
+    properties:
+      mail:
+        smtp:
+          # Gmail 등: auth=true, starttls=true, port 587 / MailHog: auth=false, starttls=false, port 1025
+          auth: ${MAIL_SMTP_AUTH:false}
+          debug: false
+          connectiontimeout: 10000
+          starttls:
+            enable: ${MAIL_STARTTLS:true}
+            required: ${MAIL_STARTTLS_REQUIRED:true}
+          writetimeout: 10000
+          timeout: 10000
+
   # AWS Storage Setup ---------------------------------------------------------
   cloud:
     aws:
@@ -82,6 +101,12 @@ app:
   front-base-url: "${FRONT_BASE_URL:http://localhost:5173}"
   allowed-origins: "${ALLOWED_ORIGINS:http://localhost:5173,http://localhost:3000}"
   backend-base-url: "${BACKEND_BASE_URL:http://localhost:8080}"
+
+  # 시스템 로그인(이메일+비밀번호): 테스트·관리자 확장. 운영에서는 false 권장.
+  system-auth:
+    enabled: ${SYSTEM_AUTH_ENABLED:false}
+    # .env SYSTEM_AUTH_EMAIL_ALLOWLIST=a@x.com,b@y.com — 가입·메일 발송·코드 검증 모두 이 목록에 있는 이메일만 허용. 비어 있으면 전부 거절.
+    email-allowlist: ${SYSTEM_AUTH_EMAIL_ALLOWLIST:}
 
   # 공공데이터포털 — 대학·학과 정보 (tn_pubr_public_univ_major_api)
   gov-data:
