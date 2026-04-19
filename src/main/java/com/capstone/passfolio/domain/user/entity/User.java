@@ -43,6 +43,7 @@ public class User extends TimeBaseEntity {
     @Column(name = "github_login", nullable = false)
     private String githubLogin;     // GitHub login handle (e.g. "hooby")
 
+    // ----- Helper Methods Area ----- //
     @PrePersist // INSERT 되기 전 실행 (새로운 User 저장 시)
     @PreUpdate  // UPDATE 되기 전 실행 (기존 User 수정 시)
     private void normalize() {

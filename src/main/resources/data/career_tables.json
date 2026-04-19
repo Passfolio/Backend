@@ -1,0 +1,1308 @@
+{
+  "직무": [
+    {
+      "code": 2247,
+      "name": "개발PM",
+      "count": 611
+    },
+    {
+      "code": 80,
+      "name": "게임개발",
+      "count": 229
+    },
+    {
+      "code": 81,
+      "name": "기술지원",
+      "count": 1800
+    },
+    {
+      "code": 2248,
+      "name": "데이터 사이언티스트",
+      "count": 291
+    },
+    {
+      "code": 82,
+      "name": "데이터분석가",
+      "count": 640
+    },
+    {
+      "code": 83,
+      "name": "데이터엔지니어",
+      "count": 691
+    },
+    {
+      "code": 84,
+      "name": "백엔드",
+      "count": 1822
+    },
+    {
+      "code": 2239,
+      "name": "보안관제",
+      "count": 434
+    },
+    {
+      "code": 85,
+      "name": "보안컨설팅",
+      "count": 486
+    },
+    {
+      "code": 86,
+      "name": "앱개발",
+      "count": 793
+    },
+    {
+      "code": 87,
+      "name": "웹개발",
+      "count": 1592
+    },
+    {
+      "code": 88,
+      "name": "웹마스터",
+      "count": 184
+    },
+    {
+      "code": 89,
+      "name": "유지보수",
+      "count": 1892
+    },
+    {
+      "code": 90,
+      "name": "정보보안",
+      "count": 1221
+    },
+    {
+      "code": 91,
+      "name": "퍼블리셔",
+      "count": 230
+    },
+    {
+      "code": 92,
+      "name": "프론트엔드",
+      "count": 993
+    },
+    {
+      "code": 2246,
+      "name": "BI 엔지니어",
+      "count": 90
+    },
+    {
+      "code": 93,
+      "name": "CISO",
+      "count": 70
+    },
+    {
+      "code": 94,
+      "name": "CPO",
+      "count": 19
+    },
+    {
+      "code": 95,
+      "name": "DBA",
+      "count": 175
+    },
+    {
+      "code": 96,
+      "name": "FAE",
+      "count": 93
+    },
+    {
+      "code": 97,
+      "name": "GM(게임운영)",
+      "count": 163
+    },
+    {
+      "code": 102,
+      "name": "ICT컨설팅",
+      "count": 157
+    },
+    {
+      "code": 98,
+      "name": "IT컨설팅",
+      "count": 607
+    },
+    {
+      "code": 99,
+      "name": "QA/테스터",
+      "count": 388
+    },
+    {
+      "code": 100,
+      "name": "SE(시스템엔지니어)",
+      "count": 1180
+    },
+    {
+      "code": 101,
+      "name": "SI개발",
+      "count": 591
+    },
+    {
+      "code": 2229,
+      "name": "SQA",
+      "count": 117
+    }
+  ],
+  "전문분야": [
+    {
+      "code": 103,
+      "name": "검색엔진",
+      "count": 70
+    },
+    {
+      "code": 104,
+      "name": "네트워크",
+      "count": 1311
+    },
+    {
+      "code": 105,
+      "name": "데이터라벨링",
+      "count": 159
+    },
+    {
+      "code": 106,
+      "name": "데이터마이닝",
+      "count": 190
+    },
+    {
+      "code": 107,
+      "name": "데이터시각화",
+      "count": 261
+    },
+    {
+      "code": 108,
+      "name": "딥러닝",
+      "count": 532
+    },
+    {
+      "code": 2256,
+      "name": "루비온레일즈",
+      "count": 0
+    },
+    {
+      "code": 2260,
+      "name": "3D",
+      "count": 0
+    },
+    {
+      "code": 109,
+      "name": "머신러닝",
+      "count": 541
+    },
+    {
+      "code": 2231,
+      "name": "메타버스",
+      "count": 42
+    },
+    {
+      "code": 110,
+      "name": "모델링",
+      "count": 204
+    },
+    {
+      "code": 111,
+      "name": "모의해킹",
+      "count": 127
+    },
+    {
+      "code": 112,
+      "name": "미들웨어",
+      "count": 111
+    },
+    {
+      "code": 113,
+      "name": "반응형웹",
+      "count": 167
+    },
+    {
+      "code": 114,
+      "name": "방화벽",
+      "count": 373
+    },
+    {
+      "code": 115,
+      "name": "블록체인",
+      "count": 77
+    },
+    {
+      "code": 116,
+      "name": "빅데이터",
+      "count": 424
+    },
+    {
+      "code": 117,
+      "name": "빌링",
+      "count": 13
+    },
+    {
+      "code": 118,
+      "name": "솔루션",
+      "count": 957
+    },
+    {
+      "code": 119,
+      "name": "스크립트",
+      "count": 67
+    },
+    {
+      "code": 120,
+      "name": "신경망",
+      "count": 41
+    },
+    {
+      "code": 180,
+      "name": "아키텍쳐",
+      "count": 391
+    },
+    {
+      "code": 121,
+      "name": "악성코드",
+      "count": 84
+    },
+    {
+      "code": 122,
+      "name": "알고리즘",
+      "count": 357
+    },
+    {
+      "code": 2251,
+      "name": "암호화폐",
+      "count": 16
+    },
+    {
+      "code": 123,
+      "name": "영상처리",
+      "count": 264
+    },
+    {
+      "code": 124,
+      "name": "웹표준·웹접근성",
+      "count": 155
+    },
+    {
+      "code": 125,
+      "name": "음성인식",
+      "count": 52
+    },
+    {
+      "code": 126,
+      "name": "이미지프로세싱",
+      "count": 149
+    },
+    {
+      "code": 183,
+      "name": "인터페이스",
+      "count": 174
+    },
+    {
+      "code": 127,
+      "name": "인프라",
+      "count": 750
+    },
+    {
+      "code": 128,
+      "name": "임베디드",
+      "count": 685
+    },
+    {
+      "code": 129,
+      "name": "자율주행",
+      "count": 164
+    },
+    {
+      "code": 130,
+      "name": "정보통신",
+      "count": 848
+    },
+    {
+      "code": 131,
+      "name": "챗봇",
+      "count": 91
+    },
+    {
+      "code": 132,
+      "name": "취약점진단",
+      "count": 209
+    },
+    {
+      "code": 133,
+      "name": "컴퓨터비전",
+      "count": 211
+    },
+    {
+      "code": 134,
+      "name": "크로스브라우징",
+      "count": 21
+    },
+    {
+      "code": 2255,
+      "name": "크로스플랫폼",
+      "count": 34
+    },
+    {
+      "code": 135,
+      "name": "크롤링",
+      "count": 38
+    },
+    {
+      "code": 136,
+      "name": "클라우드",
+      "count": 742
+    },
+    {
+      "code": 2249,
+      "name": "클라이언트",
+      "count": 77
+    },
+    {
+      "code": 137,
+      "name": "텍스트마이닝",
+      "count": 21
+    },
+    {
+      "code": 138,
+      "name": "트러블슈팅",
+      "count": 209
+    },
+    {
+      "code": 139,
+      "name": "펌웨어",
+      "count": 559
+    },
+    {
+      "code": 140,
+      "name": "플러그인",
+      "count": 3
+    },
+    {
+      "code": 141,
+      "name": "핀테크",
+      "count": 43
+    },
+    {
+      "code": 2230,
+      "name": "헬스케어",
+      "count": 103
+    },
+    {
+      "code": 181,
+      "name": "AI(인공지능)",
+      "count": 1447
+    },
+    {
+      "code": 142,
+      "name": "API",
+      "count": 483
+    },
+    {
+      "code": 143,
+      "name": "APM",
+      "count": 29
+    },
+    {
+      "code": 144,
+      "name": "AR(증강현실)",
+      "count": 38
+    },
+    {
+      "code": 2253,
+      "name": "Dapp",
+      "count": 9
+    },
+    {
+      "code": 145,
+      "name": "DBMS",
+      "count": 224
+    },
+    {
+      "code": 146,
+      "name": "DevOps",
+      "count": 211
+    },
+    {
+      "code": 2254,
+      "name": "DID",
+      "count": 8
+    },
+    {
+      "code": 147,
+      "name": "DLP",
+      "count": 64
+    },
+    {
+      "code": 148,
+      "name": "DW",
+      "count": 36
+    },
+    {
+      "code": 149,
+      "name": "ERP",
+      "count": 307
+    },
+    {
+      "code": 150,
+      "name": "ETL",
+      "count": 45
+    },
+    {
+      "code": 151,
+      "name": "FPGA",
+      "count": 223
+    },
+    {
+      "code": 152,
+      "name": "GIS",
+      "count": 53
+    },
+    {
+      "code": 153,
+      "name": "H/W",
+      "count": 964
+    },
+    {
+      "code": 2250,
+      "name": "HTTP",
+      "count": 49
+    },
+    {
+      "code": 154,
+      "name": "IDC",
+      "count": 111
+    },
+    {
+      "code": 155,
+      "name": "IIS",
+      "count": 10
+    },
+    {
+      "code": 156,
+      "name": "IoT",
+      "count": 229
+    },
+    {
+      "code": 157,
+      "name": "ISMS",
+      "count": 113
+    },
+    {
+      "code": 158,
+      "name": "MCU",
+      "count": 355
+    },
+    {
+      "code": 2252,
+      "name": "MMORPG",
+      "count": 15
+    },
+    {
+      "code": 159,
+      "name": "Nginx",
+      "count": 27
+    },
+    {
+      "code": 160,
+      "name": "NLP(자연어처리)",
+      "count": 107
+    },
+    {
+      "code": 161,
+      "name": "NLU(자연어이해)",
+      "count": 44
+    },
+    {
+      "code": 162,
+      "name": "OCR",
+      "count": 19
+    },
+    {
+      "code": 163,
+      "name": "OLAP",
+      "count": 12
+    },
+    {
+      "code": 164,
+      "name": "RDBMS",
+      "count": 161
+    },
+    {
+      "code": 165,
+      "name": "RPA",
+      "count": 35
+    },
+    {
+      "code": 166,
+      "name": "RTOS",
+      "count": 154
+    },
+    {
+      "code": 167,
+      "name": "S/W",
+      "count": 1366
+    },
+    {
+      "code": 168,
+      "name": "SAP",
+      "count": 224
+    },
+    {
+      "code": 169,
+      "name": "SDK",
+      "count": 39
+    },
+    {
+      "code": 170,
+      "name": "SOA",
+      "count": 7
+    },
+    {
+      "code": 171,
+      "name": "STT",
+      "count": 22
+    },
+    {
+      "code": 172,
+      "name": "TTS",
+      "count": 18
+    },
+    {
+      "code": 173,
+      "name": "UTM",
+      "count": 31
+    },
+    {
+      "code": 174,
+      "name": "VDI",
+      "count": 53
+    },
+    {
+      "code": 175,
+      "name": "VMware",
+      "count": 124
+    },
+    {
+      "code": 176,
+      "name": "VoIP",
+      "count": 24
+    },
+    {
+      "code": 177,
+      "name": "VPN",
+      "count": 142
+    },
+    {
+      "code": 178,
+      "name": "VR",
+      "count": 50
+    },
+    {
+      "code": 179,
+      "name": "WCF",
+      "count": 9
+    },
+    {
+      "code": 182,
+      "name": "Windows",
+      "count": 395
+    }
+  ],
+  "기술스택": [
+    {
+      "code": 185,
+      "name": "그누보드",
+      "count": 7
+    },
+    {
+      "code": 186,
+      "name": "라즈베리파이",
+      "count": 29
+    },
+    {
+      "code": 187,
+      "name": "쉘스크립트",
+      "count": 59
+    },
+    {
+      "code": 2234,
+      "name": "스마트컨트랙트",
+      "count": 13
+    },
+    {
+      "code": 319,
+      "name": "아두이노",
+      "count": 34
+    },
+    {
+      "code": 188,
+      "name": "액션스크립트",
+      "count": 8
+    },
+    {
+      "code": 189,
+      "name": "어셈블리",
+      "count": 17
+    },
+    {
+      "code": 190,
+      "name": "와이어샤크",
+      "count": 26
+    },
+    {
+      "code": 320,
+      "name": "임베디드리눅스",
+      "count": 310
+    },
+    {
+      "code": 191,
+      "name": "파워빌더",
+      "count": 11
+    },
+    {
+      "code": 2232,
+      "name": "풀스택",
+      "count": 319
+    },
+    {
+      "code": 184,
+      "name": ".NET",
+      "count": 249
+    },
+    {
+      "code": 192,
+      "name": "ABAP",
+      "count": 53
+    },
+    {
+      "code": 193,
+      "name": "AIX",
+      "count": 90
+    },
+    {
+      "code": 194,
+      "name": "Ajax",
+      "count": 87
+    },
+    {
+      "code": 195,
+      "name": "Android",
+      "count": 195
+    },
+    {
+      "code": 196,
+      "name": "Angular",
+      "count": 41
+    },
+    {
+      "code": 197,
+      "name": "Apache",
+      "count": 44
+    },
+    {
+      "code": 198,
+      "name": "ArcGIS",
+      "count": 17
+    },
+    {
+      "code": 199,
+      "name": "ASP",
+      "count": 58
+    },
+    {
+      "code": 200,
+      "name": "ASP.NET",
+      "count": 72
+    },
+    {
+      "code": 201,
+      "name": "AWS",
+      "count": 559
+    },
+    {
+      "code": 202,
+      "name": "Azure",
+      "count": 173
+    },
+    {
+      "code": 203,
+      "name": "Bootstrap",
+      "count": 21
+    },
+    {
+      "code": 204,
+      "name": "C#",
+      "count": 743
+    },
+    {
+      "code": 205,
+      "name": "C++",
+      "count": 1032
+    },
+    {
+      "code": 207,
+      "name": "CentOS",
+      "count": 59
+    },
+    {
+      "code": 208,
+      "name": "COBOL",
+      "count": 1
+    },
+    {
+      "code": 209,
+      "name": "CSS",
+      "count": 243
+    },
+    {
+      "code": 210,
+      "name": "CSS3",
+      "count": 87
+    },
+    {
+      "code": 206,
+      "name": "C언어",
+      "count": 699
+    },
+    {
+      "code": 211,
+      "name": "Delphi",
+      "count": 25
+    },
+    {
+      "code": 212,
+      "name": "Directx",
+      "count": 7
+    },
+    {
+      "code": 213,
+      "name": "Django",
+      "count": 44
+    },
+    {
+      "code": 214,
+      "name": "Docker",
+      "count": 338
+    },
+    {
+      "code": 215,
+      "name": "Eclipse",
+      "count": 17
+    },
+    {
+      "code": 216,
+      "name": "ECMAScript",
+      "count": 43
+    },
+    {
+      "code": 217,
+      "name": "ElasticStack",
+      "count": 21
+    },
+    {
+      "code": 218,
+      "name": "Flask",
+      "count": 33
+    },
+    {
+      "code": 219,
+      "name": "FLEX",
+      "count": 5
+    },
+    {
+      "code": 220,
+      "name": "Flutter",
+      "count": 92
+    },
+    {
+      "code": 221,
+      "name": "GCP",
+      "count": 122
+    },
+    {
+      "code": 222,
+      "name": "Git",
+      "count": 461
+    },
+    {
+      "code": 223,
+      "name": "GoLang",
+      "count": 61
+    },
+    {
+      "code": 224,
+      "name": "GraphQL",
+      "count": 15
+    },
+    {
+      "code": 225,
+      "name": "Groovy",
+      "count": 8
+    },
+    {
+      "code": 226,
+      "name": "Gulp",
+      "count": 0
+    },
+    {
+      "code": 227,
+      "name": "Hadoop",
+      "count": 25
+    },
+    {
+      "code": 228,
+      "name": "HBase",
+      "count": 3
+    },
+    {
+      "code": 229,
+      "name": "HTML",
+      "count": 321
+    },
+    {
+      "code": 230,
+      "name": "HTML5",
+      "count": 172
+    },
+    {
+      "code": 231,
+      "name": "IaaS",
+      "count": 45
+    },
+    {
+      "code": 232,
+      "name": "iBATIS",
+      "count": 16
+    },
+    {
+      "code": 233,
+      "name": "Ionic",
+      "count": 0
+    },
+    {
+      "code": 234,
+      "name": "iOS",
+      "count": 131
+    },
+    {
+      "code": 235,
+      "name": "Java",
+      "count": 1121
+    },
+    {
+      "code": 236,
+      "name": "Javascript",
+      "count": 653
+    },
+    {
+      "code": 237,
+      "name": "Jenkins",
+      "count": 104
+    },
+    {
+      "code": 238,
+      "name": "JPA",
+      "count": 83
+    },
+    {
+      "code": 239,
+      "name": "jQuery",
+      "count": 181
+    },
+    {
+      "code": 240,
+      "name": "JSP",
+      "count": 175
+    },
+    {
+      "code": 241,
+      "name": "Kafka",
+      "count": 76
+    },
+    {
+      "code": 242,
+      "name": "Keras",
+      "count": 22
+    },
+    {
+      "code": 243,
+      "name": "Kotlin",
+      "count": 101
+    },
+    {
+      "code": 244,
+      "name": "Kubernetes",
+      "count": 222
+    },
+    {
+      "code": 245,
+      "name": "LabVIEW",
+      "count": 38
+    },
+    {
+      "code": 246,
+      "name": "Linux",
+      "count": 832
+    },
+    {
+      "code": 247,
+      "name": "Logstash",
+      "count": 2
+    },
+    {
+      "code": 248,
+      "name": "Lucene",
+      "count": 1
+    },
+    {
+      "code": 249,
+      "name": "MacOS",
+      "count": 22
+    },
+    {
+      "code": 250,
+      "name": "MariaDB",
+      "count": 165
+    },
+    {
+      "code": 251,
+      "name": "Matlab",
+      "count": 44
+    },
+    {
+      "code": 252,
+      "name": "Maven",
+      "count": 19
+    },
+    {
+      "code": 253,
+      "name": "MFC",
+      "count": 127
+    },
+    {
+      "code": 254,
+      "name": "MongoDB",
+      "count": 95
+    },
+    {
+      "code": 255,
+      "name": "MSSQL",
+      "count": 319
+    },
+    {
+      "code": 256,
+      "name": "MyBatis",
+      "count": 66
+    },
+    {
+      "code": 257,
+      "name": "MySQL",
+      "count": 493
+    },
+    {
+      "code": 258,
+      "name": "Node.js",
+      "count": 307
+    },
+    {
+      "code": 259,
+      "name": "NoSQL",
+      "count": 113
+    },
+    {
+      "code": 260,
+      "name": "Objective-C",
+      "count": 17
+    },
+    {
+      "code": 261,
+      "name": "OpenCV",
+      "count": 124
+    },
+    {
+      "code": 262,
+      "name": "OpenGL",
+      "count": 46
+    },
+    {
+      "code": 263,
+      "name": "OracleDB",
+      "count": 307
+    },
+    {
+      "code": 264,
+      "name": "OSS",
+      "count": 6
+    },
+    {
+      "code": 265,
+      "name": "PaaS",
+      "count": 36
+    },
+    {
+      "code": 266,
+      "name": "Pandas",
+      "count": 48
+    },
+    {
+      "code": 267,
+      "name": "Perl",
+      "count": 48
+    },
+    {
+      "code": 268,
+      "name": "PHP",
+      "count": 149
+    },
+    {
+      "code": 269,
+      "name": "PL/SQL",
+      "count": 82
+    },
+    {
+      "code": 270,
+      "name": "PostgreSQL",
+      "count": 270
+    },
+    {
+      "code": 271,
+      "name": "Pro-C",
+      "count": 15
+    },
+    {
+      "code": 272,
+      "name": "Python",
+      "count": 1141
+    },
+    {
+      "code": 273,
+      "name": "Pytorch",
+      "count": 264
+    },
+    {
+      "code": 274,
+      "name": "QGIS",
+      "count": 20
+    },
+    {
+      "code": 275,
+      "name": "Qt",
+      "count": 33
+    },
+    {
+      "code": 276,
+      "name": "R",
+      "count": 57
+    },
+    {
+      "code": 277,
+      "name": "React",
+      "count": 419
+    },
+    {
+      "code": 278,
+      "name": "React-Native",
+      "count": 81
+    },
+    {
+      "code": 279,
+      "name": "ReactJS",
+      "count": 122
+    },
+    {
+      "code": 280,
+      "name": "Redis",
+      "count": 110
+    },
+    {
+      "code": 281,
+      "name": "Redux",
+      "count": 38
+    },
+    {
+      "code": 282,
+      "name": "RestAPI",
+      "count": 282
+    },
+    {
+      "code": 283,
+      "name": "Ruby",
+      "count": 10
+    },
+    {
+      "code": 284,
+      "name": "SaaS",
+      "count": 131
+    },
+    {
+      "code": 285,
+      "name": "SAS",
+      "count": 21
+    },
+    {
+      "code": 286,
+      "name": "Scala",
+      "count": 7
+    },
+    {
+      "code": 287,
+      "name": "Servlet",
+      "count": 4
+    },
+    {
+      "code": 288,
+      "name": "Solaris",
+      "count": 2
+    },
+    {
+      "code": 2233,
+      "name": "Solidity",
+      "count": 5
+    },
+    {
+      "code": 289,
+      "name": "Spark",
+      "count": 29
+    },
+    {
+      "code": 290,
+      "name": "Splunk",
+      "count": 14
+    },
+    {
+      "code": 291,
+      "name": "Spring",
+      "count": 279
+    },
+    {
+      "code": 292,
+      "name": "SpringBoot",
+      "count": 295
+    },
+    {
+      "code": 293,
+      "name": "SQL",
+      "count": 451
+    },
+    {
+      "code": 294,
+      "name": "SQLite",
+      "count": 35
+    },
+    {
+      "code": 295,
+      "name": "Storm",
+      "count": 0
+    },
+    {
+      "code": 296,
+      "name": "Struts",
+      "count": 1
+    },
+    {
+      "code": 297,
+      "name": "SVN",
+      "count": 38
+    },
+    {
+      "code": 298,
+      "name": "Swift",
+      "count": 35
+    },
+    {
+      "code": 299,
+      "name": "Sybase",
+      "count": 4
+    },
+    {
+      "code": 300,
+      "name": "Tensorflow",
+      "count": 172
+    },
+    {
+      "code": 301,
+      "name": "Tomcat",
+      "count": 34
+    },
+    {
+      "code": 302,
+      "name": "TypeScript",
+      "count": 217
+    },
+    {
+      "code": 303,
+      "name": "Ubuntu",
+      "count": 81
+    },
+    {
+      "code": 304,
+      "name": "Unity",
+      "count": 61
+    },
+    {
+      "code": 305,
+      "name": "Unix",
+      "count": 126
+    },
+    {
+      "code": 306,
+      "name": "Unreal",
+      "count": 52
+    },
+    {
+      "code": 307,
+      "name": "VB.NET",
+      "count": 44
+    },
+    {
+      "code": 308,
+      "name": "Verilog",
+      "count": 106
+    },
+    {
+      "code": 309,
+      "name": "Vert.x",
+      "count": 2
+    },
+    {
+      "code": 310,
+      "name": "VisualBasic",
+      "count": 44
+    },
+    {
+      "code": 311,
+      "name": "VisualC·C++",
+      "count": 168
+    },
+    {
+      "code": 312,
+      "name": "Vue.js",
+      "count": 182
+    },
+    {
+      "code": 313,
+      "name": "WAS",
+      "count": 57
+    },
+    {
+      "code": 314,
+      "name": "WebGL",
+      "count": 35
+    },
+    {
+      "code": 315,
+      "name": "Webpack",
+      "count": 34
+    },
+    {
+      "code": 316,
+      "name": "WebRTC",
+      "count": 31
+    },
+    {
+      "code": 317,
+      "name": "WPF",
+      "count": 123
+    },
+    {
+      "code": 318,
+      "name": "XML",
+      "count": 34
+    }
+  ]
+}
