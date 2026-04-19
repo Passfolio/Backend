@@ -2,6 +2,7 @@ package com.capstone.passfolio.domain.spec.repository;
 
 import com.capstone.passfolio.domain.spec.entity.DevSpecCareer;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -17,4 +18,8 @@ public interface DevSpecCareerRepository extends JpaRepository<DevSpecCareer, Lo
                     ORDER BY dc.id ASC
                     """)
     List<DevSpecCareer> findAllWithCareerByDevSpecId(@Param("devSpecId") Long devSpecId);
+
+    @Modifying(flushAutomatically = true)
+    @Query("DELETE FROM DevSpecCareer dc WHERE dc.devSpec.id = :devSpecId")
+    void deleteAllByDevSpecId(@Param("devSpecId") Long devSpecId);
 }
