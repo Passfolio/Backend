@@ -33,6 +33,16 @@ public class AuthController implements AuthApiSpecification {
     }
 
     @Override
+    @PostMapping("/revoke-session")
+    public ResponseEntity<String> revokeSession(
+            @AuthenticationPrincipal UserPrincipal userPrincipal,
+            HttpServletRequest request,
+            HttpServletResponse response) {
+        authService.revokeSession(userPrincipal, request, response);
+        return ResponseEntity.ok("Session Revoked");
+    }
+
+    @Override
     @DeleteMapping("/delete")
     public ResponseEntity<String> delete(
             @AuthenticationPrincipal UserPrincipal userPrincipal,
