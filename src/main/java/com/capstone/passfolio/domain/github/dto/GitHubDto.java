@@ -89,11 +89,25 @@ public class GitHubDto {
         private String description;
 
         @Schema(
-            description = "주 사용 언어. 코드가 없거나 감지 불가 시 null입니다.",
-            example = "Java",
-            nullable = true
+                description = "주 사용 언어. 코드가 없거나 감지 불가 시 null입니다.",
+                example = "Java",
+                nullable = true
         )
         private String language;
+
+        @Schema(
+                description = "GitHub 저장소 웹 페이지 URL (https://github.com/owner/repo).",
+                example = "https://github.com/acme/backend-service",
+                nullable = true
+        )
+        private String htmlUrl;
+
+        @Schema(
+                description = "`owner/repo` 형식의 전체 이름. htmlUrl이 없을 때 웹 주소 조합에 사용할 수 있습니다.",
+                example = "acme/backend-service",
+                nullable = true
+        )
+        private String fullName;
     }
 
     // ── GitHub REST API internal DTOs ─────────────────────────────────────
