@@ -66,7 +66,7 @@ jobs:
         run: |
           aws s3 cp deploy.tar.gz s3://${{ env.S3_BUCKET }}/deploy.tar.gz
 
-      # 8. SSM Deployment
+      # Step8. SSM Deployment
       - name: Deploy via SSM
         run: |
           aws ssm send-command \
@@ -79,6 +79,7 @@ jobs:
 
               "echo 🟢 Step 1. Download from S3",
               "aws s3 cp s3://${{ env.S3_BUCKET }}/deploy.tar.gz /home/ubuntu/deploy.tar.gz",
+              "aws s3 rm s3://${{ env.S3_BUCKET }}/deploy.tar.gz",
               "cd /home/ubuntu",
               "rm -rf deploy || true",
               "mkdir deploy",
