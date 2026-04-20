@@ -66,7 +66,7 @@ jobs:
         run: |
           aws s3 cp deploy.tar.gz s3://${{ env.S3_BUCKET }}/deploy.tar.gz
 
-      # Step8. SSM Deployment (동기 실행 + 로그 확인)
+      # Step8. SSM Deployment (안정화 버전)
       - name: Deploy via SSM
         run: |
           COMMAND_ID=$(aws ssm send-command \
@@ -74,11 +74,12 @@ jobs:
             --document-name "AWS-RunShellScript" \
             --comment "Deploy via SSM" \
             --parameters commands='[
-              "set -e",
+              "set -ex",
               "trap '\''rm -rf /home/ubuntu/deploy || true'\'' EXIT",
 
               "echo 🟢 Step 1. Download from S3",
-              "aws s3 cp s3://${{ env.S3_BUCKET }}/deploy.tar.gz /home/ubuntu/deploy.tar.gz",
+              "S3_PATH=s3://${{ env.S3_BUCKET }}/deploy.tar.gz",
+              "aws s3 cp $S3_PATH /home/ubuntu/deploy.tar.gz",
 
               "cd /home/ubuntu",
               "rm -rf deploy || true",
@@ -100,12 +101,10 @@ jobs:
               "sleep 5",
 
               "echo 🟡 Step 4. Redis/RDS Test",
-              "sleep 5",
-              "echo 🟠 Redis Ping Test",
               "docker exec redis-container redis-cli -a $REDIS_PASSWORD ping",
 
               "echo 🟢 Step DB Direct Check",
-              "PGPASSWORD=$DB_PASSWORD psql -h $DB_HOST -U $DB_USERNAME -d passfolio -p 5432 -c \"SELECT 1;\" || { echo \"🔴 DB CONNECTION FAILED\"; exit 1; }",
+              "PGPASSWORD=$DB_PASSWORD psql -h $DB_HOST -U $DB_USERNAME -d passfolio -p 5432 -c \"SELECT 1;\"",
 
               "echo 🟢 Step 5. Restart Spring",
               "systemctl restart passfolio.service",
@@ -114,9 +113,10 @@ jobs:
               "for i in {1..40}; do",
               "  if curl -fs http://localhost:8080/api/v1/system/monitor/health > /dev/null; then",
               "    echo ✅ HEALTH CHECK SUCCESS, DEPLOYMENT COMPLETE!",
+              "    aws s3 rm $S3_PATH",
               "    exit 0",
               "  fi",
-              "  echo 💡 ($i/40) Spring Boot 시작 대기 중... (5초 후 재시도)",
+              "  echo 💡 ($i/40) Spring Boot 시작 대기 중...",
               "  sleep 5",
               "done",
 
@@ -126,11 +126,12 @@ jobs:
             --query "Command.CommandId" \
             --output text)
 
-          echo "🟡 SSM COMMAND_ID: $COMMAND_ID"
+          echo "🟡 COMMAND_ID: $COMMAND_ID"
 
+          # 실패해도 로그 확인 위해 계속 진행
           aws ssm wait command-executed \
-          --command-id $COMMAND_ID \
-          --instance-id "${{ secrets.EC2_INSTANCE_ID }}" || true
+            --command-id $COMMAND_ID \
+            --instance-id "${{ secrets.EC2_INSTANCE_ID }}" || true
 
           echo "===== 🟢 STDOUT ====="
           aws ssm get-command-invocation \
@@ -158,9 +159,3 @@ jobs:
             echo "🔴 DEPLOY FAILED"
             exit 1
           fi
-
-      # Step9. S3 Cleanup (성공 시만)
-      - name: Cleanup S3
-        if: success()
-        run: |
-          aws s3 rm s3://${{ env.S3_BUCKET }}/deploy.tar.gz
