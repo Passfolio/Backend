@@ -66,7 +66,7 @@ jobs:
         run: |
           aws s3 cp deploy.tar.gz s3://${{ env.S3_BUCKET }}/deploy.tar.gz
 
-      # Step8. SSM Deployment (안정화 버전)
+            # Step8. SSM Deployment (안정화 버전)
       - name: Deploy via SSM
         run: |
           COMMAND_ID=$(aws ssm send-command \
@@ -108,13 +108,13 @@ jobs:
               "systemctl restart passfolio.service",
 
               "echo 🟢 Step 6. Health Check",
-              "for i in {1..40}; do",
+              "for i in $(seq 1 40); do",
               "  if curl -fs http://localhost:8080/api/v1/system/monitor/health > /dev/null; then",
-              "    echo ✅ HEALTH CHECK SUCCESS, DEPLOYMENT COMPLETE!",
+              "    echo \"✅ HEALTH CHECK SUCCESS, DEPLOYMENT COMPLETE!\"",
               "    aws s3 rm s3://$S3_BUCKET_NAME/deploy.tar.gz",
               "    exit 0",
               "  fi",
-              "  echo 💡 ($i/40) Spring Boot 시작 대기 중...",
+              "  echo \"💡 ($i/40) Spring Boot 시작 대기 중...\"",
               "  sleep 5",
               "done",
 
@@ -156,3 +156,4 @@ jobs:
             echo "🔴 DEPLOY FAILED"
             exit 1
           fi
+
