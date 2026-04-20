@@ -75,10 +75,10 @@ jobs:
             --comment "Deploy via SSM" \
             --parameters commands='[
               "set -ex",
+              "export PATH=$PATH:/usr/local/bin:/usr/bin:/snap/bin:/sbin:/usr/sbin",
               "trap '\''rm -rf /home/ubuntu/deploy || true'\'' EXIT",
 
               "echo 🟢 Step 1. Download from S3",
-              "S3_PREFIX=s3://",
               "S3_BUCKET_NAME=${{ env.S3_BUCKET }}",
               "aws s3 cp s3://$S3_BUCKET_NAME/deploy.tar.gz /home/ubuntu/deploy.tar.gz",
 
@@ -88,24 +88,21 @@ jobs:
               "tar -xzf deploy.tar.gz -C deploy",
 
               "echo 🟢 Step 2. Prepare",
-              "rm -rf $HOME/passfolio/app || true",
-              "mkdir -p $HOME/passfolio/app",
-              "mv deploy/deploy/passfolio.jar $HOME/passfolio/app/passfolio.jar",
-              "mkdir -p $HOME/passfolio/infra",
-              "mv deploy/deploy/docker-compose.yml $HOME/passfolio/infra/",
-              "mv deploy/deploy/.env $HOME/passfolio/infra/",
+              "rm -rf /home/ubuntu/passfolio/app || true",
+              "mkdir -p /home/ubuntu/passfolio/app",
+              "mv deploy/deploy/passfolio.jar /home/ubuntu/passfolio/app/passfolio.jar",
+              "mkdir -p /home/ubuntu/passfolio/infra",
+              "mv deploy/deploy/docker-compose.yml /home/ubuntu/passfolio/infra/",
+              "mv deploy/deploy/.env /home/ubuntu/passfolio/infra/",
 
               "echo 🟢 Step 3. Start docker compose build",
-              "cd $HOME/passfolio/infra",
-              "set -a && source .env && set +a",
+              "cd /home/ubuntu/passfolio/infra",
+              "set -a && . .env && set +a", 
               "docker compose up -d",
               "sleep 5",
 
-              "echo 🟡 Step 4. Redis/RDS Test",
+              "echo 🟡 Step 4. Redis Test",
               "docker exec redis-container redis-cli -a $REDIS_PASSWORD ping",
-
-              "echo 🟢 Step DB Direct Check",
-              "PGPASSWORD=$DB_PASSWORD psql -h $DB_HOST -U $DB_USERNAME -d passfolio -p 5432 -c \"SELECT 1;\"",
 
               "echo 🟢 Step 5. Restart Spring",
               "systemctl restart passfolio.service",
@@ -129,7 +126,6 @@ jobs:
 
           echo "🟡 COMMAND_ID: $COMMAND_ID"
 
-          # 실패해도 로그 확인 위해 계속 진행
           aws ssm wait command-executed \
             --command-id $COMMAND_ID \
             --instance-id "${{ secrets.EC2_INSTANCE_ID }}" || true
