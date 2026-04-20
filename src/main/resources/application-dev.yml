@@ -12,7 +12,7 @@ spring:
         format_sql: true
         show-sql: true
         jdbc:
-          time_zone: Asia/Seoul
+          time_zone: UTC
 
   cloud:
     aws:
