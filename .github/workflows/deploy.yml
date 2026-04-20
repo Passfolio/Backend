@@ -2,7 +2,7 @@ name: Deploy To EC2 (Compose)
 
 on:
   push:
-      branches: [ "main" ]
+      branches: [ "PASS-014-FIX-TIMEZONE-CONVERT-TO-UTC" ]
 
   workflow_dispatch:
 
