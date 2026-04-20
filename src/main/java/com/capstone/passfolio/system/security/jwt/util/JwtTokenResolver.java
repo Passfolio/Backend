@@ -16,7 +16,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 
 import java.time.LocalDateTime;
-import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.util.Arrays;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -95,7 +95,7 @@ public class JwtTokenResolver {
             throw e;
         }
 
-        LocalDateTime exp = payload.getExpiration().toInstant().atZone(ZoneId.systemDefault()).toLocalDateTime();
+        LocalDateTime exp = payload.getExpiration().toInstant().atOffset(ZoneOffset.UTC).toLocalDateTime();
 
         String type = payload.get("type", String.class);
         String role = payload.get("role", String.class);
@@ -122,7 +122,7 @@ public class JwtTokenResolver {
     public JwtDto.TokenPayload resolveExpiredToken(String token) {
         Claims payload = jwtTokenValidator.parseExpiredTokenClaims(token);
         LocalDateTime exp = payload.getExpiration() != null
-                ? payload.getExpiration().toInstant().atZone(ZoneId.systemDefault()).toLocalDateTime()
+                ? payload.getExpiration().toInstant().atOffset(ZoneOffset.UTC).toLocalDateTime()
                 : null;
 
         String type = payload.get("type", String.class);
