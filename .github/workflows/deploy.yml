@@ -3,7 +3,7 @@ name: Deploy To EC2 (Compose)
 on:
   push:
 #    branches: [ "main" ]
-    branches: [ "PASS-012-FEAT-DEPLOYMENT-PIPELINE" ]
+    branches: [ "PASS-013-FIX-DEPLOYMENT-PIPELINE" ]
 
   workflow_dispatch:
 
