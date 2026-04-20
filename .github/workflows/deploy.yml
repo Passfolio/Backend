@@ -78,7 +78,10 @@ jobs:
               "trap '\''rm -rf /home/ubuntu/deploy || true'\'' EXIT",
 
               "echo 🟢 Step 1. Download from S3",
-              "S3_PATH=s3://${{ env.S3_BUCKET }}/deploy.tar.gz",
+              "S3_PREFIX=s3://",
+              "S3_BUCKET_NAME=${{ env.S3_BUCKET }}",
+              "S3_PATH=${S3_PREFIX}${S3_BUCKET_NAME}/deploy.tar.gz",
+              "echo S3_PATH=$S3_PATH",
               "aws s3 cp $S3_PATH /home/ubuntu/deploy.tar.gz",
 
               "cd /home/ubuntu",
