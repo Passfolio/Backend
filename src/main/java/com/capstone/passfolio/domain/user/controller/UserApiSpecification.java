@@ -58,8 +58,8 @@ public interface UserApiSpecification {
                                                                   "nickname": "hades",
                                                                   "profileImageUrl": "https://avatars.githubusercontent.com/u/12345678?v=4",
                                                                   "githubLogin": "Youcu",
-                                                                  "createdAt": "2026-04-15T10:00:00.000000+09:00",
-                                                                  "lastModifiedAt": "2026-04-15T10:30:00.000000+09:00"
+                                                                  "createdAt": "2026-04-15T01:00:00.000000Z",
+                                                                  "lastModifiedAt": "2026-04-15T01:30:00.000000Z"
                                                                 }
                                                                 """))),
                 @ApiResponse(

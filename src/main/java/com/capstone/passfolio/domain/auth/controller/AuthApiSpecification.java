@@ -265,8 +265,8 @@ public interface AuthApiSpecification {
                                                         value =
                                                                 """
                                                                 {
-                                                                  "accessTokenExpiresAt": "2026-04-15T14:00:00.000000+09:00",
-                                                                  "refreshTokenExpiresAt": "2026-04-20T14:00:00.000000+09:00"
+                                                                  "accessTokenExpiresAt": "2026-04-15T05:00:00.000000Z",
+                                                                  "refreshTokenExpiresAt": "2026-04-20T05:00:00.000000Z"
                                                                 }
                                                                 """))),
                 @ApiResponse(
