@@ -11,6 +11,8 @@ spring:
       hibernate:
         format_sql: true
         show-sql: true
+        jdbc:
+          time_zone: Asia/Seoul
 
   cloud:
     aws:

@@ -6,6 +6,10 @@ spring:
     database-platform: org.hibernate.dialect.PostgreSQLDialect
     hibernate:
       ddl-auto: update
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: Asia/Seoul
 
 logging:
   level:
