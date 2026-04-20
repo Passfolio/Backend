@@ -11,6 +11,6 @@ public class SystemMonitoringController {
 
     @GetMapping("/health")
     public ResponseEntity<?> healthCheck() {
-        return ResponseEntity.ok("🟢 Deokive Server is running smoothly");
+        return ResponseEntity.ok("🟢 Passfolio Server is running smoothly");
     }
 }
