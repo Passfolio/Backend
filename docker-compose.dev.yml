@@ -41,6 +41,7 @@ services:
   # SMTP 1025 → 앱 spring.mail, 웹 UI 8025 → 수신 메일 확인 (MailHog)
   mailhog:
     image: mailhog/mailhog:latest
+    platform: linux/amd64
     container_name: mailhog-container
     restart: unless-stopped
     ports:

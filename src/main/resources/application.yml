@@ -23,9 +23,14 @@ spring:
     username: ${DB_USERNAME:root}
     password: ${DB_PASSWORD}
     hikari:
+      connection-init-sql: SET TIME ZONE 'Asia/Seoul'
       maximum-pool-size: 6 # HikariCP Recommendation : vCPU * 2 + alpha
       minimum-idle: 6       # 고정해두는 게 튀는 부하 방지에 유리
       connection-timeout: 30000 # wait 30s
+
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
 
   ## NoSQL (Redis) Setup ---------------------------------------------------------
   data:
