@@ -8,7 +8,7 @@ import lombok.extern.slf4j.Slf4j;
 
 import javax.crypto.SecretKey;
 import java.time.LocalDateTime;
-import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.util.Date;
 import java.util.UUID;
 
@@ -30,7 +30,7 @@ public class JwtTokenProvider {
         // 자동 로그인이면 RTK를 12주로 상정한다.
         int rtkExpWeeks = tokenOptions.isRememberMe() ? 12 : refreshTokenExpirationWeeks;
 
-        LocalDateTime exp = LocalDateTime.now().plusWeeks(rtkExpWeeks);
+        LocalDateTime exp = LocalDateTime.now(ZoneOffset.UTC).plusWeeks(rtkExpWeeks);
 
         String token = Jwts.builder()
                 .subject(getSubject(tokenOptions.getUserPrincipal()))
@@ -39,7 +39,7 @@ public class JwtTokenProvider {
                 .claim("rememberMe", tokenOptions.isRememberMe()) // 자동 로그인 여부를 RTK Claims에 포함
                 .id(jti)
                 .issuedAt(new Date())
-                .expiration(Date.from(exp.atZone(ZoneId.systemDefault()).toInstant()))
+                .expiration(Date.from(exp.atOffset(ZoneOffset.UTC).toInstant()))
                 .signWith(secretKey)
                 .compact();
 
@@ -52,7 +52,7 @@ public class JwtTokenProvider {
 
     public JwtDto.TokenData createAccessToken(JwtDto.TokenOptionWrapper tokenOption, String refreshUuid) {
         String jti = UUID.randomUUID().toString();
-        LocalDateTime exp = LocalDateTime.now().plusMinutes(accessTokenExpirationMinutes);
+        LocalDateTime exp = LocalDateTime.now(ZoneOffset.UTC).plusMinutes(accessTokenExpirationMinutes);
 
         String token = Jwts.builder()
                 .subject(getSubject(tokenOption.getUserPrincipal()))
@@ -61,7 +61,7 @@ public class JwtTokenProvider {
                 .claim("type", TokenType.ACCESS.name())
                 .id(jti)
                 .issuedAt(new Date())
-                .expiration(Date.from(exp.atZone(ZoneId.systemDefault()).toInstant()))
+                .expiration(Date.from(exp.atOffset(ZoneOffset.UTC).toInstant()))
                 .signWith(secretKey)
                 .compact();
 
