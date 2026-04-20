@@ -97,7 +97,7 @@ jobs:
 
               "echo 🟢 Step 3. Start docker compose build",
               "cd /home/ubuntu/passfolio/infra",
-              "set -a && . .env && set +a", 
+              "set -a && . ./.env && set +a", 
               "docker compose up -d",
               "sleep 5",
 
