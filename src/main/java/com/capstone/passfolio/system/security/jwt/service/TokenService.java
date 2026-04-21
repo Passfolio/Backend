@@ -24,6 +24,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.concurrent.TimeUnit;
 
 @Service
@@ -47,7 +48,7 @@ public class TokenService {
                 ? userPrincipal.getUserId().toString()
                 : userPrincipal.getUsername();
 
-        Duration rtTtl = Duration.between(LocalDateTime.now(), tokenPair.getRefreshToken().getExpiredAt());
+        Duration rtTtl = Duration.between(LocalDateTime.now(ZoneOffset.UTC), tokenPair.getRefreshToken().getExpiredAt());
         tokenRedisRepository.allowRtk(subject, extractRefreshUuid(tokenPair), rtTtl);
         return JwtDto.TokenInfo.from(tokenPair);
     }
@@ -131,7 +132,7 @@ public class TokenService {
 
                 // 2. Grace Period 체크: 블랙리스트 등록 후 30초 이내만 허용
                 Duration remainingTtl = tokenRedisRepository.getBlacklistRtkTtl(submittedUuid);
-                Duration originalTtl = Duration.between(LocalDateTime.now(), rtkPayload.getExpiredAt());
+                Duration originalTtl = Duration.between(LocalDateTime.now(ZoneOffset.UTC), rtkPayload.getExpiredAt());
                 Duration elapsed = originalTtl.minus(remainingTtl);
 
                 final long GRACE_PERIOD_SECONDS = 30;
@@ -182,7 +183,7 @@ public class TokenService {
                 }
             } else {
                 // ATK가 없으면 이전 RTK만 블랙리스트 처리
-                Duration rtTtl = Duration.between(LocalDateTime.now(), rtkPayload.getExpiredAt());
+                Duration rtTtl = Duration.between(LocalDateTime.now(ZoneOffset.UTC), rtkPayload.getExpiredAt());
                 if (rtTtl.isPositive()) {
                     tokenRedisRepository.setBlacklistRtk(rtkPayload.getRefreshUuid(), rtTtl);
                 } else {
@@ -202,7 +203,7 @@ public class TokenService {
             JwtDto.TokenPair tokenPair = jwtTokenProvider.createTokenPair(newTokenOption);
 
             // 10) 새 RTK 화이트리스트 등록 (원자적으로 갱신)
-            Duration newRtTtl = Duration.between(LocalDateTime.now(), tokenPair.getRefreshToken().getExpiredAt());
+            Duration newRtTtl = Duration.between(LocalDateTime.now(ZoneOffset.UTC), tokenPair.getRefreshToken().getExpiredAt());
             String newRefreshUuid = extractRefreshUuid(tokenPair);
             tokenRedisRepository.allowRtk(subject, newRefreshUuid, newRtTtl);
 
@@ -242,8 +243,8 @@ public class TokenService {
         JwtDto.TokenPayload atkPayload = validatedPayloadPair.getAtkPayload();
         JwtDto.TokenPayload rtkPayload = validatedPayloadPair.getRtkPayload();
 
-        Duration atTtl = Duration.between(LocalDateTime.now(), atkPayload.getExpiredAt());
-        Duration rtTtl = Duration.between(LocalDateTime.now(), rtkPayload.getExpiredAt());
+        Duration atTtl = Duration.between(LocalDateTime.now(ZoneOffset.UTC), atkPayload.getExpiredAt());
+        Duration rtTtl = Duration.between(LocalDateTime.now(ZoneOffset.UTC), rtkPayload.getExpiredAt());
         
         // ATK 블랙리스트 등록: 만료되지 않은 경우에만 등록
         // 만료된 ATK는 이미 사용 불가능하므로 블랙리스트에 등록할 필요 없음
@@ -391,7 +392,7 @@ public class TokenService {
 
         // 3-1) 허용 RTK가 없다면(이미 만료/제거) 서버 상태만 정리하고 빠진다
         if (allowedRtkUuid == null) {
-            Duration atTtl = Duration.between(LocalDateTime.now(), atkPayload.getExpiredAt());
+            Duration atTtl = Duration.between(LocalDateTime.now(ZoneOffset.UTC), atkPayload.getExpiredAt());
             tokenRedisRepository.setBlacklistAtkJti(atkPayload.getJti(), atTtl);
             tokenRedisRepository.clearAllowedRtk(subject);
             return null;

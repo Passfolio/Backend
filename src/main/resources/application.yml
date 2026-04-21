@@ -7,7 +7,7 @@ server: # t3.small environment setup -> need to be optimized
 spring:
   # Time Zone Setup ---------------------------------------------------------
   jackson:
-    time-zone: Asia/Seoul # 모든 시간대 응답을 KST로 통일
+    time-zone: UTC # 모든 시간대 응답을 UTC로 통일
     serialization:
       write-dates-as-timestamps: false # WHAT
 
@@ -23,7 +23,7 @@ spring:
     username: ${DB_USERNAME:root}
     password: ${DB_PASSWORD}
     hikari:
-      connection-init-sql: SET TIME ZONE 'Asia/Seoul'
+      connection-init-sql: SET TIME ZONE 'UTC'
       maximum-pool-size: 6 # HikariCP Recommendation : vCPU * 2 + alpha
       minimum-idle: 6       # 고정해두는 게 튀는 부하 방지에 유리
       connection-timeout: 30000 # wait 30s

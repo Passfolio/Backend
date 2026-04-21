@@ -29,7 +29,7 @@ import java.util.concurrent.ThreadLocalRandom;
 public class UniversityOpenApiTrigger {
 
     private static final int DEFAULT_MAX_RETRY = 5;
-    private static final ZoneId KST = ZoneId.of("Asia/Seoul");
+    private static final ZoneId UTC = ZoneId.of("UTC");
 
     private static final int CONNECT_TIMEOUT = 5000;
     private static final int READ_TIMEOUT = 40000;
@@ -178,7 +178,7 @@ public class UniversityOpenApiTrigger {
     public UniversityOpenApiProbeResult probeUnivMajorOpenApi(int maxRetry) {
         requireServiceKey();
 
-        int currentYear = LocalDate.now(KST).getYear();
+        int currentYear = LocalDate.now(UTC).getYear();
 
         for (int i = 0; i < maxRetry; i++) {
             String yr = String.valueOf(currentYear - i);
