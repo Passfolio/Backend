@@ -73,7 +73,7 @@ public class GitHubApiClient {
                 "    ) {" +
                 "      pageInfo { hasNextPage endCursor }" +
                 "      nodes {" +
-                "        nameWithOwner isPrivate description" +
+                "        nameWithOwner isPrivate description diskUsage" +
                 "        primaryLanguage { name }" +
                 "        owner { login __typename }" +
                 "      }" +

@@ -118,6 +118,7 @@ public class GitHubProfileService {
                             .language(language)
                             .htmlUrl("https://github.com/" + node.getNameWithOwner())
                             .fullName(node.getNameWithOwner())
+                            .size(node.getDiskUsage())
                             .build();
                 })
                 .toList();
@@ -198,6 +199,7 @@ public class GitHubProfileService {
                         .language(r.getLanguage())
                         .htmlUrl(r.getHtmlUrl())
                         .fullName(r.getFullName())
+                        .size(r.getSize())
                         .build())
                 .toList();
     }
