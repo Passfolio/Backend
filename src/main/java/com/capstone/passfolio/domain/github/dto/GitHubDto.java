@@ -108,6 +108,13 @@ public class GitHubDto {
                 nullable = true
         )
         private String fullName;
+
+        @Schema(
+                description = "저장소 크기 (KB 단위). GitHub API가 보고하는 디스크 사용량이며, GraphQL 응답에서 누락된 경우 null입니다.",
+                example = "1024",
+                nullable = true
+        )
+        private Integer size;
     }
 
     // ── GitHub REST API internal DTOs ─────────────────────────────────────
@@ -132,6 +139,7 @@ public class GitHubDto {
         private String htmlUrl;
         @JsonProperty("full_name")
         private String fullName;
+        private Integer size;
     }
 
     // ── GitHub GraphQL internal DTOs ──────────────────────────────────────
@@ -170,6 +178,7 @@ public class GitHubDto {
             private String description;
             private PrimaryLanguage primaryLanguage;
             private OwnerInfo owner;
+            private Integer diskUsage;
         }
 
         @Data
