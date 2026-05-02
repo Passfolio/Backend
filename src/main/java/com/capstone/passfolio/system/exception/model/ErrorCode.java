@@ -85,6 +85,10 @@ public enum ErrorCode {
     DB_NOT_NULL_VIOLATION(HttpStatus.BAD_REQUEST, "DB NOT NULL VIOLATION", "필수 필드가 누락되었습니다."),
     DB_FOREIGN_KEY_VIOLATION(HttpStatus.BAD_REQUEST, "DB FOREIGN KEY VIOLATION", "참조 무결성 제약 조건을 위반했습니다."),
 
+    // ARTICLE
+    ARTICLE_NOT_FOUND(HttpStatus.NOT_FOUND, "ARTICLE NOT FOUND", "존재하지 않는 게시글입니다."),
+    ARTICLE_FORBIDDEN(HttpStatus.FORBIDDEN, "ARTICLE FORBIDDEN", "게시글 작성/수정/삭제는 관리자만 가능합니다."),
+
     // GITHUB Errors
     GITHUB_TOKEN_NOT_FOUND(HttpStatus.UNAUTHORIZED, "GITHUB_TOKEN_NOT_FOUND", "GitHub 연동 토큰이 없습니다. GitHub으로 다시 로그인해주세요."),
     GITHUB_TOKEN_EXPIRED(HttpStatus.UNAUTHORIZED, "GITHUB_TOKEN_EXPIRED", "GitHub 토큰이 만료되었습니다. GitHub으로 다시 로그인해주세요."),
