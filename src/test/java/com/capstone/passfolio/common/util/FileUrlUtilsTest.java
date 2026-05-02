@@ -87,9 +87,9 @@ class FileUrlUtilsTest {
         void happyPath_concatsBaseAndKey() {
             new FileUrlUtils().setCdnBaseUrl("https://cdn.passfolio.com");
 
-            String url = FileUrlUtils.buildCdnUrl("files/uuid__resume.pdf");
+            String url = FileUrlUtils.buildCdnUrl("files/pdf/uuid__resume.pdf");
 
-            assertThat(url).isEqualTo("https://cdn.passfolio.com/files/uuid__resume.pdf");
+            assertThat(url).isEqualTo("https://cdn.passfolio.com/files/pdf/uuid__resume.pdf");
         }
 
         @Test
@@ -97,10 +97,10 @@ class FileUrlUtilsTest {
         void leadingSlashKey_isNormalized() {
             new FileUrlUtils().setCdnBaseUrl("https://cdn.passfolio.com");
 
-            String url = FileUrlUtils.buildCdnUrl("/files/uuid__resume.pdf");
+            String url = FileUrlUtils.buildCdnUrl("/files/pdf/uuid__resume.pdf");
 
             // 결과에 '//' 가 들어가면 안 됨
-            assertThat(url).isEqualTo("https://cdn.passfolio.com/files/uuid__resume.pdf");
+            assertThat(url).isEqualTo("https://cdn.passfolio.com/files/pdf/uuid__resume.pdf");
             assertThat(url).doesNotContain("com//");
         }
 
@@ -109,9 +109,9 @@ class FileUrlUtilsTest {
         void trailingSlashBase_producesSameUrl() {
             new FileUrlUtils().setCdnBaseUrl("https://cdn.passfolio.com/");
 
-            String url = FileUrlUtils.buildCdnUrl("files/k");
+            String url = FileUrlUtils.buildCdnUrl("files/pdf/k");
 
-            assertThat(url).isEqualTo("https://cdn.passfolio.com/files/k");
+            assertThat(url).isEqualTo("https://cdn.passfolio.com/files/pdf/k");
         }
 
         @Test
@@ -134,7 +134,7 @@ class FileUrlUtilsTest {
         @DisplayName("CDN 미설정 (null) + 정상 key → IllegalStateException — file_security.md §5 fail-fast")
         void cdnNotSet_throws() {
             // setter 를 호출하지 않음 → 정적 필드 null
-            assertThatThrownBy(() -> FileUrlUtils.buildCdnUrl("files/k"))
+            assertThatThrownBy(() -> FileUrlUtils.buildCdnUrl("files/pdf/k"))
                     .isInstanceOf(IllegalStateException.class)
                     .hasMessageContaining("CDN");
         }
@@ -144,7 +144,7 @@ class FileUrlUtilsTest {
         void cdnBlank_throws() {
             ReflectionTestUtils.setField(FileUrlUtils.class, "cdnBaseUrl", "");
 
-            assertThatThrownBy(() -> FileUrlUtils.buildCdnUrl("files/k"))
+            assertThatThrownBy(() -> FileUrlUtils.buildCdnUrl("files/pdf/k"))
                     .isInstanceOf(IllegalStateException.class);
         }
     }

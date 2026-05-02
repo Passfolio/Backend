@@ -36,7 +36,7 @@ public class S3ServiceDto {
      * {@code S3Service.initiateUpload} 에 전달한다.
      *
      * <p>{@code mediaType} 은 MIME prefix 또는 확장자 분류 결과로, S3 객체 키의 subfolder 결정
-     * (예: {@code IMAGE}/{@code PDF} → {@code files/}, {@code VIDEO}/{@code AUDIO} → {@code videos/}) 에 사용된다.
+     * (예: {@code IMAGE} → {@code files/images/}, {@code PDF} → {@code files/pdf/}, {@code VIDEO}/{@code AUDIO} → {@code files/videos/}) 에 사용된다.
      */
     @Data
     @Builder

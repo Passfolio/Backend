@@ -87,7 +87,7 @@ class FileRepositoryTest {
         void save_thenFindById_roundTripsAllFields() {
             // given — 백로그 §S3 key format 형태의 키 + 100MB 미만 PDF
             File toSave = sampleFile(
-                    "files/11111111-1111-1111-1111-111111111111__resume.pdf",
+                    "files/pdf/11111111-1111-1111-1111-111111111111__resume.pdf",
                     "resume.pdf",
                     1_048_576L, // 1 MiB
                     MediaType.PDF
@@ -110,7 +110,7 @@ class FileRepositoryTest {
             File found = reloaded.get();
             assertThat(found.getId()).isEqualTo(saved.getId());
             assertThat(found.getS3ObjectKey())
-                    .isEqualTo("files/11111111-1111-1111-1111-111111111111__resume.pdf");
+                    .isEqualTo("files/pdf/11111111-1111-1111-1111-111111111111__resume.pdf");
             assertThat(found.getFilename()).isEqualTo("resume.pdf");
             assertThat(found.getFileSize()).isEqualTo(1_048_576L);
             assertThat(found.getMediaType()).isEqualTo(MediaType.PDF);
@@ -133,7 +133,7 @@ class FileRepositoryTest {
             // given — 각 MediaType 별로 1개씩 영속화
             for (MediaType mediaType : MediaType.values()) {
                 em.persist(sampleFile(
-                        "files/key-" + mediaType.name().toLowerCase() + "__file.bin",
+                        "files/pdf/key-" + mediaType.name().toLowerCase() + "__file.bin",
                         "file-" + mediaType.name() + ".bin",
                         2048L,
                         mediaType
@@ -159,7 +159,7 @@ class FileRepositoryTest {
             //          주입되지 않으므로 createdBy 는 null 로 남는다.
             //          T08 마이그레이션이 created_by 에 NOT NULL 을 두지 않은 의도가 여기서 검증된다.
             File toSave = sampleFile(
-                    "files/22222222-2222-2222-2222-222222222222__no-auditor.pdf",
+                    "files/pdf/22222222-2222-2222-2222-222222222222__no-auditor.pdf",
                     "no-auditor.pdf",
                     4096L,
                     MediaType.PDF
@@ -181,7 +181,7 @@ class FileRepositoryTest {
         @DisplayName("같은 s3_object_key 두 번 persist → flush 시점에 DataIntegrityViolationException")
         void duplicateS3ObjectKey_throwsOnFlush() {
             // given — 첫 행은 정상 영속화
-            String duplicateKey = "files/33333333-3333-3333-3333-333333333333__same.pdf";
+            String duplicateKey = "files/pdf/33333333-3333-3333-3333-333333333333__same.pdf";
             em.persistAndFlush(sampleFile(duplicateKey, "first.pdf", 1024L, MediaType.PDF));
 
             // when — 동일 s3_object_key 로 두번째 행 시도
@@ -209,10 +209,10 @@ class FileRepositoryTest {
         void differentS3ObjectKeys_persistIndependently() {
             // given / when — 서로 다른 키 두 행
             em.persistAndFlush(sampleFile(
-                    "files/44444444-4444-4444-4444-444444444444__a.pdf",
+                    "files/pdf/44444444-4444-4444-4444-444444444444__a.pdf",
                     "a.pdf", 1024L, MediaType.PDF));
             em.persistAndFlush(sampleFile(
-                    "files/55555555-5555-5555-5555-555555555555__b.pdf",
+                    "files/pdf/55555555-5555-5555-5555-555555555555__b.pdf",
                     "b.pdf", 2048L, MediaType.PDF));
             em.clear();
 
@@ -221,8 +221,8 @@ class FileRepositoryTest {
                     .hasSize(2)
                     .extracting(File::getS3ObjectKey)
                     .containsExactlyInAnyOrder(
-                            "files/44444444-4444-4444-4444-444444444444__a.pdf",
-                            "files/55555555-5555-5555-5555-555555555555__b.pdf"
+                            "files/pdf/44444444-4444-4444-4444-444444444444__a.pdf",
+                            "files/pdf/55555555-5555-5555-5555-555555555555__b.pdf"
                     );
         }
 
@@ -230,7 +230,7 @@ class FileRepositoryTest {
         @DisplayName("기존 행 삭제 후 같은 s3_object_key 재사용 가능 (UK 는 현재 살아있는 행만 검사)")
         void sameKeyReusable_afterDeletion() {
             // given — 영속화 후 즉시 삭제 (실제 운영의 abort/cleanup 시나리오 모사)
-            String reusedKey = "files/66666666-6666-6666-6666-666666666666__reused.pdf";
+            String reusedKey = "files/pdf/66666666-6666-6666-6666-666666666666__reused.pdf";
             File first = sampleFile(reusedKey, "first.pdf", 1024L, MediaType.PDF);
             em.persistAndFlush(first);
             em.remove(first);

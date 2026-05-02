@@ -152,7 +152,7 @@ class FileControllerTest {
             // given — 서비스가 design 의 응답 스키마대로 DTO 를 돌려준다고 가정
             FileDto.MultipartUploadInitiateResponse svcResponse =
                     FileDto.MultipartUploadInitiateResponse.builder()
-                            .key("files/3f2d04ec-12ab-4cde-9abc-1234567890ab__resume.pdf")
+                            .key("files/pdf/3f2d04ec-12ab-4cde-9abc-1234567890ab__resume.pdf")
                             .uploadId("upload-id-12345")
                             .contentType("application/pdf")
                             .partCount(2)
@@ -185,7 +185,7 @@ class FileControllerTest {
                             .content(requestBody))
                     .andExpect(status().isOk())
                     .andExpect(content().contentTypeCompatibleWith(org.springframework.http.MediaType.APPLICATION_JSON))
-                    .andExpect(jsonPath("$.key").value("files/3f2d04ec-12ab-4cde-9abc-1234567890ab__resume.pdf"))
+                    .andExpect(jsonPath("$.key").value("files/pdf/3f2d04ec-12ab-4cde-9abc-1234567890ab__resume.pdf"))
                     .andExpect(jsonPath("$.uploadId").value("upload-id-12345"))
                     .andExpect(jsonPath("$.contentType").value("application/pdf"))
                     .andExpect(jsonPath("$.partCount").value(2))
@@ -345,7 +345,7 @@ class FileControllerTest {
 
             String requestBody = """
                     {
-                      "key": "files/uuid__file.pdf",
+                      "key": "files/pdf/uuid__file.pdf",
                       "uploadId": "upload-id-12345",
                       "partNumber": 7,
                       "contentLength": 67108864,
@@ -366,7 +366,7 @@ class FileControllerTest {
                     ArgumentCaptor.forClass(FileDto.PartPresignedUrlSingleRequest.class);
             then(fileService).should().generatePartPresignedUrl(captor.capture());
             FileDto.PartPresignedUrlSingleRequest captured = captor.getValue();
-            assertThat(captured.getKey()).isEqualTo("files/uuid__file.pdf");
+            assertThat(captured.getKey()).isEqualTo("files/pdf/uuid__file.pdf");
             assertThat(captured.getUploadId()).isEqualTo("upload-id-12345");
             assertThat(captured.getPartNumber()).isEqualTo(7);
             assertThat(captured.getContentLength()).isEqualTo(67_108_864L);
@@ -388,7 +388,7 @@ class FileControllerTest {
 
             String requestBody = """
                     {
-                      "key": "files/uuid__file.pdf",
+                      "key": "files/pdf/uuid__file.pdf",
                       "uploadId": "upload-id-12345",
                       "partNumber": 1,
                       "contentLength": 67108864
@@ -432,7 +432,7 @@ class FileControllerTest {
         void partPresignedUrl_partNumberZero_returns400_andDoesNotCallService() throws Exception {
             String requestBody = """
                     {
-                      "key": "files/uuid__x.pdf",
+                      "key": "files/pdf/uuid__x.pdf",
                       "uploadId": "u-id",
                       "partNumber": 0,
                       "contentLength": 1024
@@ -452,7 +452,7 @@ class FileControllerTest {
         void partPresignedUrl_partNumberOver10000_returns400_andDoesNotCallService() throws Exception {
             String requestBody = """
                     {
-                      "key": "files/uuid__x.pdf",
+                      "key": "files/pdf/uuid__x.pdf",
                       "uploadId": "u-id",
                       "partNumber": 10001,
                       "contentLength": 1024
@@ -472,7 +472,7 @@ class FileControllerTest {
         void partPresignedUrl_missingContentLength_returns400_andDoesNotCallService() throws Exception {
             String requestBody = """
                     {
-                      "key": "files/uuid__x.pdf",
+                      "key": "files/pdf/uuid__x.pdf",
                       "uploadId": "u-id",
                       "partNumber": 1
                     }
@@ -617,7 +617,7 @@ class FileControllerTest {
         void complete_emptyParts_returns400_andDoesNotCallService() throws Exception {
             String requestBody = """
                     {
-                      "key": "files/uuid__x.pdf",
+                      "key": "files/pdf/uuid__x.pdf",
                       "uploadId": "u-id",
                       "parts": [],
                       "originalFileName": "x.pdf",
@@ -638,7 +638,7 @@ class FileControllerTest {
         void complete_blankOriginalFileName_returns400_andDoesNotCallService() throws Exception {
             String requestBody = """
                     {
-                      "key": "files/uuid__x.pdf",
+                      "key": "files/pdf/uuid__x.pdf",
                       "uploadId": "u-id",
                       "parts": [{ "partNumber": 1, "etag": "\\"e\\"" }],
                       "originalFileName": "",
@@ -659,7 +659,7 @@ class FileControllerTest {
         void complete_missingFileSize_returns400_andDoesNotCallService() throws Exception {
             String requestBody = """
                     {
-                      "key": "files/uuid__x.pdf",
+                      "key": "files/pdf/uuid__x.pdf",
                       "uploadId": "u-id",
                       "parts": [{ "partNumber": 1, "etag": "\\"e\\"" }],
                       "originalFileName": "x.pdf"
@@ -682,7 +682,7 @@ class FileControllerTest {
 
             String requestBody = """
                     {
-                      "key": "files/uuid__x.pdf",
+                      "key": "files/pdf/uuid__x.pdf",
                       "uploadId": "u-id",
                       "parts": [{ "partNumber": 1, "etag": "\\"e\\"" }],
                       "originalFileName": "x.pdf",
@@ -714,7 +714,7 @@ class FileControllerTest {
 
             String requestBody = """
                     {
-                      "key": "files/uuid__x.pdf",
+                      "key": "files/pdf/uuid__x.pdf",
                       "uploadId": "upload-id-12345"
                     }
                     """;
@@ -725,7 +725,7 @@ class FileControllerTest {
                     .andExpect(status().isNoContent())
                     .andExpect(content().string(""));   // 204 No Content → 본문 없어야 함
 
-            then(fileService).should().abortMultipartUpload(eq("files/uuid__x.pdf"), eq("upload-id-12345"));
+            then(fileService).should().abortMultipartUpload(eq("files/pdf/uuid__x.pdf"), eq("upload-id-12345"));
         }
 
         @Test
@@ -751,7 +751,7 @@ class FileControllerTest {
         void abort_blankUploadId_returns400_andDoesNotCallService() throws Exception {
             String requestBody = """
                     {
-                      "key": "files/uuid__x.pdf",
+                      "key": "files/pdf/uuid__x.pdf",
                       "uploadId": ""
                     }
                     """;
@@ -772,7 +772,7 @@ class FileControllerTest {
 
             String requestBody = """
                     {
-                      "key": "files/uuid__x.pdf",
+                      "key": "files/pdf/uuid__x.pdf",
                       "uploadId": "upload-id-12345"
                     }
                     """;

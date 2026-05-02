@@ -55,7 +55,7 @@ import software.amazon.awssdk.services.s3.presigner.model.UploadPartPresignReque
  * <p>검증 명세 (설계 §"Acceptance signals"):
  * <ol>
  *   <li>{@code initiateUpload}: {@code CreateMultipartUploadRequest.bucket/key/contentType} 정확.
- *       key 가 {@code (files|videos)/UUID__sanitized} 패턴 + 경로 traversal 무력화.</li>
+ *       key 가 {@code files/(videos|images|pdf|other)/UUID__sanitized} 패턴 + 경로 traversal 무력화.</li>
  *   <li>{@code generatePresignedUrl}: {@code Content-Length} 가 양수일 때 항상 결속,
  *       {@code Content-MD5} 는 클라이언트가 보낼 때만 결속, TTL 은 properties 값.</li>
  *   <li>{@code generatePartPresignedUrls}: fileSize → partCount 만큼 발급, 마지막 part 는 잔여 바이트.</li>
@@ -66,7 +66,7 @@ import software.amazon.awssdk.services.s3.presigner.model.UploadPartPresignReque
  *   <li>{@code calculatePartCount}: 50MB → 1, 100MB → 2 (백로그 한도 경계),
  *       null/0 → 1, 음수 → 1.</li>
  *   <li>{@code calculatePartSize}: 1 part → fileSize, n part → 마지막 잔여.</li>
- *   <li>subfolder: {@link MediaType#VIDEO}/{@link MediaType#AUDIO} → "videos/", 나머지/null fallback → "files/" 또는 mime/확장자 기반.</li>
+ *   <li>subfolder: VIDEO/AUDIO → files/videos/, IMAGE → files/images/, PDF → files/pdf/, UNKNOWN/null → mime·확장자 또는 files/other/.</li>
  * </ol>
  *
  * <p>각 테스트는 SUT 의 어떤 동작이 깨졌는지를 한 줄로 설명할 수 있어야 한다 — {@code isNotNull()} 단독 검증 금지.
@@ -78,9 +78,9 @@ class S3ServiceTest {
     private static final int TTL_MIN = 10;
     private static final long MB = 1024L * 1024;
 
-    /** ^(files|videos)/[0-9a-f-]{36}__[a-zA-Z0-9._-]*$ — 설계 §"Acceptance signals" 의 key 패턴 */
+    /** ^files/(videos|images|pdf|other)/[0-9a-f-]{36}__[a-zA-Z0-9._-]*$ — key 패턴 */
     private static final Pattern KEY_PATTERN =
-            Pattern.compile("^(files|videos)/[0-9a-f-]{36}__[a-zA-Z0-9._-]*$");
+            Pattern.compile("^files/(videos|images|pdf|other)/[0-9a-f-]{36}__[a-zA-Z0-9._-]*$");
 
     @Mock S3Client s3Client;
     @Mock S3Presigner s3Presigner;
@@ -129,8 +129,8 @@ class S3ServiceTest {
             assertThat(sent.bucket()).isEqualTo(BUCKET);
             assertThat(sent.contentType()).isEqualTo("application/pdf");
             assertThat(sent.key()).matches(KEY_PATTERN);
-            // PDF 는 MediaType 분류상 "files/" subfolder 에 들어가야 한다
-            assertThat(sent.key()).startsWith("files/");
+            // PDF 는 MediaType 분류상 "files/pdf/" subfolder 에 들어가야 한다
+            assertThat(sent.key()).startsWith("files/pdf/");
 
             assertThat(res.getUploadId()).isEqualTo("upload-id-1");
             assertThat(res.getKey()).isEqualTo(sent.key());
@@ -158,12 +158,12 @@ class S3ServiceTest {
             assertThat(res.getKey()).matches(KEY_PATTERN);
             assertThat(res.getKey()).doesNotContain("/etc/");
             assertThat(res.getKey()).doesNotContain("../");
-            // 정확히 한 번의 슬래시 (subfolder 와 UUID 사이)
-            assertThat(res.getKey().chars().filter(c -> c == '/').count()).isEqualTo(1);
+            // files / other / uuid__filename — 슬래시 2개
+            assertThat(res.getKey().chars().filter(c -> c == '/').count()).isEqualTo(2);
         }
 
         @Test
-        @DisplayName("비디오 MIME → key subfolder 가 'videos/'")
+        @DisplayName("비디오 MIME → key 가 'files/videos/' 로 시작")
         void videoMediaType_routesToVideosSubfolder() {
             given(s3Client.createMultipartUpload(any(CreateMultipartUploadRequest.class)))
                     .willReturn(CreateMultipartUploadResponse.builder().uploadId("u").build());
@@ -177,12 +177,12 @@ class S3ServiceTest {
 
             S3ServiceDto.UploadInitiateResponse res = s3Service.initiateUpload(req);
 
-            assertThat(res.getKey()).startsWith("videos/");
+            assertThat(res.getKey()).startsWith("files/videos/");
         }
 
         @Test
-        @DisplayName("이미지 MediaType → key subfolder 가 'files/'")
-        void imageMediaType_routesToFilesSubfolder() {
+        @DisplayName("이미지 MediaType → key 가 'files/images/' 로 시작")
+        void imageMediaType_routesToImagesSubfolder() {
             given(s3Client.createMultipartUpload(any(CreateMultipartUploadRequest.class)))
                     .willReturn(CreateMultipartUploadResponse.builder().uploadId("u").build());
 
@@ -195,7 +195,7 @@ class S3ServiceTest {
 
             S3ServiceDto.UploadInitiateResponse res = s3Service.initiateUpload(req);
 
-            assertThat(res.getKey()).startsWith("files/");
+            assertThat(res.getKey()).startsWith("files/images/");
         }
 
         @Test
@@ -243,7 +243,7 @@ class S3ServiceTest {
         @DisplayName("contentLength > 0 이면 UploadPartRequest 에 항상 결속된다")
         void alwaysBindsContentLength_whenPositive() {
             S3ServiceDto.PresignedUrlRequest req = S3ServiceDto.PresignedUrlRequest.builder()
-                    .key("files/abc/uuid__name.pdf")
+                    .key("files/pdf/abc__name.pdf")
                     .uploadId("upload-id")
                     .partNumber(1)
                     .contentLength(5L * MB)
@@ -267,7 +267,7 @@ class S3ServiceTest {
         @DisplayName("contentMd5Base64 가 주어지면 UploadPartRequest 에 결속된다")
         void bindsMd5_whenProvided() {
             S3ServiceDto.PresignedUrlRequest req = S3ServiceDto.PresignedUrlRequest.builder()
-                    .key("files/k")
+                    .key("files/pdf/k")
                     .uploadId("u")
                     .partNumber(1)
                     .contentLength(1024L)
@@ -343,7 +343,7 @@ class S3ServiceTest {
         @DisplayName("UploadPartRequest 에 bucket/key/uploadId/partNumber 가 정확히 전달된다")
         void includesBucketKeyUploadIdPartNumber() {
             S3ServiceDto.PresignedUrlRequest req = S3ServiceDto.PresignedUrlRequest.builder()
-                    .key("files/the-key")
+                    .key("files/pdf/the-key")
                     .uploadId("upload-xyz")
                     .partNumber(7)
                     .contentLength(1L)
@@ -357,7 +357,7 @@ class S3ServiceTest {
 
             var partReq = captor.getValue().uploadPartRequest();
             assertThat(partReq.bucket()).isEqualTo(BUCKET);
-            assertThat(partReq.key()).isEqualTo("files/the-key");
+            assertThat(partReq.key()).isEqualTo("files/pdf/the-key");
             assertThat(partReq.uploadId()).isEqualTo("upload-xyz");
             assertThat(partReq.partNumber()).isEqualTo(7);
         }
@@ -380,7 +380,7 @@ class S3ServiceTest {
 
             long size = 100L * MB;
             S3ServiceDto.PartPresignedUrlRequest req = S3ServiceDto.PartPresignedUrlRequest.builder()
-                    .key("files/k")
+                    .key("files/pdf/k")
                     .uploadId("u")
                     .fileSize(size)
                     .build();
@@ -436,7 +436,7 @@ class S3ServiceTest {
                             .build());
 
             S3ServiceDto.CompleteUploadRequest req = S3ServiceDto.CompleteUploadRequest.builder()
-                    .key("files/k")
+                    .key("files/pdf/k")
                     .uploadId("u")
                     .parts(List.of(
                             // 일부러 뒤섞어서 입력
@@ -459,7 +459,7 @@ class S3ServiceTest {
                     .containsExactly("\"e1\"", "\"e2\"", "\"e3\"");
 
             assertThat(captor.getValue().bucket()).isEqualTo(BUCKET);
-            assertThat(captor.getValue().key()).isEqualTo("files/k");
+            assertThat(captor.getValue().key()).isEqualTo("files/pdf/k");
             assertThat(captor.getValue().uploadId()).isEqualTo("u");
 
             assertThat(res.location()).isEqualTo("https://s3.example.com/k");
@@ -478,7 +478,7 @@ class S3ServiceTest {
         @DisplayName("AbortMultipartUploadRequest 가 정확히 1회 호출되며 bucket/key/uploadId 가 전달된다")
         void callsAbortOnce_withAllArguments() {
             S3ServiceDto.AbortUploadRequest req = S3ServiceDto.AbortUploadRequest.builder()
-                    .key("files/k").uploadId("u").build();
+                    .key("files/pdf/k").uploadId("u").build();
 
             s3Service.abortUpload(req);
 
@@ -487,7 +487,7 @@ class S3ServiceTest {
             then(s3Client).should(times(1)).abortMultipartUpload(captor.capture());
 
             assertThat(captor.getValue().bucket()).isEqualTo(BUCKET);
-            assertThat(captor.getValue().key()).isEqualTo("files/k");
+            assertThat(captor.getValue().key()).isEqualTo("files/pdf/k");
             assertThat(captor.getValue().uploadId()).isEqualTo("u");
         }
     }
@@ -510,12 +510,12 @@ class S3ServiceTest {
                     .build();
             given(s3Client.listParts(any(ListPartsRequest.class))).willReturn(sdkResponse);
 
-            S3ServiceDto.ListPartsResponse res = s3Service.listUploadedParts("files/k", "u");
+            S3ServiceDto.ListPartsResponse res = s3Service.listUploadedParts("files/pdf/k", "u");
 
             ArgumentCaptor<ListPartsRequest> captor = ArgumentCaptor.forClass(ListPartsRequest.class);
             then(s3Client).should().listParts(captor.capture());
             assertThat(captor.getValue().bucket()).isEqualTo(BUCKET);
-            assertThat(captor.getValue().key()).isEqualTo("files/k");
+            assertThat(captor.getValue().key()).isEqualTo("files/pdf/k");
             assertThat(captor.getValue().uploadId()).isEqualTo("u");
 
             assertThat(res.getParts()).hasSize(2);
@@ -541,14 +541,14 @@ class S3ServiceTest {
             given(s3Client.headObject(any(HeadObjectRequest.class)))
                     .willReturn(HeadObjectResponse.builder().contentLength(123_456_789L).build());
 
-            long size = s3Service.getObjectActualSize("files/k");
+            long size = s3Service.getObjectActualSize("files/pdf/k");
 
             assertThat(size).isEqualTo(123_456_789L);
 
             ArgumentCaptor<HeadObjectRequest> captor = ArgumentCaptor.forClass(HeadObjectRequest.class);
             then(s3Client).should().headObject(captor.capture());
             assertThat(captor.getValue().bucket()).isEqualTo(BUCKET);
-            assertThat(captor.getValue().key()).isEqualTo("files/k");
+            assertThat(captor.getValue().key()).isEqualTo("files/pdf/k");
         }
     }
 

@@ -68,7 +68,7 @@ class FileServiceTest {
 
     private static final long MB = 1024L * 1024L;
     private static final long LIMIT_BYTES = 100L * MB;
-    private static final String S3_KEY = "files/3f2d04ec-12ab-4cde-9abc-1234567890ab__resume.pdf";
+    private static final String S3_KEY = "files/pdf/3f2d04ec-12ab-4cde-9abc-1234567890ab__resume.pdf";
     private static final String UPLOAD_ID = "upload-id-12345";
     private static final String CONTENT_TYPE = "application/pdf";
 
@@ -159,7 +159,7 @@ class FileServiceTest {
             given(uploadProperties.isExtensionAllowed("clip.mp4")).willReturn(true);
             given(s3Service.initiateUpload(any())).willReturn(
                     S3ServiceDto.UploadInitiateResponse.builder()
-                            .key("videos/uuid__clip.mp4").uploadId(UPLOAD_ID).contentType("video/mp4")
+                            .key("files/videos/uuid__clip.mp4").uploadId(UPLOAD_ID).contentType("video/mp4")
                             .build());
             given(s3Service.calculatePartCount(anyLong())).willReturn(1);
             given(s3Service.generatePartPresignedUrls(any())).willReturn(List.of());
@@ -185,7 +185,7 @@ class FileServiceTest {
             given(uploadProperties.isExtensionAllowed("photo.png")).willReturn(true);
             given(s3Service.initiateUpload(any())).willReturn(
                     S3ServiceDto.UploadInitiateResponse.builder()
-                            .key("files/uuid__photo.png").uploadId(UPLOAD_ID).contentType("image/png")
+                            .key("files/images/uuid__photo.png").uploadId(UPLOAD_ID).contentType("image/png")
                             .build());
             given(s3Service.calculatePartCount(anyLong())).willReturn(1);
             given(s3Service.generatePartPresignedUrls(any())).willReturn(List.of());

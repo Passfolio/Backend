@@ -54,6 +54,13 @@ import org.springframework.http.ResponseEntity;
                 - 모든 part URL 에 `Content-Length` 결속 — 약속한 크기 외의 PUT 거부 (DoS 방어)
                 - `Content-MD5` 는 클라이언트가 `md5Base64` 를 보낼 때만 결속 (무결성 강화 옵션)
                 - 업로드 완료 후 `HeadObject` 로 실제 크기를 재검증 — 불일치 시 즉시 abort
+
+                ## S3 객체 키 prefix (서버 확정)
+                - 모든 업로드 객체는 `files/` 아래에 저장한다.
+                - 동영상·오디오 계열 → `files/videos/`
+                - 이미지 → `files/images/`
+                - PDF → `files/pdf/`
+                - 분류 불명(UNKNOWN 등) → MIME·확장자로 재판정, 여전히 불명확하면 `files/other/`
                 """)
 public interface FileApiSpecification {
 
@@ -99,14 +106,14 @@ public interface FileApiSpecification {
                                                         value =
                                                                 """
                                                                 {
-                                                                  "key": "files/3f2d04ec-12ab-4cde-9abc-1234567890ab__resume.pdf",
+                                                                  "key": "files/pdf/3f2d04ec-12ab-4cde-9abc-1234567890ab__resume.pdf",
                                                                   "uploadId": "upload-id-12345",
                                                                   "contentType": "application/pdf",
                                                                   "partCount": 1,
                                                                   "partPresignedUrls": [
                                                                     {
                                                                       "partNumber": 1,
-                                                                      "presignedUrl": "https://bucket.s3.ap-northeast-2.amazonaws.com/files/3f2d04ec-...?X-Amz-Algorithm=...",
+                                                                      "presignedUrl": "https://bucket.s3.ap-northeast-2.amazonaws.com/files/pdf/3f2d04ec-...?X-Amz-Algorithm=...",
                                                                       "contentLength": 1048576
                                                                     }
                                                                   ]
@@ -232,7 +239,7 @@ public interface FileApiSpecification {
                                                                 """
                                                                 {
                                                                   "partNumber": 1,
-                                                                  "presignedUrl": "https://bucket.s3.ap-northeast-2.amazonaws.com/files/3f2d04ec-...?partNumber=1&uploadId=upload-id-12345&X-Amz-Algorithm=...",
+                                                                  "presignedUrl": "https://bucket.s3.ap-northeast-2.amazonaws.com/files/pdf/3f2d04ec-...?partNumber=1&uploadId=upload-id-12345&X-Amz-Algorithm=...",
                                                                   "contentLength": 67108864,
                                                                   "md5Base64": "8gWuEUu3Q5Qbd7Q+aXhP+w=="
                                                                 }
@@ -335,7 +342,7 @@ public interface FileApiSpecification {
             @Parameter(
                             description = "initiate 응답의 `key`",
                             required = true,
-                            example = "files/3f2d04ec-12ab-4cde-9abc-1234567890ab__resume.pdf")
+                            example = "files/pdf/3f2d04ec-12ab-4cde-9abc-1234567890ab__resume.pdf")
                     String key,
             @Parameter(
                             description = "initiate 응답의 `uploadId`",
@@ -380,7 +387,7 @@ public interface FileApiSpecification {
                                                                 {
                                                                   "fileId": 12345,
                                                                   "filename": "resume.pdf",
-                                                                  "cdnUrl": "https://cdn.passfolio.com/files/3f2d04ec-12ab-4cde-9abc-1234567890ab__resume.pdf",
+                                                                  "cdnUrl": "https://cdn.passfolio.com/files/pdf/3f2d04ec-12ab-4cde-9abc-1234567890ab__resume.pdf",
                                                                   "fileSize": 1048576,
                                                                   "mediaType": "PDF",
                                                                   "status": "AVAILABLE"

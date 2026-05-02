@@ -71,7 +71,7 @@ public class FileService {
      *
      * <p>{@code mediaType} 분류는 controller 입력 ({@code mimeType} + {@code originalFileName}) 으로부터
      * 본 메서드가 수행해 {@link S3ServiceDto.UploadInitiateRequest#getMediaType()} 으로 전달한다 — S3Service
-     * 가 subfolder 결정에 사용 ({@code IMAGE/PDF → files/}, {@code VIDEO/AUDIO → videos/}).
+     * 가 subfolder 결정에 사용 ({@code IMAGE → files/images/}, {@code PDF → files/pdf/}, {@code VIDEO/AUDIO → files/videos/}).
      *
      * @param request 클라이언트 입력 (originalFileName, mimeType?, fileSize). 모두 controller 의
      *                {@code @Valid} 가 1차 검증한 상태.
