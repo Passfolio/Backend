@@ -15,9 +15,15 @@ import software.amazon.awssdk.services.s3.model.CompletedMultipartUpload;
 import software.amazon.awssdk.services.s3.model.CompletedPart;
 import software.amazon.awssdk.services.s3.model.CreateMultipartUploadRequest;
 import software.amazon.awssdk.services.s3.model.CreateMultipartUploadResponse;
+import software.amazon.awssdk.services.s3.model.Delete;
+import software.amazon.awssdk.services.s3.model.DeleteObjectsRequest;
+import software.amazon.awssdk.services.s3.model.DeleteObjectsResponse;
 import software.amazon.awssdk.services.s3.model.HeadObjectRequest;
 import software.amazon.awssdk.services.s3.model.HeadObjectResponse;
 import software.amazon.awssdk.services.s3.model.ListPartsRequest;
+import software.amazon.awssdk.services.s3.model.ObjectIdentifier;
+import software.amazon.awssdk.services.s3.model.S3Error;
+import software.amazon.awssdk.services.s3.model.S3Exception;
 import software.amazon.awssdk.services.s3.model.StorageClass;
 import software.amazon.awssdk.services.s3.model.UploadPartRequest;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
@@ -311,6 +317,90 @@ public class S3Service {
                 .toList();
 
         return S3ServiceDto.ListPartsResponse.builder().parts(parts).build();
+    }
+
+    // ============================================================
+    // 6) 객체 일괄 삭제 (DeleteObjects) — 1000개 청크 분할 + 부분 실패 허용
+    // ============================================================
+
+    /** AWS S3 {@code DeleteObjects} API 의 단일 요청 최대 키 개수 (AWS 한도). */
+    private static final int DELETE_OBJECTS_BATCH_SIZE = 1000;
+
+    /**
+     * 주어진 S3 객체 키 목록을 batch {@code DeleteObjects} 호출로 일괄 삭제한다.
+     *
+     * <p>호출자({@code ArticleService.delete} 또는 {@code ArticleService.deleteAllByWriter}) 가 CDN URL 들에서
+     * S3 키들을 추출해 본 메서드에 전달한다 — 본 메서드는 키 변환을 수행하지 않으며 순수히 batch 삭제만 책임진다.
+     *
+     * <p>구동 규칙:
+     * <ul>
+     *   <li>{@code keys} 가 {@code null} 이거나 비어있으면 즉시 반환 (no-op).</li>
+     *   <li>{@code null}/blank 키는 사전 필터링 — DeleteObjects 요청에 포함되면 S3 가 {@code MalformedXML} 로 거부할 수 있다.</li>
+     *   <li>중복 키는 제거 — 동일 키를 두 번 보내도 S3 가 한 번 삭제하지만 응답이 더 길어지고 quota 를 더 사용한다.</li>
+     *   <li>AWS S3 {@code DeleteObjects} 한도(1000 키/요청) 에 맞춰 chunk={@value #DELETE_OBJECTS_BATCH_SIZE} 단위로 분할 호출.</li>
+     *   <li>이미 존재하지 않는 키는 idempotent — unversioned bucket 에서 S3 는 missing key 도 성공(delete-marker semantics) 으로 응답.</li>
+     *   <li>부분 실패는 로그 후 계속 진행 — 본 메서드는 예외를 전파하지 않는다 (fail-soft):
+     *       Article 메타가 이미 DB 에서 삭제되거나 곧 삭제될 시점에 호출되며, 잔여 S3 객체는
+     *       {@code file_security.md §7.2} 의 lifecycle 정책으로 회수되도록 한다.</li>
+     *   <li>{@link S3Exception} 으로 chunk 전체가 실패하면 ERROR 로그만 남기고 다음 chunk 로 진행 — 한 chunk 의
+     *       장애가 전체 정리를 막지 않게 한다.</li>
+     * </ul>
+     *
+     * @param keys 삭제 대상 S3 객체 키 목록 (CDN URL prefix 가 이미 제거된 키). null/empty 허용 (no-op).
+     */
+    public void deleteObjects(List<String> keys) {
+        if (keys == null || keys.isEmpty()) {
+            return;
+        }
+
+        // null/blank 제거 + 중복 제거 (입력 순서 보존: LinkedHashSet)
+        List<String> sanitized = keys.stream()
+                .filter(k -> k != null && !k.isBlank())
+                .distinct()
+                .toList();
+        if (sanitized.isEmpty()) {
+            return;
+        }
+
+        int totalKeys = sanitized.size();
+        int totalChunks = (totalKeys + DELETE_OBJECTS_BATCH_SIZE - 1) / DELETE_OBJECTS_BATCH_SIZE;
+
+        for (int chunkIdx = 0; chunkIdx < totalChunks; chunkIdx++) {
+            int from = chunkIdx * DELETE_OBJECTS_BATCH_SIZE;
+            int to = Math.min(from + DELETE_OBJECTS_BATCH_SIZE, totalKeys);
+            List<String> chunk = sanitized.subList(from, to);
+
+            List<ObjectIdentifier> identifiers = chunk.stream()
+                    .map(k -> ObjectIdentifier.builder().key(k).build())
+                    .toList();
+
+            DeleteObjectsRequest deleteRequest = DeleteObjectsRequest.builder()
+                    .bucket(bucketName)
+                    .delete(Delete.builder().objects(identifiers).quiet(Boolean.TRUE).build())
+                    .build();
+
+            try {
+                DeleteObjectsResponse response = s3Client.deleteObjects(deleteRequest);
+
+                // quiet 모드: 성공한 키는 응답에서 생략, 실패한 키만 errors() 로 반환.
+                List<S3Error> errors = response.errors();
+                if (errors != null && !errors.isEmpty()) {
+                    for (S3Error err : errors) {
+                        log.warn("[S3] deleteObjects partial failure key={}, code={}, message={}",
+                                err.key(), err.code(), err.message());
+                    }
+                    log.warn("[S3] deleteObjects chunk={} ({}/{}) had {} failure(s) out of {} key(s)",
+                            chunkIdx + 1, chunkIdx + 1, totalChunks, errors.size(), chunk.size());
+                } else {
+                    log.info("[S3] deleteObjects chunk={} ({}/{}) deleted {} key(s)",
+                            chunkIdx + 1, chunkIdx + 1, totalChunks, chunk.size());
+                }
+            } catch (S3Exception e) {
+                // 한 chunk 의 실패가 다음 chunk 정리를 막지 않도록 fail-soft.
+                log.error("[S3] deleteObjects chunk={} ({}/{}) failed for {} key(s): {}",
+                        chunkIdx + 1, chunkIdx + 1, totalChunks, chunk.size(), e.awsErrorDetails().errorMessage(), e);
+            }
+        }
     }
 
     // ============================================================
