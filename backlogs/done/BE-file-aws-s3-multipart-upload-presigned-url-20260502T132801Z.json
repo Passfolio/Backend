@@ -2,7 +2,7 @@
   "backlog_id": "BE-file-aws-s3-multipart-upload-presigned-url-20260502T132801Z",
   "part": "backend",
   "domain": "File",
-  "owner": null,
+  "owner": "harness-state-machine",
   "title": "AWS S3 Multipart Upload (Presigned URL)",
   "user_story": "Client-> 파일 업로드를 요청한다.\nServer-> presignedURL를 발급한다. \nClient-> S3에 직접 파일 업로드한다.",
   "sp": 6,
@@ -18,10 +18,10 @@
     "E2E 테스트는 Positive/Negative 시나리오를 구상한 후 테스트를 진행한다.",
     "외부 API를 사용하는 경우이므로, Mock 기반 테스트를 진행한다."
   ],
-  "stage": "TODO",
-  "stage_status": "PENDING",
+  "stage": "DONE",
+  "stage_status": "PASSED",
   "stage_attempts": {
-    "design": 0,
+    "design": 1,
     "dev": 0,
     "validate": 0,
     "unit_test": 0,
@@ -53,8 +53,30 @@
       "from": null,
       "to": "TODO/PENDING",
       "by": "human"
+    },
+    {
+      "ts": "2026-05-02T13:28:31Z",
+      "from": "TODO/PENDING",
+      "to": "DESIGN/PENDING",
+      "by": "harness-state-machine"
+    },
+    {
+      "ts": "2026-05-02T14:04:29Z",
+      "from": "DESIGN/PENDING",
+      "to": "DESIGN/FAILED",
+      "by": "stop_hook",
+      "note": "agent stopped without publishing twice — auto-failed"
+    },
+    {
+      "ts": "2026-05-02T14:07:32Z",
+      "from": "DESIGN/FAILED",
+      "to": "DONE/PASSED",
+      "by": "human",
+      "note": "abandoned"
     }
   ],
   "created_at": "2026-05-02T13:28:01Z",
-  "updated_at": "2026-05-02T13:28:01Z"
+  "updated_at": "2026-05-02T14:07:32Z",
+  "abandoned": true,
+  "abandoned_at": "2026-05-02T14:07:32Z"
 }
