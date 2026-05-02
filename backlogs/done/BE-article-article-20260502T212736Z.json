@@ -1,0 +1,571 @@
+{
+  "backlog_id": "BE-article-article-20260502T212736Z",
+  "part": "backend",
+  "domain": "Article",
+  "owner": "harness-state-machine",
+  "title": "Article 구현",
+  "user_story": "Admin 계정의 유저는 Article을 작성/수정/조회/삭제할 수 있다.\nArticle 작성 및 수정의 주 컨텐츠는 텍스트, 이미지, 동영상, pdf 등의 첨부파일이다.\nArticle은 글 중간에 이미지나 동영상을 임베드할 수 있다.\nVisitor 혹은 User는 Article을 조회만 할 수 있다.\nArticle은 offset based이며 기본 페이지 사이즈는 9이다.",
+  "sp": 6,
+  "requirements": [
+    "Development Agents는 offset-pagination 스킬을 활용해서 구현한다.",
+    "Test 관련 Agents는 springboot-test 스킬을 활용해서 테스트를 진행한다.",
+    "Article은 Title, Contents의 기본 구조로 구현되어있고, 댓글이나 조회수/좋아요 기능은 없다.",
+    "Article은 UserBaseEntity를 상속받아, Writer와 Time 정보를 같이 갖는다.",
+    "Article은 File과 Cardinality를 구축하는게 아니라, List타입의 Denormalized fileUrls 필드를 갖는다. 이 메커니즘은, 사용자가 텍스트 작성 중간에 파일을 임베드하면, FE에서 바로 AWS S3 Multipart Upload가 진행되고, 그렇게 얻은 file URL을 Article API Request Body 안에 넣는 구조이다.",
+    "정렬 기준은 최근 작성일 기준이다. (createdAt 내림차순)",
+    "Thumbnail 필드도 마찬가지로 Denormalized 필드이며 (File과 연결 X), url로 받는다. 썸네일의 기준은 맨 처음 등록한 이미지의 url이다."
+  ],
+  "constraints": [
+    "Article은 user.role이 ADMIN인 경우에만 작성/수정/삭제할 수 있다. (조회는 당연히 가능)",
+    "Article은 user.role이 없거나(visitor), USER인 경우에는 조회만 할 수 있다.",
+    "Article은 글 중간에 이미지나 동영상을 임베드할 수 있다.",
+    "Article의 contents 필드는 TEXT (가변 문자열타입)으로 지정한다.",
+    "Article은 offset based이며 기본 페이지 사이즈는 9이다.",
+    "Article의 구현은 Covering Index + Denormlization + QueryDSL로 성능 최적화를 이뤄야한다.",
+    "N+1의 문제를 방지해야한다.",
+    "Article을 삭제하면, 그 안에 있는 urls를 토대로 File에서 해당 객체를 찾아서 S3에서 파일 제거되어야한다.",
+    "Admin User가 삭제되면, JPA 방식에 기대기보단 Bulk Delete 되어야 하며, 이 과정에서 Articles가 삭제되면 S3 파일 제거 요청도 이뤄져야한다. (N+1 방지 목적)",
+    "100만개의 데이터 시나리오에서 90만번째 데이터 조회 시 cold cache를 고려해서 4초 미만 안에 응답처리 되어야한다. 100만개의 데이터는 CHUNK=5000 기준 Batch Insert로 임의로 넣으면 된다.",
+    "정렬 기준, 데이터, 첫페이지와 마지막 페이지, 페이지 넘어간 경우 (-1, last+1), 그 외 각종 Validation에 대한 철저한 테스트 진행한다.",
+    "JUnit 기준 Jacoco 기준 80% 이상의 커버리지를 만족한다.",
+    "E2E 테스트는 Positive/Negative 시나리오를 구상한 후 테스트를 진행한다.",
+    "Article CRUD 구현에 대해 테스트할 때는 Response와 HTTP Status만 보고 넘어가지말고, DB 데이터까지 반드시 검증한다.",
+    "외부 API를 사용하는 경우에는 Mock을 사용한다.",
+    "내부 API를 사용하는 경우는 실제 Database를 활용해서 테스트한다.",
+    "계정이 필요한 API라면 Admin 계정을 만들어서 테스트한다."
+  ],
+  "stage": "DONE",
+  "stage_status": "PASSED",
+  "stage_attempts": {
+    "design": 0,
+    "dev": 0,
+    "validate": 0,
+    "unit_test": 0,
+    "e2e_test": 0,
+    "merge": 0,
+    "report": 0
+  },
+  "tasks": [
+    {
+      "task_id": "T01",
+      "title": "Add ARTICLE_NOT_FOUND + ARTICLE_FORBIDDEN to ErrorCode",
+      "description": "",
+      "status": "DONE",
+      "depends_on": [],
+      "files_plan": [
+        "src/main/java/com/capstone/passfolio/system/exception/model/ErrorCode.java"
+      ],
+      "attempts": 1,
+      "max_attempts": 3,
+      "complexity": "simple",
+      "context_log_seqs": [],
+      "failed_logs": [],
+      "assigned_to": "harness-dev",
+      "started_at": "2026-05-02T21:35:03Z",
+      "ended_at": "2026-05-02T21:36:54Z"
+    },
+    {
+      "task_id": "T02",
+      "title": "Create QueryDslConfig (JPAQueryFactory bean)",
+      "description": "",
+      "status": "DONE",
+      "depends_on": [],
+      "files_plan": [
+        "src/main/java/com/capstone/passfolio/system/config/querydsl/QueryDslConfig.java"
+      ],
+      "attempts": 1,
+      "max_attempts": 3,
+      "complexity": "simple",
+      "context_log_seqs": [],
+      "failed_logs": [],
+      "assigned_to": "harness-dev",
+      "started_at": "2026-05-02T21:37:59Z",
+      "ended_at": "2026-05-02T21:39:51Z"
+    },
+    {
+      "task_id": "T03",
+      "title": "Create common.dto.PageDto (PageInfo + PageListResponse<T>)",
+      "description": "",
+      "status": "DONE",
+      "depends_on": [],
+      "files_plan": [
+        "src/main/java/com/capstone/passfolio/common/dto/PageDto.java"
+      ],
+      "attempts": 1,
+      "max_attempts": 3,
+      "complexity": "simple",
+      "context_log_seqs": [],
+      "failed_logs": [],
+      "assigned_to": "harness-dev",
+      "started_at": "2026-05-02T21:41:02Z",
+      "ended_at": "2026-05-02T21:46:22Z"
+    },
+    {
+      "task_id": "T04",
+      "title": "Create common.util.PageUtils.validatePageRange",
+      "description": "",
+      "status": "DONE",
+      "depends_on": [
+        "T03"
+      ],
+      "files_plan": [
+        "src/main/java/com/capstone/passfolio/common/util/PageUtils.java"
+      ],
+      "attempts": 1,
+      "max_attempts": 3,
+      "complexity": "simple",
+      "context_log_seqs": [],
+      "failed_logs": [],
+      "assigned_to": "harness-dev",
+      "started_at": "2026-05-02T21:47:37Z",
+      "ended_at": "2026-05-02T21:50:00Z"
+    },
+    {
+      "task_id": "T05",
+      "title": "Create Article entity with @ElementCollection fileUrls + covering index",
+      "description": "",
+      "status": "DONE",
+      "depends_on": [],
+      "files_plan": [
+        "src/main/java/com/capstone/passfolio/domain/article/entity/Article.java"
+      ],
+      "attempts": 1,
+      "max_attempts": 3,
+      "complexity": "complex",
+      "context_log_seqs": [],
+      "failed_logs": [],
+      "assigned_to": "harness-dev",
+      "started_at": "2026-05-02T21:51:06Z",
+      "ended_at": "2026-05-02T21:55:17Z"
+    },
+    {
+      "task_id": "T06",
+      "title": "Create ArticleRepository (JpaRepository + findAllByCreatedBy)",
+      "description": "",
+      "status": "DONE",
+      "depends_on": [
+        "T05"
+      ],
+      "files_plan": [
+        "src/main/java/com/capstone/passfolio/domain/article/repository/ArticleRepository.java"
+      ],
+      "attempts": 1,
+      "max_attempts": 3,
+      "complexity": "simple",
+      "context_log_seqs": [],
+      "failed_logs": [],
+      "assigned_to": "harness-dev",
+      "started_at": "2026-05-02T21:56:21Z",
+      "ended_at": "2026-05-02T21:58:41Z"
+    },
+    {
+      "task_id": "T07",
+      "title": "Create ArticleDto (CreateRequest, UpdateRequest, ArticleResponse, ArticlePageResponse @QueryProjection, ArticlePageRequest with @Pattern whitelist + toPageable() id-tiebreaker)",
+      "description": "",
+      "status": "DONE",
+      "depends_on": [],
+      "files_plan": [
+        "src/main/java/com/capstone/passfolio/domain/article/dto/ArticleDto.java"
+      ],
+      "attempts": 1,
+      "max_attempts": 3,
+      "complexity": "complex",
+      "context_log_seqs": [],
+      "failed_logs": [],
+      "assigned_to": "harness-dev",
+      "started_at": "2026-05-02T22:00:04Z",
+      "ended_at": "2026-05-02T22:05:07Z"
+    },
+    {
+      "task_id": "T08",
+      "title": "Create ArticleQueryRepository",
+      "description": "",
+      "status": "DONE",
+      "depends_on": [
+        "T05",
+        "T07",
+        "T02"
+      ],
+      "files_plan": [
+        "src/main/java/com/capstone/passfolio/domain/article/repository/ArticleQueryRepository.java"
+      ],
+      "attempts": 1,
+      "max_attempts": 3,
+      "complexity": "complex",
+      "context_log_seqs": [],
+      "failed_logs": [],
+      "assigned_to": "harness-dev",
+      "started_at": "2026-05-02T22:06:21Z",
+      "ended_at": "2026-05-02T22:09:37Z"
+    },
+    {
+      "task_id": "T09",
+      "title": "Add S3Service.deleteObjects(List<String> keys) batch API",
+      "description": "",
+      "status": "DONE",
+      "depends_on": [],
+      "files_plan": [
+        "src/main/java/com/capstone/passfolio/domain/s3/service/S3Service.java"
+      ],
+      "attempts": 1,
+      "max_attempts": 3,
+      "complexity": "complex",
+      "context_log_seqs": [],
+      "failed_logs": [],
+      "assigned_to": "harness-dev",
+      "started_at": "2026-05-02T22:10:55Z",
+      "ended_at": "2026-05-02T22:13:44Z"
+    },
+    {
+      "task_id": "T10",
+      "title": "Create ArticleService (CRUD + role guard + thumbnail recompute + S3 cleanup + deleteAllByWriter)",
+      "description": "",
+      "status": "DONE",
+      "depends_on": [
+        "T05",
+        "T06",
+        "T07",
+        "T08",
+        "T09",
+        "T01",
+        "T04"
+      ],
+      "files_plan": [
+        "src/main/java/com/capstone/passfolio/domain/article/service/ArticleService.java"
+      ],
+      "attempts": 1,
+      "max_attempts": 3,
+      "complexity": "complex",
+      "context_log_seqs": [],
+      "failed_logs": [],
+      "assigned_to": "harness-dev",
+      "started_at": "2026-05-02T22:15:07Z",
+      "ended_at": "2026-05-02T22:20:48Z"
+    },
+    {
+      "task_id": "T11",
+      "title": "Create ArticleApiSpecification (Swagger interface)",
+      "description": "",
+      "status": "DONE",
+      "depends_on": [
+        "T07"
+      ],
+      "files_plan": [
+        "src/main/java/com/capstone/passfolio/domain/article/controller/ArticleApiSpecification.java"
+      ],
+      "attempts": 1,
+      "max_attempts": 3,
+      "complexity": "simple",
+      "context_log_seqs": [],
+      "failed_logs": [],
+      "assigned_to": "harness-dev",
+      "started_at": "2026-05-02T22:21:56Z",
+      "ended_at": "2026-05-02T22:25:44Z"
+    },
+    {
+      "task_id": "T12",
+      "title": "Create ArticleController wired to ArticleService",
+      "description": "",
+      "status": "DONE",
+      "depends_on": [
+        "T10",
+        "T11"
+      ],
+      "files_plan": [
+        "src/main/java/com/capstone/passfolio/domain/article/controller/ArticleController.java"
+      ],
+      "attempts": 1,
+      "max_attempts": 3,
+      "complexity": "simple",
+      "context_log_seqs": [],
+      "failed_logs": [],
+      "assigned_to": "harness-dev",
+      "started_at": "2026-05-02T22:27:13Z",
+      "ended_at": "2026-05-02T22:29:18Z"
+    },
+    {
+      "task_id": "T13",
+      "title": "Permit GET /api/v1/articles and /{id} for visitors in RequestMatcherHolder",
+      "description": "",
+      "status": "DONE",
+      "depends_on": [
+        "T12"
+      ],
+      "files_plan": [
+        "src/main/java/com/capstone/passfolio/system/security/config/RequestMatcherHolder.java"
+      ],
+      "attempts": 1,
+      "max_attempts": 3,
+      "complexity": "simple",
+      "context_log_seqs": [],
+      "failed_logs": [],
+      "assigned_to": "harness-dev",
+      "started_at": "2026-05-02T22:30:31Z",
+      "ended_at": "2026-05-02T22:32:11Z"
+    },
+    {
+      "task_id": "T14",
+      "title": "Wire admin-user-delete → articleService.deleteAllByWriter(adminId) in UserService (or new deleteAdmin entry if absent)",
+      "description": "",
+      "status": "DONE",
+      "depends_on": [
+        "T10"
+      ],
+      "files_plan": [
+        "src/main/java/com/capstone/passfolio/domain/user/service/UserService.java"
+      ],
+      "attempts": 1,
+      "max_attempts": 3,
+      "complexity": "complex",
+      "context_log_seqs": [],
+      "failed_logs": [],
+      "assigned_to": "harness-dev",
+      "started_at": "2026-05-02T22:33:54Z",
+      "ended_at": "2026-05-02T22:37:09Z"
+    }
+  ],
+  "current_task": null,
+  "skills_required": [
+    "harness-engineering"
+  ],
+  "mcps_required": [],
+  "stage_refs": {
+    "design": "0001-harness-design.md",
+    "dev": [
+      "0002-harness-dev.md",
+      "0003-harness-dev.md",
+      "0004-harness-dev.md",
+      "0005-harness-dev.md",
+      "0006-harness-dev.md",
+      "0007-harness-dev.md",
+      "0008-harness-dev.md",
+      "0009-harness-dev.md",
+      "0010-harness-dev.md",
+      "0011-harness-dev.md",
+      "0012-harness-dev.md",
+      "0013-harness-dev.md",
+      "0014-harness-dev.md",
+      "0015-harness-dev.md"
+    ],
+    "validation": "0016-harness-validator.md",
+    "unit_test": "0017-harness-unit-test.md",
+    "e2e_test": "0018-harness-e2e-test.md",
+    "merge_pr": "0019-harness-merge.md",
+    "merge_sha": null,
+    "report": "0020-harness-reporter.md"
+  },
+  "depends_on": [],
+  "shared_resources": [],
+  "history": [
+    {
+      "ts": "2026-05-02T21:27:36Z",
+      "from": null,
+      "to": "TODO/PENDING",
+      "by": "human"
+    },
+    {
+      "ts": "2026-05-02T21:28:12Z",
+      "from": "TODO/PENDING",
+      "to": "DESIGN/PENDING",
+      "by": "harness-state-machine"
+    },
+    {
+      "ts": "2026-05-02T21:34:17Z",
+      "from": "DESIGN/PASSED",
+      "to": "DESIGN/PASSED",
+      "by": "stage_advance",
+      "note": "applied tasks decomposition: 14 tasks"
+    },
+    {
+      "ts": "2026-05-02T21:34:17Z",
+      "from": "DESIGN/PENDING",
+      "to": "DESIGN/PASSED",
+      "by": "subagent_stop",
+      "note": "verified entry 0001-harness-design.md"
+    },
+    {
+      "ts": "2026-05-02T21:34:18Z",
+      "from": "DESIGN/PASSED",
+      "to": "DEV/PENDING",
+      "by": "subagent_stop"
+    },
+    {
+      "ts": "2026-05-02T21:35:03Z",
+      "from": "DEV/PENDING",
+      "to": "DEV/PENDING",
+      "by": "harness-dev",
+      "note": "task-claim T01"
+    },
+    {
+      "ts": "2026-05-02T21:37:59Z",
+      "from": "DEV/PENDING",
+      "to": "DEV/PENDING",
+      "by": "harness-dev",
+      "note": "task-claim T02"
+    },
+    {
+      "ts": "2026-05-02T21:41:02Z",
+      "from": "DEV/PENDING",
+      "to": "DEV/PENDING",
+      "by": "harness-dev",
+      "note": "task-claim T03"
+    },
+    {
+      "ts": "2026-05-02T21:47:37Z",
+      "from": "DEV/PENDING",
+      "to": "DEV/PENDING",
+      "by": "harness-dev",
+      "note": "task-claim T04"
+    },
+    {
+      "ts": "2026-05-02T21:51:06Z",
+      "from": "DEV/PENDING",
+      "to": "DEV/PENDING",
+      "by": "harness-dev",
+      "note": "task-claim T05"
+    },
+    {
+      "ts": "2026-05-02T21:56:21Z",
+      "from": "DEV/PENDING",
+      "to": "DEV/PENDING",
+      "by": "harness-dev",
+      "note": "task-claim T06"
+    },
+    {
+      "ts": "2026-05-02T22:00:04Z",
+      "from": "DEV/PENDING",
+      "to": "DEV/PENDING",
+      "by": "harness-dev",
+      "note": "task-claim T07"
+    },
+    {
+      "ts": "2026-05-02T22:06:21Z",
+      "from": "DEV/PENDING",
+      "to": "DEV/PENDING",
+      "by": "harness-dev",
+      "note": "task-claim T08"
+    },
+    {
+      "ts": "2026-05-02T22:10:55Z",
+      "from": "DEV/PENDING",
+      "to": "DEV/PENDING",
+      "by": "harness-dev",
+      "note": "task-claim T09"
+    },
+    {
+      "ts": "2026-05-02T22:15:07Z",
+      "from": "DEV/PENDING",
+      "to": "DEV/PENDING",
+      "by": "harness-dev",
+      "note": "task-claim T10"
+    },
+    {
+      "ts": "2026-05-02T22:21:56Z",
+      "from": "DEV/PENDING",
+      "to": "DEV/PENDING",
+      "by": "harness-dev",
+      "note": "task-claim T11"
+    },
+    {
+      "ts": "2026-05-02T22:27:13Z",
+      "from": "DEV/PENDING",
+      "to": "DEV/PENDING",
+      "by": "harness-dev",
+      "note": "task-claim T12"
+    },
+    {
+      "ts": "2026-05-02T22:30:31Z",
+      "from": "DEV/PENDING",
+      "to": "DEV/PENDING",
+      "by": "harness-dev",
+      "note": "task-claim T13"
+    },
+    {
+      "ts": "2026-05-02T22:33:54Z",
+      "from": "DEV/PENDING",
+      "to": "DEV/PENDING",
+      "by": "harness-dev",
+      "note": "task-claim T14"
+    },
+    {
+      "ts": "2026-05-02T22:37:24Z",
+      "from": "DEV/PENDING",
+      "to": "DEV/PASSED",
+      "by": "subagent_stop",
+      "note": "verified entry 0015-harness-dev.md"
+    },
+    {
+      "ts": "2026-05-02T22:37:25Z",
+      "from": "DEV/PASSED",
+      "to": "VALIDATION/PENDING",
+      "by": "subagent_stop"
+    },
+    {
+      "ts": "2026-05-02T22:41:45Z",
+      "from": "VALIDATION/PENDING",
+      "to": "VALIDATION/PASSED",
+      "by": "subagent_stop",
+      "note": "verified entry 0016-harness-validator.md"
+    },
+    {
+      "ts": "2026-05-02T22:41:46Z",
+      "from": "VALIDATION/PASSED",
+      "to": "UNIT_TEST/PENDING",
+      "by": "subagent_stop"
+    },
+    {
+      "ts": "2026-05-02T22:54:59Z",
+      "from": "UNIT_TEST/PENDING",
+      "to": "UNIT_TEST/PASSED",
+      "by": "subagent_stop",
+      "note": "verified entry 0017-harness-unit-test.md"
+    },
+    {
+      "ts": "2026-05-02T22:54:59Z",
+      "from": "UNIT_TEST/PASSED",
+      "to": "E2E/PENDING",
+      "by": "subagent_stop"
+    },
+    {
+      "ts": "2026-05-02T23:12:42Z",
+      "from": "E2E/PENDING",
+      "to": "E2E/PASSED",
+      "by": "subagent_stop",
+      "note": "verified entry 0018-harness-e2e-test.md"
+    },
+    {
+      "ts": "2026-05-02T23:12:43Z",
+      "from": "E2E/PASSED",
+      "to": "MERGE/PENDING",
+      "by": "subagent_stop"
+    },
+    {
+      "ts": "2026-05-02T23:14:55Z",
+      "from": "MERGE/PENDING",
+      "to": "MERGE/PASSED",
+      "by": "subagent_stop",
+      "note": "verified entry 0019-harness-merge.md"
+    },
+    {
+      "ts": "2026-05-02T23:14:55Z",
+      "from": "MERGE/PASSED",
+      "to": "REPORT/PENDING",
+      "by": "subagent_stop"
+    },
+    {
+      "ts": "2026-05-02T23:20:00Z",
+      "from": "REPORT/PENDING",
+      "to": "REPORT/PASSED",
+      "by": "subagent_stop",
+      "note": "verified entry 0020-harness-reporter.md"
+    },
+    {
+      "ts": "2026-05-02T23:20:00Z",
+      "from": "REPORT/PASSED",
+      "to": "DONE/PASSED",
+      "by": "subagent_stop"
+    }
+  ],
+  "created_at": "2026-05-02T21:27:36Z",
+  "updated_at": "2026-05-02T23:20:00Z"
+}
