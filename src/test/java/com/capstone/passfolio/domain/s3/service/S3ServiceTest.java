@@ -30,6 +30,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 
+import software.amazon.awssdk.awscore.exception.AwsErrorDetails;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.AbortMultipartUploadRequest;
 import software.amazon.awssdk.services.s3.model.CompleteMultipartUploadRequest;
@@ -37,10 +38,15 @@ import software.amazon.awssdk.services.s3.model.CompleteMultipartUploadResponse;
 import software.amazon.awssdk.services.s3.model.CompletedPart;
 import software.amazon.awssdk.services.s3.model.CreateMultipartUploadRequest;
 import software.amazon.awssdk.services.s3.model.CreateMultipartUploadResponse;
+import software.amazon.awssdk.services.s3.model.DeleteObjectsRequest;
+import software.amazon.awssdk.services.s3.model.DeleteObjectsResponse;
 import software.amazon.awssdk.services.s3.model.HeadObjectRequest;
 import software.amazon.awssdk.services.s3.model.HeadObjectResponse;
 import software.amazon.awssdk.services.s3.model.ListPartsRequest;
+import software.amazon.awssdk.services.s3.model.ObjectIdentifier;
 import software.amazon.awssdk.services.s3.model.Part;
+import software.amazon.awssdk.services.s3.model.S3Error;
+import software.amazon.awssdk.services.s3.model.S3Exception;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 import software.amazon.awssdk.services.s3.presigner.model.PresignedUploadPartRequest;
 import software.amazon.awssdk.services.s3.presigner.model.UploadPartPresignRequest;
@@ -705,6 +711,202 @@ class S3ServiceTest {
     // =================================================================
     // Helpers
     // =================================================================
+
+    // =================================================================
+    // deleteObjects — 1000개 청크 분할 + null/blank 필터 + 부분 실패 fail-soft
+    // =================================================================
+    @Nested
+    @DisplayName("deleteObjects(): 일괄 삭제 + 1000키 chunk 분할 + fail-soft")
+    class DeleteObjects {
+
+        @Test
+        @DisplayName("null 입력 → no-op (SDK 호출 0회)")
+        void nullKeys_isNoOp() {
+            s3Service.deleteObjects(null);
+            then(s3Client).should(never()).deleteObjects(any(DeleteObjectsRequest.class));
+        }
+
+        @Test
+        @DisplayName("빈 리스트 → no-op")
+        void emptyKeys_isNoOp() {
+            s3Service.deleteObjects(List.of());
+            then(s3Client).should(never()).deleteObjects(any(DeleteObjectsRequest.class));
+        }
+
+        @Test
+        @DisplayName("모든 요소가 null/blank → no-op (sanitize 후 빈 리스트)")
+        void allBlankOrNull_isNoOp() {
+            List<String> keys = new java.util.ArrayList<>();
+            keys.add(null);
+            keys.add("");
+            keys.add("   ");
+
+            s3Service.deleteObjects(keys);
+
+            then(s3Client).should(never()).deleteObjects(any(DeleteObjectsRequest.class));
+        }
+
+        @Test
+        @DisplayName("정상 키 1개 — 1회 호출, bucket/key 정확 전달, quiet=true")
+        void singleKey_callsOnceWithBucketAndQuiet() {
+            given(s3Client.deleteObjects(any(DeleteObjectsRequest.class)))
+                    .willReturn(DeleteObjectsResponse.builder().build());
+
+            s3Service.deleteObjects(List.of("files/images/abc.png"));
+
+            ArgumentCaptor<DeleteObjectsRequest> captor =
+                    ArgumentCaptor.forClass(DeleteObjectsRequest.class);
+            then(s3Client).should(times(1)).deleteObjects(captor.capture());
+
+            DeleteObjectsRequest sent = captor.getValue();
+            assertThat(sent.bucket()).isEqualTo(BUCKET);
+            assertThat(sent.delete().objects())
+                    .extracting(ObjectIdentifier::key)
+                    .containsExactly("files/images/abc.png");
+            // quiet 모드: 성공 응답 페이로드 절감
+            assertThat(sent.delete().quiet()).isTrue();
+        }
+
+        @Test
+        @DisplayName("중복 키는 제거되어 한 번만 전송 (응답 페이로드 절감)")
+        void duplicateKeys_dedup() {
+            given(s3Client.deleteObjects(any(DeleteObjectsRequest.class)))
+                    .willReturn(DeleteObjectsResponse.builder().build());
+
+            s3Service.deleteObjects(List.of("k1", "k1", "k2", "k1"));
+
+            ArgumentCaptor<DeleteObjectsRequest> captor =
+                    ArgumentCaptor.forClass(DeleteObjectsRequest.class);
+            then(s3Client).should(times(1)).deleteObjects(captor.capture());
+
+            assertThat(captor.getValue().delete().objects())
+                    .extracting(ObjectIdentifier::key)
+                    .containsExactly("k1", "k2");
+        }
+
+        @Test
+        @DisplayName("null/blank 가 섞인 입력 — sanitize 후 정상 키만 전송")
+        void mixedSanitization() {
+            given(s3Client.deleteObjects(any(DeleteObjectsRequest.class)))
+                    .willReturn(DeleteObjectsResponse.builder().build());
+
+            List<String> keys = new java.util.ArrayList<>();
+            keys.add("a");
+            keys.add(null);
+            keys.add("");
+            keys.add("   ");
+            keys.add("b");
+
+            s3Service.deleteObjects(keys);
+
+            ArgumentCaptor<DeleteObjectsRequest> captor =
+                    ArgumentCaptor.forClass(DeleteObjectsRequest.class);
+            then(s3Client).should(times(1)).deleteObjects(captor.capture());
+
+            assertThat(captor.getValue().delete().objects())
+                    .extracting(ObjectIdentifier::key)
+                    .containsExactly("a", "b");
+        }
+
+        @Test
+        @DisplayName("1001개 → 정확히 2회 chunked 호출 (1000 + 1)")
+        void over1000Keys_chunkedInTwoCalls() {
+            given(s3Client.deleteObjects(any(DeleteObjectsRequest.class)))
+                    .willReturn(DeleteObjectsResponse.builder().build());
+
+            // 고유한 키 1001개 생성
+            List<String> keys = new java.util.ArrayList<>();
+            for (int i = 0; i < 1001; i++) {
+                keys.add("key-" + i);
+            }
+
+            s3Service.deleteObjects(keys);
+
+            ArgumentCaptor<DeleteObjectsRequest> captor =
+                    ArgumentCaptor.forClass(DeleteObjectsRequest.class);
+            then(s3Client).should(times(2)).deleteObjects(captor.capture());
+
+            List<DeleteObjectsRequest> sent = captor.getAllValues();
+            assertThat(sent.get(0).delete().objects()).hasSize(1000);
+            assertThat(sent.get(1).delete().objects()).hasSize(1);
+            // 두 chunk 의 키 합쳐서 1001 (전부 전송됨)
+            int total = sent.get(0).delete().objects().size() + sent.get(1).delete().objects().size();
+            assertThat(total).isEqualTo(1001);
+        }
+
+        @Test
+        @DisplayName("정확히 2000개 → 2회 호출 (1000 + 1000)")
+        void exactly2000Keys_chunkedAsTwoFulls() {
+            given(s3Client.deleteObjects(any(DeleteObjectsRequest.class)))
+                    .willReturn(DeleteObjectsResponse.builder().build());
+
+            List<String> keys = new java.util.ArrayList<>();
+            for (int i = 0; i < 2000; i++) {
+                keys.add("k" + i);
+            }
+            s3Service.deleteObjects(keys);
+
+            then(s3Client).should(times(2)).deleteObjects(any(DeleteObjectsRequest.class));
+        }
+
+        @Test
+        @DisplayName("부분 실패 (errors 응답) — 예외 비전파, 다음 chunk 진행 가능 (fail-soft)")
+        void partialFailure_doesNotThrow() {
+            DeleteObjectsResponse withErrors = DeleteObjectsResponse.builder()
+                    .errors(List.of(
+                            S3Error.builder().key("missing").code("NoSuchKey").message("Not found").build()))
+                    .build();
+            given(s3Client.deleteObjects(any(DeleteObjectsRequest.class))).willReturn(withErrors);
+
+            // 예외 없이 끝나야 한다 — fail-soft 계약
+            s3Service.deleteObjects(List.of("a", "b"));
+
+            then(s3Client).should(times(1)).deleteObjects(any(DeleteObjectsRequest.class));
+        }
+
+        @Test
+        @DisplayName("S3Exception 발생 — 한 chunk 가 실패해도 다음 chunk 가 계속 진행 (fail-soft)")
+        void chunkException_continuesNextChunk() {
+            // 첫 호출은 S3Exception, 두 번째 호출은 성공 응답
+            S3Exception firstFail = (S3Exception) S3Exception.builder()
+                    .awsErrorDetails(AwsErrorDetails.builder()
+                            .errorCode("InternalError")
+                            .errorMessage("S3 hiccup")
+                            .build())
+                    .message("S3 hiccup")
+                    .build();
+            given(s3Client.deleteObjects(any(DeleteObjectsRequest.class)))
+                    .willThrow(firstFail)
+                    .willReturn(DeleteObjectsResponse.builder().build());
+
+            // 1001개 → 2 chunks. 첫 chunk 실패해도 두 번째가 호출되어야 한다.
+            List<String> keys = new java.util.ArrayList<>();
+            for (int i = 0; i < 1001; i++) {
+                keys.add("k" + i);
+            }
+
+            s3Service.deleteObjects(keys);
+
+            then(s3Client).should(times(2)).deleteObjects(any(DeleteObjectsRequest.class));
+        }
+
+        @Test
+        @DisplayName("입력 순서 보존 — sanitize/dedup 후 첫 등장 순서대로 전송")
+        void preservesInsertionOrder() {
+            given(s3Client.deleteObjects(any(DeleteObjectsRequest.class)))
+                    .willReturn(DeleteObjectsResponse.builder().build());
+
+            s3Service.deleteObjects(List.of("z", "a", "m"));
+
+            ArgumentCaptor<DeleteObjectsRequest> captor =
+                    ArgumentCaptor.forClass(DeleteObjectsRequest.class);
+            then(s3Client).should(times(1)).deleteObjects(captor.capture());
+
+            assertThat(captor.getValue().delete().objects())
+                    .extracting(ObjectIdentifier::key)
+                    .containsExactly("z", "a", "m");
+        }
+    }
 
     /**
      * SUT 가 응답 객체에서 {@code .url()} 만 호출하므로 Mockito mock 으로 충분하다 — SDK 의
