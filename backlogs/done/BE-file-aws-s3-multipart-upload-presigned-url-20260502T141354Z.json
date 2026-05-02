@@ -1,0 +1,762 @@
+{
+  "backlog_id": "BE-file-aws-s3-multipart-upload-presigned-url-20260502T141354Z",
+  "part": "backend",
+  "domain": "File",
+  "owner": "harness-state-machine",
+  "title": "AWS S3 Multipart Upload (Presigned URL)",
+  "user_story": "Client-> 파일 업로드를 요청한다.\nServer-> presignedURL를 발급한다. \nClient-> S3에 직접 파일 업로드한다.",
+  "sp": 6,
+  "requirements": [
+    "spring-s3-multipart-upload 스킬을 활용해서 구현한다.",
+    "springboot-test 스킬을 활용해서 테스트를 진행한다."
+  ],
+  "constraints": [
+    "/Users/hooby/Project/Passfolio/Backend/description/security/file_seucirty.md를 참조해서 파일 업로드 보안 처리한다.",
+    "파일 업로드 허용 확장자는 pdf, 이미지 관련 확장자, 비디오 관련 확장자로 제한한다.",
+    "파일 업로드 사이즈는 100MB 이하로 제한한다.",
+    "JUnit 기준 Jacoco 기준 80% 이상의 커버리지를 만족한다.",
+    "E2E 테스트는 Positive/Negative 시나리오를 구상한 후 테스트를 진행한다.",
+    "외부 API를 사용하는 경우이므로, Mock 기반 테스트를 진행한다."
+  ],
+  "stage": "DONE",
+  "stage_status": "PASSED",
+  "stage_attempts": {
+    "design": 0,
+    "dev": 0,
+    "validate": 0,
+    "unit_test": 0,
+    "e2e_test": 0,
+    "merge": 0,
+    "report": 0
+  },
+  "tasks": [
+    {
+      "task_id": "T01",
+      "title": "Add FILE_* error codes to ErrorCode.java",
+      "description": "",
+      "status": "DONE",
+      "depends_on": [],
+      "files_plan": [
+        "src/main/java/com/capstone/passfolio/system/exception/model/ErrorCode.java"
+      ],
+      "attempts": 1,
+      "max_attempts": 3,
+      "context_log_seqs": [],
+      "failed_logs": [],
+      "assigned_to": "harness-dev",
+      "started_at": "2026-05-02T14:38:21Z",
+      "ended_at": "2026-05-02T14:40:06Z"
+    },
+    {
+      "task_id": "T02",
+      "title": "Create FileUploadProperties (@ConfigurationProperties, allowedExtensions whitelist, isExtensionAllowed normalization)",
+      "description": "",
+      "status": "DONE",
+      "depends_on": [],
+      "files_plan": [
+        "src/main/java/com/capstone/passfolio/system/config/file/FileUploadProperties.java"
+      ],
+      "attempts": 1,
+      "max_attempts": 3,
+      "context_log_seqs": [],
+      "failed_logs": [],
+      "assigned_to": "harness-dev",
+      "started_at": "2026-05-02T14:41:47Z",
+      "ended_at": "2026-05-02T14:44:54Z"
+    },
+    {
+      "task_id": "T03",
+      "title": "Append file.upload.* block to application.yml with backlog defaults (extensions, 100MB, 10-min TTL)",
+      "description": "",
+      "status": "DONE",
+      "depends_on": [
+        "T02"
+      ],
+      "files_plan": [
+        "src/main/resources/application.yml"
+      ],
+      "attempts": 1,
+      "max_attempts": 3,
+      "context_log_seqs": [],
+      "failed_logs": [],
+      "assigned_to": "harness-dev",
+      "started_at": "2026-05-02T14:46:01Z",
+      "ended_at": "2026-05-02T14:48:11Z"
+    },
+    {
+      "task_id": "T04",
+      "title": "Create FileUrlUtils for cdn.base-url → CDN URL conversion",
+      "description": "",
+      "status": "DONE",
+      "depends_on": [],
+      "files_plan": [
+        "src/main/java/com/capstone/passfolio/common/util/FileUrlUtils.java"
+      ],
+      "attempts": 1,
+      "max_attempts": 3,
+      "context_log_seqs": [],
+      "failed_logs": [],
+      "assigned_to": "harness-dev",
+      "started_at": "2026-05-02T14:49:53Z",
+      "ended_at": "2026-05-02T14:52:02Z"
+    },
+    {
+      "task_id": "T05",
+      "title": "Create S3PresignerConfig with S3Client + S3Presigner beans (region from spring.cloud.aws)",
+      "description": "",
+      "status": "DONE",
+      "depends_on": [],
+      "files_plan": [
+        "src/main/java/com/capstone/passfolio/system/config/aws/S3PresignerConfig.java"
+      ],
+      "attempts": 1,
+      "max_attempts": 3,
+      "context_log_seqs": [],
+      "failed_logs": [],
+      "assigned_to": "harness-dev",
+      "started_at": "2026-05-02T14:53:45Z",
+      "ended_at": "2026-05-02T14:57:06Z"
+    },
+    {
+      "task_id": "T06",
+      "title": "Create MediaType enum (IMAGE/VIDEO/AUDIO/PDF/UNKNOWN)",
+      "description": "",
+      "status": "DONE",
+      "depends_on": [],
+      "files_plan": [
+        "src/main/java/com/capstone/passfolio/domain/file/entity/enums/MediaType.java"
+      ],
+      "attempts": 1,
+      "max_attempts": 3,
+      "context_log_seqs": [],
+      "failed_logs": [],
+      "assigned_to": "harness-dev",
+      "started_at": "2026-05-02T14:58:41Z",
+      "ended_at": "2026-05-02T15:01:18Z"
+    },
+    {
+      "task_id": "T07",
+      "title": "Create File JPA entity (extends UserBaseEntity, fields: s3ObjectKey unique, filename, fileSize, mediaType)",
+      "description": "",
+      "status": "DONE",
+      "depends_on": [
+        "T06"
+      ],
+      "files_plan": [
+        "src/main/java/com/capstone/passfolio/domain/file/entity/File.java"
+      ],
+      "attempts": 1,
+      "max_attempts": 3,
+      "context_log_seqs": [],
+      "failed_logs": [],
+      "assigned_to": "harness-dev",
+      "started_at": "2026-05-02T15:02:24Z",
+      "ended_at": "2026-05-02T15:05:27Z"
+    },
+    {
+      "task_id": "T08",
+      "title": "Add Flyway migration V20260502__create_files_table.sql",
+      "description": "",
+      "status": "DONE",
+      "depends_on": [
+        "T07"
+      ],
+      "files_plan": [
+        "src/main/resources/db/migration/V20260502__create_files_table.sql"
+      ],
+      "attempts": 1,
+      "max_attempts": 3,
+      "context_log_seqs": [],
+      "failed_logs": [],
+      "assigned_to": "harness-dev",
+      "started_at": "2026-05-02T15:07:23Z",
+      "ended_at": "2026-05-02T15:09:24Z"
+    },
+    {
+      "task_id": "T09",
+      "title": "Create FileRepository (JpaRepository<File, Long>)",
+      "description": "",
+      "status": "DONE",
+      "depends_on": [
+        "T07"
+      ],
+      "files_plan": [
+        "src/main/java/com/capstone/passfolio/domain/file/repository/FileRepository.java"
+      ],
+      "attempts": 1,
+      "max_attempts": 3,
+      "context_log_seqs": [],
+      "failed_logs": [],
+      "assigned_to": "harness-dev",
+      "started_at": "2026-05-02T15:10:29Z",
+      "ended_at": "2026-05-02T15:12:40Z"
+    },
+    {
+      "task_id": "T10",
+      "title": "Create S3ServiceDto (internal DTO carrier with all 8 nested record-style classes)",
+      "description": "",
+      "status": "DONE",
+      "depends_on": [],
+      "files_plan": [
+        "src/main/java/com/capstone/passfolio/domain/s3/dto/S3ServiceDto.java"
+      ],
+      "attempts": 1,
+      "max_attempts": 3,
+      "context_log_seqs": [],
+      "failed_logs": [],
+      "assigned_to": "harness-dev",
+      "started_at": "2026-05-02T15:14:17Z",
+      "ended_at": "2026-05-02T15:18:43Z"
+    },
+    {
+      "task_id": "T11",
+      "title": "Create S3Service (initiate/presign/list/complete/abort + part calc + headObject + sorting)",
+      "description": "",
+      "status": "DONE",
+      "depends_on": [
+        "T05",
+        "T10",
+        "T02"
+      ],
+      "files_plan": [
+        "src/main/java/com/capstone/passfolio/domain/s3/service/S3Service.java"
+      ],
+      "attempts": 1,
+      "max_attempts": 3,
+      "context_log_seqs": [],
+      "failed_logs": [],
+      "assigned_to": "harness-dev",
+      "started_at": "2026-05-02T15:19:58Z",
+      "ended_at": "2026-05-02T15:25:04Z"
+    },
+    {
+      "task_id": "T12",
+      "title": "Create FileDto (public DTOs with validation annotations + UploadFileResponse.of helper)",
+      "description": "",
+      "status": "DONE",
+      "depends_on": [
+        "T07",
+        "T04"
+      ],
+      "files_plan": [
+        "src/main/java/com/capstone/passfolio/domain/file/dto/FileDto.java"
+      ],
+      "attempts": 1,
+      "max_attempts": 3,
+      "context_log_seqs": [],
+      "failed_logs": [],
+      "assigned_to": "harness-dev",
+      "started_at": "2026-05-02T15:26:30Z",
+      "ended_at": "2026-05-02T15:29:50Z"
+    },
+    {
+      "task_id": "T13",
+      "title": "Create FileService (orchestration + extension/size validation + post-upload size check + IDOR guard)",
+      "description": "",
+      "status": "DONE",
+      "depends_on": [
+        "T11",
+        "T09",
+        "T02",
+        "T12",
+        "T01"
+      ],
+      "files_plan": [
+        "src/main/java/com/capstone/passfolio/domain/file/service/FileService.java"
+      ],
+      "attempts": 1,
+      "max_attempts": 3,
+      "context_log_seqs": [],
+      "failed_logs": [],
+      "assigned_to": "harness-dev",
+      "started_at": "2026-05-02T15:30:59Z",
+      "ended_at": "2026-05-02T15:36:02Z"
+    },
+    {
+      "task_id": "T14",
+      "title": "Create FileApiSpecification interface (OpenAPI annotations only)",
+      "description": "",
+      "status": "DONE",
+      "depends_on": [
+        "T12"
+      ],
+      "files_plan": [
+        "src/main/java/com/capstone/passfolio/domain/file/controller/FileApiSpecification.java"
+      ],
+      "attempts": 1,
+      "max_attempts": 3,
+      "context_log_seqs": [],
+      "failed_logs": [],
+      "assigned_to": "harness-dev",
+      "started_at": "2026-05-02T15:37:36Z",
+      "ended_at": "2026-05-02T15:41:44Z"
+    },
+    {
+      "task_id": "T15",
+      "title": "Create FileController implementing FileApiSpecification (5 endpoints, @Valid bodies)",
+      "description": "",
+      "status": "DONE",
+      "depends_on": [
+        "T13",
+        "T14"
+      ],
+      "files_plan": [
+        "src/main/java/com/capstone/passfolio/domain/file/controller/FileController.java"
+      ],
+      "attempts": 1,
+      "max_attempts": 3,
+      "context_log_seqs": [],
+      "failed_logs": [],
+      "assigned_to": "harness-dev",
+      "started_at": "2026-05-02T15:42:52Z",
+      "ended_at": "2026-05-02T15:46:25Z"
+    },
+    {
+      "task_id": "T16",
+      "title": "Unit test FileUploadPropertiesTest (extension normalization + isExtensionAllowed cases)",
+      "description": "",
+      "status": "DONE",
+      "depends_on": [
+        "T02"
+      ],
+      "files_plan": [
+        "src/test/java/com/capstone/passfolio/system/config/file/FileUploadPropertiesTest.java"
+      ],
+      "attempts": 1,
+      "max_attempts": 3,
+      "context_log_seqs": [],
+      "failed_logs": [],
+      "assigned_to": "harness-dev",
+      "started_at": "2026-05-02T15:47:35Z",
+      "ended_at": "2026-05-02T15:51:03Z"
+    },
+    {
+      "task_id": "T17",
+      "title": "Unit test S3ServiceTest (Mockito mocks of S3Client/S3Presigner; key UUID format; contentLength always bound; MD5 conditional; sort parts ascending; calculatePartCount cases)",
+      "description": "",
+      "status": "DONE",
+      "depends_on": [
+        "T11"
+      ],
+      "files_plan": [
+        "src/test/java/com/capstone/passfolio/domain/s3/service/S3ServiceTest.java"
+      ],
+      "attempts": 1,
+      "max_attempts": 3,
+      "context_log_seqs": [],
+      "failed_logs": [],
+      "assigned_to": "harness-dev",
+      "started_at": "2026-05-02T15:52:27Z",
+      "ended_at": "2026-05-02T15:58:05Z"
+    },
+    {
+      "task_id": "T18",
+      "title": "Unit test FileServiceTest (Mockito; extension reject; size reject; size mismatch triggers abort; IDOR throws AUTH_FORBIDDEN)",
+      "description": "",
+      "status": "DONE",
+      "depends_on": [
+        "T13"
+      ],
+      "files_plan": [
+        "src/test/java/com/capstone/passfolio/domain/file/service/FileServiceTest.java"
+      ],
+      "attempts": 1,
+      "max_attempts": 3,
+      "context_log_seqs": [],
+      "failed_logs": [],
+      "assigned_to": "harness-dev",
+      "started_at": "2026-05-02T15:59:09Z",
+      "ended_at": "2026-05-02T16:04:40Z"
+    },
+    {
+      "task_id": "T19",
+      "title": "Slice test FileControllerTest (@WebMvcTest + @MockitoBean FileService; validation 400; happy-path JSON shape)",
+      "description": "",
+      "status": "DONE",
+      "depends_on": [
+        "T15"
+      ],
+      "files_plan": [
+        "src/test/java/com/capstone/passfolio/domain/file/controller/FileControllerTest.java"
+      ],
+      "attempts": 1,
+      "max_attempts": 3,
+      "context_log_seqs": [],
+      "failed_logs": [],
+      "assigned_to": "harness-dev",
+      "started_at": "2026-05-02T16:05:59Z",
+      "ended_at": "2026-05-02T16:13:05Z"
+    },
+    {
+      "task_id": "T20",
+      "title": "Slice test FileRepositoryTest (@DataJpaTest H2; persist+findById; s3_object_key uniqueness violation)",
+      "description": "",
+      "status": "DONE",
+      "depends_on": [
+        "T09",
+        "T08"
+      ],
+      "files_plan": [
+        "src/test/java/com/capstone/passfolio/domain/file/repository/FileRepositoryTest.java"
+      ],
+      "attempts": 1,
+      "max_attempts": 3,
+      "context_log_seqs": [],
+      "failed_logs": [],
+      "assigned_to": "harness-dev",
+      "started_at": "2026-05-02T16:14:32Z",
+      "ended_at": "2026-05-02T16:19:28Z"
+    },
+    {
+      "task_id": "T21",
+      "title": "E2E test FileUploadE2ETest (@SpringBootTest + @MockitoBean S3Client/S3Presigner; positive happy-path + 4 negative scenarios; verify abort on size mismatch)",
+      "description": "",
+      "status": "DONE",
+      "depends_on": [
+        "T15",
+        "T20",
+        "T16",
+        "T17",
+        "T18",
+        "T19"
+      ],
+      "files_plan": [
+        "src/test/java/com/capstone/passfolio/domain/file/FileUploadE2ETest.java"
+      ],
+      "attempts": 1,
+      "max_attempts": 3,
+      "context_log_seqs": [],
+      "failed_logs": [],
+      "assigned_to": "harness-dev",
+      "started_at": "2026-05-02T16:21:13Z",
+      "ended_at": "2026-05-02T16:28:49Z"
+    },
+    {
+      "task_id": "T22",
+      "title": "Add Jacoco verification rule for new packages (≥0.80 LINE coverage on domain.file + domain.s3)",
+      "description": "",
+      "status": "DONE",
+      "depends_on": [
+        "T21"
+      ],
+      "files_plan": [
+        "build.gradle"
+      ],
+      "attempts": 1,
+      "max_attempts": 3,
+      "context_log_seqs": [],
+      "failed_logs": [],
+      "assigned_to": "harness-dev",
+      "started_at": "2026-05-02T16:30:08Z",
+      "ended_at": "2026-05-02T16:34:41Z"
+    }
+  ],
+  "current_task": null,
+  "skills_required": [
+    "harness-engineering"
+  ],
+  "mcps_required": [],
+  "stage_refs": {
+    "design": "0001-harness-design.md",
+    "dev": [
+      "0002-harness-dev.md",
+      "0003-harness-dev.md",
+      "0004-harness-dev.md",
+      "0005-harness-dev.md",
+      "0006-harness-dev.md",
+      "0007-harness-dev.md",
+      "0008-harness-dev.md",
+      "0009-harness-dev.md",
+      "0010-harness-dev.md",
+      "0011-harness-dev.md",
+      "0012-harness-dev.md",
+      "0013-harness-dev.md",
+      "0014-harness-dev.md",
+      "0015-harness-dev.md",
+      "0016-harness-dev.md",
+      "0017-harness-dev.md",
+      "0018-harness-dev.md",
+      "0019-harness-dev.md",
+      "0020-harness-dev.md",
+      "0021-harness-dev.md",
+      "0022-harness-dev.md",
+      "0023-harness-dev.md"
+    ],
+    "validation": "0024-harness-validator.md",
+    "unit_test": "0025-harness-unit-test.md",
+    "e2e_test": "0026-harness-e2e-test.md",
+    "merge_pr": "0027-harness-merge.md",
+    "merge_sha": null,
+    "report": "0028-harness-reporter.md"
+  },
+  "depends_on": [],
+  "shared_resources": [],
+  "history": [
+    {
+      "ts": "2026-05-02T14:13:54Z",
+      "from": null,
+      "to": "TODO/PENDING",
+      "by": "human"
+    },
+    {
+      "ts": "2026-05-02T14:31:47Z",
+      "from": "TODO/PENDING",
+      "to": "DESIGN/PENDING",
+      "by": "harness-state-machine"
+    },
+    {
+      "ts": "2026-05-02T14:37:10Z",
+      "from": "DESIGN/PASSED",
+      "to": "DESIGN/PASSED",
+      "by": "stage_advance",
+      "note": "applied tasks decomposition: 22 tasks"
+    },
+    {
+      "ts": "2026-05-02T14:37:11Z",
+      "from": "DESIGN/PENDING",
+      "to": "DESIGN/PASSED",
+      "by": "subagent_stop",
+      "note": "verified entry 0001-harness-design.md"
+    },
+    {
+      "ts": "2026-05-02T14:37:11Z",
+      "from": "DESIGN/PASSED",
+      "to": "DEV/PENDING",
+      "by": "subagent_stop"
+    },
+    {
+      "ts": "2026-05-02T14:38:21Z",
+      "from": "DEV/PENDING",
+      "to": "DEV/PENDING",
+      "by": "harness-dev",
+      "note": "task-claim T01"
+    },
+    {
+      "ts": "2026-05-02T14:41:47Z",
+      "from": "DEV/PENDING",
+      "to": "DEV/PENDING",
+      "by": "harness-dev",
+      "note": "task-claim T02"
+    },
+    {
+      "ts": "2026-05-02T14:46:01Z",
+      "from": "DEV/PENDING",
+      "to": "DEV/PENDING",
+      "by": "harness-dev",
+      "note": "task-claim T03"
+    },
+    {
+      "ts": "2026-05-02T14:49:53Z",
+      "from": "DEV/PENDING",
+      "to": "DEV/PENDING",
+      "by": "harness-dev",
+      "note": "task-claim T04"
+    },
+    {
+      "ts": "2026-05-02T14:53:45Z",
+      "from": "DEV/PENDING",
+      "to": "DEV/PENDING",
+      "by": "harness-dev",
+      "note": "task-claim T05"
+    },
+    {
+      "ts": "2026-05-02T14:58:41Z",
+      "from": "DEV/PENDING",
+      "to": "DEV/PENDING",
+      "by": "harness-dev",
+      "note": "task-claim T06"
+    },
+    {
+      "ts": "2026-05-02T15:02:24Z",
+      "from": "DEV/PENDING",
+      "to": "DEV/PENDING",
+      "by": "harness-dev",
+      "note": "task-claim T07"
+    },
+    {
+      "ts": "2026-05-02T15:07:23Z",
+      "from": "DEV/PENDING",
+      "to": "DEV/PENDING",
+      "by": "harness-dev",
+      "note": "task-claim T08"
+    },
+    {
+      "ts": "2026-05-02T15:10:29Z",
+      "from": "DEV/PENDING",
+      "to": "DEV/PENDING",
+      "by": "harness-dev",
+      "note": "task-claim T09"
+    },
+    {
+      "ts": "2026-05-02T15:14:17Z",
+      "from": "DEV/PENDING",
+      "to": "DEV/PENDING",
+      "by": "harness-dev",
+      "note": "task-claim T10"
+    },
+    {
+      "ts": "2026-05-02T15:19:58Z",
+      "from": "DEV/PENDING",
+      "to": "DEV/PENDING",
+      "by": "harness-dev",
+      "note": "task-claim T11"
+    },
+    {
+      "ts": "2026-05-02T15:26:30Z",
+      "from": "DEV/PENDING",
+      "to": "DEV/PENDING",
+      "by": "harness-dev",
+      "note": "task-claim T12"
+    },
+    {
+      "ts": "2026-05-02T15:30:59Z",
+      "from": "DEV/PENDING",
+      "to": "DEV/PENDING",
+      "by": "harness-dev",
+      "note": "task-claim T13"
+    },
+    {
+      "ts": "2026-05-02T15:37:36Z",
+      "from": "DEV/PENDING",
+      "to": "DEV/PENDING",
+      "by": "harness-dev",
+      "note": "task-claim T14"
+    },
+    {
+      "ts": "2026-05-02T15:42:52Z",
+      "from": "DEV/PENDING",
+      "to": "DEV/PENDING",
+      "by": "harness-dev",
+      "note": "task-claim T15"
+    },
+    {
+      "ts": "2026-05-02T15:47:35Z",
+      "from": "DEV/PENDING",
+      "to": "DEV/PENDING",
+      "by": "harness-dev",
+      "note": "task-claim T16"
+    },
+    {
+      "ts": "2026-05-02T15:52:27Z",
+      "from": "DEV/PENDING",
+      "to": "DEV/PENDING",
+      "by": "harness-dev",
+      "note": "task-claim T17"
+    },
+    {
+      "ts": "2026-05-02T15:59:09Z",
+      "from": "DEV/PENDING",
+      "to": "DEV/PENDING",
+      "by": "harness-dev",
+      "note": "task-claim T18"
+    },
+    {
+      "ts": "2026-05-02T16:05:59Z",
+      "from": "DEV/PENDING",
+      "to": "DEV/PENDING",
+      "by": "harness-dev",
+      "note": "task-claim T19"
+    },
+    {
+      "ts": "2026-05-02T16:14:32Z",
+      "from": "DEV/PENDING",
+      "to": "DEV/PENDING",
+      "by": "harness-dev",
+      "note": "task-claim T20"
+    },
+    {
+      "ts": "2026-05-02T16:21:13Z",
+      "from": "DEV/PENDING",
+      "to": "DEV/PENDING",
+      "by": "harness-dev",
+      "note": "task-claim T21"
+    },
+    {
+      "ts": "2026-05-02T16:30:08Z",
+      "from": "DEV/PENDING",
+      "to": "DEV/PENDING",
+      "by": "harness-dev",
+      "note": "task-claim T22"
+    },
+    {
+      "ts": "2026-05-02T16:34:59Z",
+      "from": "DEV/PENDING",
+      "to": "DEV/PASSED",
+      "by": "subagent_stop",
+      "note": "verified entry 0023-harness-dev.md"
+    },
+    {
+      "ts": "2026-05-02T16:35:00Z",
+      "from": "DEV/PASSED",
+      "to": "VALIDATION/PENDING",
+      "by": "subagent_stop"
+    },
+    {
+      "ts": "2026-05-02T16:47:01Z",
+      "from": "VALIDATION/PENDING",
+      "to": "VALIDATION/PASSED",
+      "by": "subagent_stop",
+      "note": "verified entry 0024-harness-validator.md"
+    },
+    {
+      "ts": "2026-05-02T16:47:02Z",
+      "from": "VALIDATION/PASSED",
+      "to": "UNIT_TEST/PENDING",
+      "by": "subagent_stop"
+    },
+    {
+      "ts": "2026-05-02T17:01:12Z",
+      "from": "UNIT_TEST/PENDING",
+      "to": "UNIT_TEST/PASSED",
+      "by": "subagent_stop",
+      "note": "verified entry 0025-harness-unit-test.md"
+    },
+    {
+      "ts": "2026-05-02T17:01:13Z",
+      "from": "UNIT_TEST/PASSED",
+      "to": "E2E/PENDING",
+      "by": "subagent_stop"
+    },
+    {
+      "ts": "2026-05-02T17:09:30Z",
+      "from": "E2E/PENDING",
+      "to": "E2E/PASSED",
+      "by": "subagent_stop",
+      "note": "verified entry 0026-harness-e2e-test.md"
+    },
+    {
+      "ts": "2026-05-02T17:09:30Z",
+      "from": "E2E/PASSED",
+      "to": "MERGE/PENDING",
+      "by": "subagent_stop"
+    },
+    {
+      "ts": "2026-05-02T17:11:45Z",
+      "from": "MERGE/PENDING",
+      "to": "MERGE/PASSED",
+      "by": "subagent_stop",
+      "note": "verified entry 0027-harness-merge.md"
+    },
+    {
+      "ts": "2026-05-02T17:11:45Z",
+      "from": "MERGE/PASSED",
+      "to": "REPORT/PENDING",
+      "by": "subagent_stop"
+    },
+    {
+      "ts": "2026-05-02T17:17:09Z",
+      "from": "REPORT/PENDING",
+      "to": "REPORT/PASSED",
+      "by": "subagent_stop",
+      "note": "verified entry 0028-harness-reporter.md"
+    },
+    {
+      "ts": "2026-05-02T17:17:10Z",
+      "from": "REPORT/PASSED",
+      "to": "DONE/PASSED",
+      "by": "subagent_stop"
+    }
+  ],
+  "created_at": "2026-05-02T14:13:54Z",
+  "updated_at": "2026-05-02T17:17:10Z"
+}
