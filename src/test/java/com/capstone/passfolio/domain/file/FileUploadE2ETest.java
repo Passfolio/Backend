@@ -206,7 +206,7 @@ class FileUploadE2ETest {
         // complete → 고정 location/etag (clean shutdown)
         given(s3Client.completeMultipartUpload(any(CompleteMultipartUploadRequest.class)))
                 .willReturn(CompleteMultipartUploadResponse.builder()
-                        .location("https://test-bucket.s3.amazonaws.com/files/x")
+                        .location("https://test-bucket.s3.amazonaws.com/files/pdf/x")
                         .eTag("\"final-etag\"")
                         .build());
 
@@ -254,9 +254,9 @@ class FileUploadE2ETest {
                     // 100MB 는 권장 64MB 임계점 초과 → ceil(100/64)=2 part (S3Service.calculatePartCount 명세)
                     .andExpect(jsonPath("$.partCount").value(2))
                     .andExpect(jsonPath("$.partPresignedUrls.length()").value(2))
-                    // 서버가 키를 (files|videos)/UUID__sanitized 형식으로 확정 (file_security.md §3.2)
+                    // 서버가 키를 files/(videos|images|pdf|other)/UUID__sanitized 형식으로 확정 (file_security.md §3.2)
                     .andExpect(jsonPath("$.key", org.hamcrest.Matchers.matchesPattern(
-                            "^files/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}__resume\\.pdf$")))
+                            "^files/pdf/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}__resume\\.pdf$")))
                     .andExpect(jsonPath("$.partPresignedUrls[0].partNumber").value(1))
                     .andExpect(jsonPath("$.partPresignedUrls[0].presignedUrl")
                             .value("https://test-bucket.s3.amazonaws.com/presigned?X-Amz=fake"))
@@ -270,7 +270,7 @@ class FileUploadE2ETest {
             assertThat(sdkRequest.bucket()).isEqualTo("test-bucket");
             assertThat(sdkRequest.contentType()).isEqualTo("application/pdf");
             assertThat(sdkRequest.key())
-                    .matches("^files/[0-9a-f-]{36}__resume\\.pdf$");
+                    .matches("^files/pdf/[0-9a-f-]{36}__resume\\.pdf$");
 
             // partCount=2 만큼 presignUploadPart 호출
             then(s3Presigner).should(times(2))
@@ -280,7 +280,7 @@ class FileUploadE2ETest {
         @Test
         @DisplayName("complete(actualSize==fileSize) → 200 + UploadFileResponse JSON (fileId/filename/cdnUrl/fileSize/mediaType=PDF/status=AVAILABLE) + DB 영속화")
         void complete_actualMatchesPromised_returns200_andPersistsFile() throws Exception {
-            String key = "files/" + UUID.randomUUID() + "__resume.pdf";
+            String key = "files/pdf/" + UUID.randomUUID() + "__resume.pdf";
             given(s3Client.headObject(any(HeadObjectRequest.class)))
                     .willReturn(HeadObjectResponse.builder().contentLength(104_857_600L).build());
 
@@ -331,7 +331,7 @@ class FileUploadE2ETest {
         @Test
         @DisplayName("part-presigned-url(md5Base64 포함) → 200 + presignedUrl/contentLength/md5Base64 응답 + Presigner 정확 1회 호출")
         void partPresignedUrl_withMd5_returns200_andPassesContentLengthToPresigner() throws Exception {
-            String key = "files/" + UUID.randomUUID() + "__resume.pdf";
+            String key = "files/pdf/" + UUID.randomUUID() + "__resume.pdf";
             String requestBody = """
                     {
                       "key": "%s",
@@ -374,7 +374,7 @@ class FileUploadE2ETest {
         @Test
         @DisplayName("list-parts(?key&uploadId) → 200 + parts[] 응답 + S3 listParts SDK 정확 1회 호출")
         void listParts_validQuery_returns200_andCallsListPartsOnce() throws Exception {
-            String key = "files/abc__file.pdf";
+            String key = "files/pdf/abc__file.pdf";
             // 클라이언트가 1번 파트만 업로드하고 끊긴 시나리오를 모사
             given(s3Client.listParts(any(ListPartsRequest.class)))
                     .willReturn(ListPartsResponse.builder()
@@ -470,7 +470,7 @@ class FileUploadE2ETest {
         @Test
         @DisplayName("complete(headObject 가 약속과 다른 size 반환) → 400 + error=FILE_SIZE_MISMATCH + abortMultipartUpload 정확 1회 호출 + DB 영속화 0회")
         void complete_actualSizeDiffersFromPromised_returns400_andCallsAbortOnce() throws Exception {
-            String key = "files/" + UUID.randomUUID() + "__resume.pdf";
+            String key = "files/pdf/" + UUID.randomUUID() + "__resume.pdf";
 
             // 클라이언트는 100MB 라고 주장하지만 S3 가 실제로는 200MB 라고 보고하는 시나리오 (DoS 우회 시도).
             given(s3Client.headObject(any(HeadObjectRequest.class)))
@@ -518,7 +518,7 @@ class FileUploadE2ETest {
         void abort_validRequest_returns204_andCallsAbortOnce() throws Exception {
             String requestBody = """
                     {
-                      "key": "files/abc-uuid__file.pdf",
+                      "key": "files/pdf/abc-uuid__file.pdf",
                       "uploadId": "test-upload-id-12345"
                     }
                     """;
@@ -534,7 +534,7 @@ class FileUploadE2ETest {
             then(s3Client).should(times(1)).abortMultipartUpload(abortCaptor.capture());
             AbortMultipartUploadRequest captured = abortCaptor.getValue();
             assertThat(captured.bucket()).isEqualTo("test-bucket");
-            assertThat(captured.key()).isEqualTo("files/abc-uuid__file.pdf");
+            assertThat(captured.key()).isEqualTo("files/pdf/abc-uuid__file.pdf");
             assertThat(captured.uploadId()).isEqualTo("test-upload-id-12345");
         }
     }

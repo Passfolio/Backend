@@ -42,7 +42,7 @@ public class File extends UserBaseEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    /** 서버에서 생성한 S3 object key ({@code {subfolder}/{UUID}__{sanitized_filename}} 형식). */
+    /** 서버에서 생성한 S3 object key ({@code files/{videos|images|pdf|other}/{UUID}__{sanitized_filename}} 형식). */
     @Column(name = "s3_object_key", nullable = false, length = 1024, unique = true)
     private String s3ObjectKey;
 

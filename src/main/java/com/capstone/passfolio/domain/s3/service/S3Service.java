@@ -104,7 +104,7 @@ public class S3Service {
     /**
      * S3 에 multipart upload 세션을 시작한다.
      *
-     * <p>키는 서버가 {@code {subfolder}/{UUID}__{sanitized_filename}} 형식으로 확정한다 — 클라이언트가
+     * <p>키는 서버가 {@code files/{videos|images|pdf|other}/{UUID}__{sanitized_filename}} 형식으로 확정한다 — 클라이언트가
      * 보낸 {@code originalFileName} 은 sanitization 후 표시용으로만 키에 포함되며, 경로 traversal 또는
      * 동일 이름 충돌은 모두 무력화된다 (file_security.md §3.2).
      *
@@ -405,7 +405,7 @@ public class S3Service {
     // ============================================================
 
     /**
-     * S3 객체 키 생성. 형식: {@code {subfolder}/{UUID}__{sanitized_filename}}.
+     * S3 객체 키 생성. 형식: {@code files/{videos|images|pdf|other}/{UUID}__{sanitized_filename}}.
      *
      * <p>sanitization: 영문자/숫자/{@code .}/{@code _}/{@code -} 외 모든 문자를 제거한다 — {@code ../} 등의
      * 경로 traversal 시도는 모두 무력화된다 (file_security.md §3.2). 빈 파일명은 {@code unknown} 으로 대체.
@@ -446,26 +446,42 @@ public class S3Service {
     }
 
     /**
-     * S3 객체 키의 subfolder 결정.
+     * S3 객체 키의 subfolder 결정 (항상 {@code files/} 아래 2단계 경로).
      *
-     * <p>1순위 {@link MediaType} (T10 의 정규화된 분류) → {@code VIDEO}/{@code AUDIO} 는 {@code videos/},
-     * 그 외 ({@code IMAGE}/{@code PDF}/{@code UNKNOWN}) 는 {@code files/}.
-     * MediaType 이 null 인 경우 fallback 으로 MIME prefix / 파일명 확장자 검사.
+     * <p>{@link MediaType}: {@code VIDEO}/{@code AUDIO} → {@code files/videos/}, {@code IMAGE} → {@code files/images/},
+     * {@code PDF} → {@code files/pdf/}. {@code UNKNOWN} 또는 {@code null} 분류는 MIME·확장자로 재판정하고,
+     * 그래도 불명확하면 {@code files/other/}.
      */
     private String determineSubFolder(MediaType mediaType, String mimeType, String fileName) {
-        if (mediaType == MediaType.VIDEO || mediaType == MediaType.AUDIO) {
-            return "videos";
-        }
         if (mediaType != null) {
-            return "files";
+            return switch (mediaType) {
+                case VIDEO, AUDIO -> "files/videos";
+                case IMAGE -> "files/images";
+                case PDF -> "files/pdf";
+                case UNKNOWN -> resolveSubFolderFromMimeAndName(mimeType, fileName);
+            };
         }
-        // fallback: MIME / 확장자 추정
+        return resolveSubFolderFromMimeAndName(mimeType, fileName);
+    }
+
+    /**
+     * MIME prefix·파일명 확장자로 {@code files/videos} … 중 선택; 매칭 실패 시 {@code files/other}
+     * (단일 루트 {@code files/uuid…} 키는 쓰지 않음).
+     */
+    private static String resolveSubFolderFromMimeAndName(String mimeType, String fileName) {
         String type = mimeType != null ? mimeType.toLowerCase() : "";
         String name = fileName != null ? fileName.toLowerCase() : "";
         if (type.startsWith("video/") || type.startsWith("audio/")
                 || name.matches(".*\\.(mp4|avi|mov|wmv|flv|webm|mkv)$")) {
-            return "videos";
+            return "files/videos";
         }
-        return "files";
+        if (type.startsWith("image/")
+                || name.matches(".*\\.(jpg|jpeg|png|gif|bmp|webp|svg)$")) {
+            return "files/images";
+        }
+        if ("application/pdf".equals(type) || name.endsWith(".pdf")) {
+            return "files/pdf";
+        }
+        return "files/other";
     }
 }

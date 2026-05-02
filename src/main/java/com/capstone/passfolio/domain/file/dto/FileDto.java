@@ -81,7 +81,7 @@ public class FileDto {
     public static class MultipartUploadInitiateResponse {
 
         @Schema(description = "서버가 확정한 S3 객체 키 ({subfolder}/{UUID}__{sanitized}). 이후 모든 호출에서 그대로 사용.",
-                example = "files/3f2d04ec-12ab-4cde-9abc-1234567890ab__resume.pdf")
+                example = "files/pdf/3f2d04ec-12ab-4cde-9abc-1234567890ab__resume.pdf")
         private String key;
 
         @Schema(description = "AWS S3 가 발급한 multipart upload 식별자.", example = "upload-id-12345")
@@ -137,7 +137,7 @@ public class FileDto {
 
         @NotBlank(message = "key 는 필수입니다.")
         @Schema(description = "initiate 응답의 key 와 동일.",
-                example = "files/3f2d04ec-12ab-4cde-9abc-1234567890ab__resume.pdf")
+                example = "files/pdf/3f2d04ec-12ab-4cde-9abc-1234567890ab__resume.pdf")
         private String key;
 
         @NotBlank(message = "uploadId 는 필수입니다.")
@@ -327,7 +327,7 @@ public class FileDto {
         private String filename;
 
         @Schema(description = "클라이언트가 접근할 CDN URL ({@code cdn.base-url + s3ObjectKey}).",
-                example = "https://cdn.passfolio.com/files/uuid__resume.pdf")
+                example = "https://cdn.passfolio.com/files/pdf/uuid__resume.pdf")
         private String cdnUrl;
 
         @Schema(description = "업로드된 파일의 실제 크기(byte). HeadObject 검증을 통과한 값.",

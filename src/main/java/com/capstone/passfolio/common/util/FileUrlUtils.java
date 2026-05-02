@@ -22,8 +22,8 @@ import org.springframework.stereotype.Component;
  * </ul>
  *
  * <p>설정 예: {@code cdn.base-url=https://cdn.passfolio.com}
- * <br>입력 키 {@code files/abc-uuid__resume.pdf}
- * <br>→ 출력 {@code https://cdn.passfolio.com/files/abc-uuid__resume.pdf}
+ * <br>입력 키 {@code files/pdf/abc-uuid__resume.pdf}
+ * <br>→ 출력 {@code https://cdn.passfolio.com/files/pdf/abc-uuid__resume.pdf}
  */
 @Component
 @NoArgsConstructor(access = AccessLevel.PUBLIC)
@@ -49,9 +49,9 @@ public class FileUrlUtils {
     /**
      * S3 객체 키를 CDN URL로 변환한다.
      *
-     * @param s3ObjectKey S3 object key (예: {@code files/uuid__filename.pdf}).
+     * @param s3ObjectKey S3 object key (예: {@code files/pdf/uuid__filename.pdf}).
      *                    {@code null} 또는 빈 문자열이면 {@code null} 반환.
-     * @return CDN URL (예: {@code https://cdn.passfolio.com/files/uuid__filename.pdf}).
+     * @return CDN URL (예: {@code https://cdn.passfolio.com/files/pdf/uuid__filename.pdf}).
      * @throws IllegalStateException {@code cdn.base-url}이 미설정인 경우.
      *         보안 정책상 S3 URL 직접 노출은 금지되므로 fail-fast 한다.
      */
