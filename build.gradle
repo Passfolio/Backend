@@ -2,6 +2,7 @@ plugins {
 	id 'java'
 	id 'org.springframework.boot' version '3.5.6'
 	id 'io.spring.dependency-management' version '1.1.7'
+	id 'jacoco'
 }
 
 group = 'com.capstone'
@@ -108,4 +109,84 @@ dependencies {
 
 tasks.named('test') {
 	useJUnitPlatform()
+	finalizedBy 'jacocoTestReport'
+}
+
+// ───── Jacoco 설정 ─────
+// 목적: backlog BE-file-aws-s3-multipart-upload-presigned-url 의 acceptance signal
+//       "Jacoco ≥ 80% line coverage on the new domain.file + domain.s3 packages" 충족.
+// 설계 원칙(0001-harness-design.md §Decisions): 검증 규칙(scope)은 신규 코드(domain.file
+//       + domain.s3)에만 한정한다 — 레거시 미검증 코드가 게이트를 막지 않도록.
+// 리포트(jacocoTestReport)는 전체 main classpath 기준으로 항상 생성한다.
+jacoco {
+	toolVersion = "0.8.11" // 0.8.11+ 가 Java 21 bytecode 지원
+}
+
+tasks.named('jacocoTestReport') {
+	dependsOn tasks.named('test')
+
+	reports {
+		html.required = true
+		xml.required  = true
+		csv.required  = false
+	}
+
+	// 측정 노이즈 제거 — 비즈니스 로직 없는 클래스는 리포트에서도 빼서 신호 흐려지지 않게.
+	def reportExcludes = [
+			'**/*Application*',
+			'**/Q*.*',          // QueryDSL 자동 생성
+			'**/config/**',
+			'**/dto/**',
+			'**/exception/**',
+			'**/model/**'
+	]
+
+	classDirectories.setFrom(
+			files(classDirectories.files.collect {
+				fileTree(dir: it, exclude: reportExcludes)
+			})
+	)
+}
+
+tasks.named('jacocoTestCoverageVerification') {
+	dependsOn tasks.named('jacocoTestReport')
+
+	violationRules {
+		// 신규 패키지 한정 LINE ≥ 0.80 룰. includes 패턴은 패키지명을 fully-qualified
+		// (슬래시가 아닌 점 표기)로 매칭한다. 클래스 단위로 평가하면 한 클래스라도
+		// 80% 미만이면 실패하므로, BUNDLE 단위로 두 패키지 합산 평균이 80% 이상이면
+		// 통과하도록 element='BUNDLE' + includes 로 BUNDLE 의 measured 영역을 좁힌다.
+		rule {
+			element  = 'BUNDLE'
+			includes = ['**']
+
+			limit {
+				counter = 'LINE'
+				value   = 'COVEREDRATIO'
+				minimum = 0.80
+			}
+		}
+	}
+
+	// 룰 평가 대상 클래스 자체를 신규 패키지로 좁힌다. 이렇게 하면 BUNDLE 의
+	// LINE 분모에 들어가는 라인이 domain.file + domain.s3 의 라인만 남고,
+	// dto/config/exception 같은 비즈니스 없는 클래스는 자동 제외된다.
+	def verificationIncludes = [
+			'com/capstone/passfolio/domain/file/**',
+			'com/capstone/passfolio/domain/s3/**'
+	]
+	def verificationExcludes = [
+			'**/dto/**',         // 단순 DTO record/POJO
+			'**/entity/enums/**' // MediaType 같은 단순 enum
+	]
+
+	classDirectories.setFrom(
+			files(sourceSets.main.output.classesDirs.collect {
+				fileTree(dir: it, includes: verificationIncludes, excludes: verificationExcludes)
+			})
+	)
+}
+
+tasks.named('check') {
+	dependsOn tasks.named('jacocoTestCoverageVerification')
 }
