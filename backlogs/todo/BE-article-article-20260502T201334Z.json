@@ -1,0 +1,82 @@
+{
+  "backlog_id": "BE-article-article-20260502T201334Z",
+  "part": "backend",
+  "domain": "Article",
+  "owner": null,
+  "title": "Article 구현",
+  "user_story": "Admin 계정의 유저는 Article을 작성/수정/조회/삭제할 수 있다. \nArticle 작성 및 수정의 주 컨텐츠는 텍스트, 이미지, 동영상, pdf 등의 첨부파일이다. \nArticle은 글 중간에 이미지나 동영상을 임베드할 수 있다. \nVisitor 혹은 User는 Article을 조회만 할 수 있다. \nArticle은 offset based이며 기본 페이지 사이즈는 9이다.",
+  "sp": 6,
+  "requirements": [
+    "Development Agents는 offset-pagination 스킬을 활용해서 구현한다.",
+    "Test 관련 Agents는 springboot-test 스킬을 활용해서 테스트를 진행한다.",
+    "Article은 Title, Contents의 기본 구조로 구현되어있고, 댓글이나 조회수/좋아요 기능은 없다.",
+    "Article은 UserBaseEntity를 상속받아, Writer와 Time 정보를 같이 갖는다.",
+    "Article은 File과 Cardinality를 구축하는게 아니라, List타입의 Denormalized fileUrls 필드를 갖는다. 이 메커니즘은, 사용자가 텍스트 작성 중간에 파일을 임베드하면, FE에서 바로 AWS S3 Multipart Upload가 진행되고, 그렇게 얻은 file URL을 Article API Request Body 안에 넣는 구조이다.",
+    "정렬 기준은 최근 작성일 기준이다. (createdAt 내림차순)",
+    "Thumbnail 필드도 마찬가지로 Denormalized 필드이며 (File과 연결 X), url로 받는다. 썸네일의 기준은 맨 처음 등록한 이미지의 url이다."
+  ],
+  "constraints": [
+    "Article은 user.role이 ADMIN인 경우에만 작성/수정/삭제할 수 있다. (조회는 당연히 가능)",
+    "Article은 user.role이 없거나(visitor), USER인 경우에는 조회만 할 수 있다.",
+    "Article은 글 중간에 이미지나 동영상을 임베드할 수 있다.",
+    "Article의 contents 필드는 TEXT (가변 문자열타입)으로 지정한다.",
+    "Article은 offset based이며 기본 페이지 사이즈는 9이다.",
+    "Article의 구현은 Covering Index + Denormlization + QueryDSL로 성능 최적화를 이뤄야한다.",
+    "N+1의 문제를 방지해야한다.",
+    "Article을 삭제하면, 그 안에 있는 urls를 토대로 File에서 해당 객체를 찾아서 S3에서 파일 제거되어야한다.",
+    "Admin User가 삭제되면, JPA 방식에 기대기보단 Bulk Delete 되어야 하며, 이 과정에서 Articles가 삭제되면 S3 파일 제거 요청도 이뤄져야한다. (N+1 방지 목적)",
+    "100만개의 데이터 시나리오에서 90만번째 데이터 조회 시 cold cache를 고려해서 4초 미만 안에 응답처리 되어야한다. 100만개의 데이터는 CHUNK=5000 기준 Batch Insert로 임의로 넣으면 된다.",
+    "정렬 기준, 데이터, 첫페이지와 마지막 페이지, 페이지 넘어간 경우 (-1, last+1), 그 외 각종 Validation에 대한 철저한 테스트 진행한다.",
+    "JUnit 기준 Jacoco 기준 80% 이상의 커버리지를 만족한다.",
+    "E2E 테스트는 Positive/Negative 시나리오를 구상한 후 테스트를 진행한다.",
+    "Article CRUD 구현에 대해 테스트할 때는 Response와 HTTP Status만 보고 넘어가지말고, DB 데이터까지 반드시 검증한다.",
+    "외부 API를 사용하는 경우에는 Mock을 사용한다.",
+    "내부 API를 사용하는 경우는 실제 Database를 활용해서 테스트한다.",
+    "계정이 필요한 API라면 Admin 계정을 만들어서 테스트한다."
+  ],
+  "stage": "TODO",
+  "stage_status": "PENDING",
+  "stage_attempts": {
+    "design": 0,
+    "dev": 0,
+    "validate": 0,
+    "unit_test": 0,
+    "e2e_test": 0,
+    "merge": 0,
+    "report": 0
+  },
+  "tasks": [],
+  "current_task": null,
+  "skills_required": [
+    "harness-engineering"
+  ],
+  "mcps_required": [],
+  "stage_refs": {
+    "design": null,
+    "dev": [],
+    "validation": null,
+    "unit_test": null,
+    "e2e_test": null,
+    "merge_pr": null,
+    "merge_sha": null,
+    "report": null
+  },
+  "depends_on": [
+    "User",
+    "Auth"
+  ],
+  "shared_resources": [
+    "User",
+    "Auth domain"
+  ],
+  "history": [
+    {
+      "ts": "2026-05-02T20:13:34Z",
+      "from": null,
+      "to": "TODO/PENDING",
+      "by": "human"
+    }
+  ],
+  "created_at": "2026-05-02T20:13:34Z",
+  "updated_at": "2026-05-02T20:13:34Z"
+}
