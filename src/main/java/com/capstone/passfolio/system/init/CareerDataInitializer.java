@@ -10,6 +10,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
+import org.springframework.context.annotation.Profile;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
@@ -23,6 +24,7 @@ import java.util.UUID;
 
 @Slf4j
 @Component
+@Profile("!test")
 @RequiredArgsConstructor
 public class CareerDataInitializer implements ApplicationRunner {
 

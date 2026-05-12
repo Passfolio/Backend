@@ -21,8 +21,7 @@ import com.capstone.passfolio.domain.user.entity.User;
 import com.capstone.passfolio.domain.user.entity.enums.Role;
 import com.capstone.passfolio.domain.user.repository.UserRepository;
 import com.capstone.passfolio.domain.user.service.UserService;
-import com.capstone.passfolio.system.init.CareerDataInitializer;
-import com.capstone.passfolio.system.init.UniversityDataInitializer;
+import com.capstone.passfolio.support.AbstractIntegrationTest;
 import com.capstone.passfolio.system.security.model.UserPrincipal;
 
 import java.time.LocalDateTime;
@@ -35,24 +34,18 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
-import org.redisson.api.RedissonClient;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
-import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import jakarta.persistence.EntityManager;
-
-import software.amazon.awssdk.services.s3.S3Client;
-import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 
 /**
  * Article 도메인 단대단(E2E) 테스트.
@@ -119,53 +112,8 @@ import software.amazon.awssdk.services.s3.presigner.S3Presigner;
  *   A14 → 모든 CRUD positive 케이스에서 DB row 검증 동시 수행
  * </pre>
  */
-@SpringBootTest
 @AutoConfigureMockMvc(addFilters = false)
-@TestPropertySource(properties = {
-        // ---- H2 오버라이드 (FileUploadE2ETest 와 동일) ----
-        "spring.profiles.active=test",
-        "spring.datasource.url=jdbc:h2:mem:articleE2E;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1",
-        "spring.datasource.driver-class-name=org.h2.Driver",
-        "spring.datasource.username=sa",
-        "spring.datasource.password=",
-        "spring.flyway.enabled=false",
-        "spring.jpa.hibernate.ddl-auto=create-drop",
-        "spring.jpa.database-platform=org.hibernate.dialect.H2Dialect",
-        "spring.jpa.properties.hibernate.show_sql=false",
-        // ---- application.yml ${ENV} 자리채우기 ----
-        "spring.cloud.aws.s3.bucket=test-bucket",
-        "spring.cloud.aws.credentials.access-key=test-access-key",
-        "spring.cloud.aws.credentials.secret-key=test-secret-key",
-        "spring.security.oauth2.client.registration.github.client-id=test-github-id",
-        "spring.security.oauth2.client.registration.github.client-secret=test-github-secret",
-        "hmac.secret=test-hmac-secret-must-be-at-least-32-chars-long",
-        "github.token.encryption-key=MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=",
-        "jwt.secret=ZGV2LXRlc3Qtand0LXNlY3JldC1iYXNlNjQtZW5jb2RlZC1tdXN0LWJlLWxvbmctZW5vdWdoLWZvci1obWFjLXNoYTUxMg==",
-        "jwt.atk-exp-min=30",
-        "jwt.rtk-exp-week=2",
-        "FRONT_REDIRECT_URI=http://localhost:5173/oauth/callback",
-        "FRONT_BASE_URL=http://localhost:5173",
-        "ALLOWED_ORIGINS=http://localhost:5173",
-        "BACKEND_BASE_URL=http://localhost:8080",
-        "TRUSTED_CIDRS=127.0.0.1/32",
-        "ACTUATOR_ENDPOINT=/internal/actuator",
-        "SWAGGER_UI_PATH=/swagger-ui.html",
-        "SWAGGER_JSON_PATH=/v3/api-docs",
-        "DB_HOST=ignored",
-        "DB_NAME=ignored",
-        "DB_PASSWORD=ignored",
-        "MAIL_HOST=localhost",
-        "REDIS_HOST=localhost",
-        "STEP_FUNCTION_ARN=",
-        // ---- CDN: extractS3KeysFromUrls 가 prefix strip 으로 키를 복원하는 동작을 검증하기 위해 명시 주입 ----
-        "cdn.base-url=https://cdn.passfolio.test",
-        "file.upload.allowed-extensions=pdf,jpg,jpeg,png,gif,webp,bmp,svg,mp4,mov,webm,avi,wmv,flv,mkv",
-        "file.upload.max-file-size-bytes=104857600",
-        "file.upload.presigned-url-ttl-minutes=10",
-        "ratelimit.enabled=false",
-        "spring.batch.job.enabled=false"
-})
-class ArticleE2ETest {
+class ArticleE2ETest extends AbstractIntegrationTest {
 
     @Autowired
     private MockMvc mockMvc;
@@ -185,25 +133,13 @@ class ArticleE2ETest {
     @Autowired
     private PlatformTransactionManager transactionManager;
 
-    /** S3 외부 시스템 — backlog 제약 C15: external API 는 mock. */
+    /**
+     * S3 외부 시스템 — backlog 제약 C15: external API 는 mock.
+     * S3Client / S3Presigner / RedissonClient 는 {@link AbstractIntegrationTest} 가 일괄 처리.
+     * CareerDataInitializer / UniversityDataInitializer 는 {@code @Profile("!test")} 로 컨텍스트에 미등록.
+     */
     @MockitoBean
     private S3Service s3Service;
-
-    /** 컨텍스트 부팅 시 다른 도메인 빈 의존성 차단용. */
-    @MockitoBean
-    private S3Client s3Client;
-
-    @MockitoBean
-    private S3Presigner s3Presigner;
-
-    @MockitoBean
-    private RedissonClient redissonClient;
-
-    @MockitoBean
-    private CareerDataInitializer careerDataInitializer;
-
-    @MockitoBean
-    private UniversityDataInitializer universityDataInitializer;
 
     /** 테스트마다 새로 만든 admin user 의 DB id (auditor createdBy 와 일치). */
     private Long adminUserId;
