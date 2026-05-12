@@ -63,6 +63,10 @@ public enum ErrorCode {
     FILE_INVALID_FORMAT(HttpStatus.BAD_REQUEST, "FILE INVALID FORMAT", "유효하지 않은 파일 형식입니다."),
     FILE_SIZE_EXCEEDED(HttpStatus.PAYLOAD_TOO_LARGE, "FILE SIZE EXCEEDED", "파일 크기가 허용된 한도를 초과했습니다."),
     FILE_ACCESS_DENIED(HttpStatus.FORBIDDEN, "FILE ACCESS DENIED", "파일에 접근할 수 있는 권한이 없습니다."),
+    FILE_EXTENSION_NOT_ALLOWED(HttpStatus.BAD_REQUEST, "FILE EXTENSION NOT ALLOWED", "허용되지 않는 파일 확장자입니다."),
+    FILE_INVALID_SIZE(HttpStatus.BAD_REQUEST, "FILE INVALID SIZE", "파일 크기가 유효하지 않습니다."),
+    FILE_SIZE_MISMATCH(HttpStatus.BAD_REQUEST, "FILE SIZE MISMATCH", "업로드된 파일 크기가 약속한 크기와 일치하지 않습니다."),
+    FILE_UPLOAD_S3_ERROR(HttpStatus.BAD_GATEWAY, "FILE UPLOAD S3 ERROR", "S3 업로드 처리 중 오류가 발생했습니다."),
 
     // PAGE Errors
     PAGE_NOT_FOUND(HttpStatus.NOT_FOUND, "PAGE NOT FOUND", "존재하지 않는 페이지입니다."),
@@ -80,6 +84,10 @@ public enum ErrorCode {
     DB_DATA_TOO_LONG(HttpStatus.BAD_REQUEST, "DB DATA TOO LONG", "데이터 길이가 허용된 한도를 초과했습니다."),
     DB_NOT_NULL_VIOLATION(HttpStatus.BAD_REQUEST, "DB NOT NULL VIOLATION", "필수 필드가 누락되었습니다."),
     DB_FOREIGN_KEY_VIOLATION(HttpStatus.BAD_REQUEST, "DB FOREIGN KEY VIOLATION", "참조 무결성 제약 조건을 위반했습니다."),
+
+    // ARTICLE
+    ARTICLE_NOT_FOUND(HttpStatus.NOT_FOUND, "ARTICLE NOT FOUND", "존재하지 않는 게시글입니다."),
+    ARTICLE_FORBIDDEN(HttpStatus.FORBIDDEN, "ARTICLE FORBIDDEN", "게시글 작성/수정/삭제는 관리자만 가능합니다."),
 
     // GITHUB Errors
     GITHUB_TOKEN_NOT_FOUND(HttpStatus.UNAUTHORIZED, "GITHUB_TOKEN_NOT_FOUND", "GitHub 연동 토큰이 없습니다. GitHub으로 다시 로그인해주세요."),
