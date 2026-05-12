@@ -13,6 +13,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.capstone.passfolio.domain.file.repository.FileRepository;
+import com.capstone.passfolio.support.AbstractIntegrationTest;
 
 import java.net.URI;
 import java.net.URL;
@@ -26,18 +27,9 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
-import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
-import org.springframework.test.context.TestPropertySource;
-import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
-import org.redisson.api.RedissonClient;
-
-import com.capstone.passfolio.system.init.CareerDataInitializer;
-import com.capstone.passfolio.system.init.UniversityDataInitializer;
-
-import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.AbortMultipartUploadRequest;
 import software.amazon.awssdk.services.s3.model.AbortMultipartUploadResponse;
 import software.amazon.awssdk.services.s3.model.CompleteMultipartUploadRequest;
@@ -51,7 +43,6 @@ import software.amazon.awssdk.services.s3.model.ListPartsResponse;
 import software.amazon.awssdk.services.s3.model.Part;
 import software.amazon.awssdk.services.s3.model.UploadPartRequest;
 import software.amazon.awssdk.services.s3.presigner.model.UploadPartPresignRequest;
-import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 import software.amazon.awssdk.services.s3.presigner.model.PresignedUploadPartRequest;
 
 /**
@@ -90,64 +81,8 @@ import software.amazon.awssdk.services.s3.presigner.model.PresignedUploadPartReq
  * {@code @MockitoBean} (Spring Boot 3.4+ 권장; deprecated {@code @MockBean} 미사용) + {@code MockMvc}
  * 골격 채택. {@code spring-s3-multipart-upload} 스킬은 production 템플릿 전용이라 직접 적용 없음.
  */
-@SpringBootTest
 @AutoConfigureMockMvc(addFilters = false)
-@TestPropertySource(properties = {
-        // ---- 슬라이스가 PostgreSQL 의존성을 피하면서 Spring 전체 컨텍스트를 띄우기 위한 H2 오버라이드 ----
-        // V1__init_pg_trgm_*.sql 이 PostgreSQL 전용 (pg_trgm extension, DO blocks) 이라 H2 위에선 실행 불가 →
-        // Flyway 비활성, Hibernate ddl-auto 가 entity 로부터 직접 DDL 생성. T20 Slice 와 동일 전략.
-        "spring.profiles.active=test",
-        "spring.datasource.url=jdbc:h2:mem:fileuploadE2E;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1",
-        "spring.datasource.driver-class-name=org.h2.Driver",
-        "spring.datasource.username=sa",
-        "spring.datasource.password=",
-        "spring.flyway.enabled=false",
-        "spring.jpa.hibernate.ddl-auto=create-drop",
-        "spring.jpa.database-platform=org.hibernate.dialect.H2Dialect",
-        "spring.jpa.properties.hibernate.show_sql=false",
-        // ---- application.yml 의 ${ENV} 자리채우기 — 실제 값을 쓸 일이 없도록 가짜 값으로만 채움 ----
-        "spring.cloud.aws.s3.bucket=test-bucket",
-        "spring.cloud.aws.credentials.access-key=test-access-key",
-        "spring.cloud.aws.credentials.secret-key=test-secret-key",
-        "spring.security.oauth2.client.registration.github.client-id=test-github-id",
-        "spring.security.oauth2.client.registration.github.client-secret=test-github-secret",
-        "hmac.secret=test-hmac-secret-must-be-at-least-32-chars-long",
-        // AesEncryptor 는 base64 디코딩 결과가 정확히 32 bytes(256-bit) 여야 함.
-        // 32 bytes ascii ('0123456789abcdef0123456789abcdef') 의 base64.
-        "github.token.encryption-key=MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=",
-        "jwt.secret=ZGV2LXRlc3Qtand0LXNlY3JldC1iYXNlNjQtZW5jb2RlZC1tdXN0LWJlLWxvbmctZW5vdWdoLWZvci1obWFjLXNoYTUxMg==",
-        // jwt.atk-exp-min / rtk-exp-week 는 application-dev.yml 에만 정의됨 (base application.yml 부재).
-        // profile=test 이므로 dev 블록 비활성 → JwtConfig 의 @Value 가 placeholder 해소 실패 → 컨텍스트 로딩 fail.
-        // 명시적으로 주입.
-        "jwt.atk-exp-min=30",
-        "jwt.rtk-exp-week=2",
-        "FRONT_REDIRECT_URI=http://localhost:5173/oauth/callback",
-        "FRONT_BASE_URL=http://localhost:5173",
-        "ALLOWED_ORIGINS=http://localhost:5173",
-        "BACKEND_BASE_URL=http://localhost:8080",
-        "TRUSTED_CIDRS=127.0.0.1/32",
-        "ACTUATOR_ENDPOINT=/internal/actuator",
-        "SWAGGER_UI_PATH=/swagger-ui.html",
-        "SWAGGER_JSON_PATH=/v3/api-docs",
-        "DB_HOST=ignored",
-        "DB_NAME=ignored",
-        "DB_PASSWORD=ignored",
-        "MAIL_HOST=localhost",
-        "REDIS_HOST=localhost",
-        "STEP_FUNCTION_ARN=",
-        // ---- CDN: UploadFileResponse.of(file) 의 cdnUrl 필드 검증을 위해 실제 값 주입 ----
-        "cdn.base-url=https://cdn.passfolio.test",
-        // ---- 백로그 정책 — application.yml 디폴트와 동일하지만 테스트 의도가 명시적이도록 재선언 ----
-        "file.upload.allowed-extensions=pdf,jpg,jpeg,png,gif,webp,bmp,svg,mp4,mov,webm,avi,wmv,flv,mkv",
-        "file.upload.max-file-size-bytes=104857600",
-        "file.upload.presigned-url-ttl-minutes=10",
-        // ---- 테스트 컨텍스트에서 부담스러운 외부 시스템 (Redis / Rate Limit) 비활성 ----
-        // Redis 서버 없이 컨텍스트가 뜨도록 Spring Boot 의 Lettuce 자동 연결 시도를 무력화하지는 못하지만,
-        // ratelimit.enabled=false 로 본 컨트롤러가 rate-limit 빈을 거치지 않게 한다.
-        "ratelimit.enabled=false",
-        "spring.batch.job.enabled=false"
-})
-class FileUploadE2ETest {
+class FileUploadE2ETest extends AbstractIntegrationTest {
 
     @Autowired
     private MockMvc mockMvc;
@@ -155,29 +90,8 @@ class FileUploadE2ETest {
     @Autowired
     private FileRepository fileRepository;
 
-    @MockitoBean
-    private S3Client s3Client;
-
-    @MockitoBean
-    private S3Presigner s3Presigner;
-
-    /**
-     * RedissonClient 빈은 컨텍스트 로딩 시 즉시 Redis 에 연결을 시도한다 (RedissonConfig).
-     * 본 E2E 는 외부 시스템 의존을 차단하기 위해 mock 으로 치환 (S3 mock 과 동일한 정책).
-     */
-    @MockitoBean
-    private RedissonClient redissonClient;
-
-    /**
-     * 두 ApplicationRunner 는 시작 시 PostgreSQL 전용 SQL ({@code ON CONFLICT ... DO NOTHING}) 을 실행해
-     * H2(MODE=PostgreSQL 이어도 변환 미지원) 에서 컨텍스트 로딩이 실패한다. 본 E2E 의 검증 대상이 아니므로
-     * mock 으로 치환 — `run()` 은 호출되지 않는다 (Spring 이 빈 자체를 mock 으로 만들어 무력화).
-     */
-    @MockitoBean
-    private CareerDataInitializer careerDataInitializer;
-
-    @MockitoBean
-    private UniversityDataInitializer universityDataInitializer;
+    // S3Client / S3Presigner / RedissonClient 는 AbstractIntegrationTest 가 protected mock 으로 노출.
+    // CareerDataInitializer / UniversityDataInitializer 는 @Profile("!test") 로 컨텍스트에 미등록.
 
     /**
      * 결정성: 모든 테스트가 동일한 mock S3 응답을 받도록 setUp 에서 일괄 stubbing.
