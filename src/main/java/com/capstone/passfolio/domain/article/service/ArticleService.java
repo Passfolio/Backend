@@ -122,8 +122,8 @@ public class ArticleService {
     /**
      * 게시글 부분 업데이트. ADMIN 만 호출 가능.
      *
-     * <p>{@code title}/{@code contents}/{@code fileUrls} 중 적어도 한 필드는 비-null 이어야 한다
-     * ({@link ArticleDto.UpdateRequest#hasAnyChange()}). {@code fileUrls} 가 비-null 이면 컬렉션이
+     * <p>{@code title}/{@code contents}/{@code fileUrls} 가 모두 {@code null} 이면 변경 없이 현재 게시글을
+     * 그대로 반환한다 ({@link ArticleDto.UpdateRequest#hasAnyChange()}). {@code fileUrls} 가 비-null 이면 컬렉션이
      * 통째로 교체되고 thumbnail 이 재계산된다 ({@link Article#replaceFileUrls(List)}).
      *
      * <p><b>S3 cleanup</b> — 기존 fileUrls 와 새 fileUrls 의 차집합(= 제거된 URL) 만 S3 에서 삭제한다.
@@ -133,16 +133,18 @@ public class ArticleService {
      * @param id        업데이트 대상 ID.
      * @param request   업데이트 요청.
      * @param principal 인증 주체.
-     * @return 업데이트된 게시글 응답.
+     * @return 업데이트된 게시글 응답. 변경 필드가 없으면 기존 게시글 응답.
      * @throws RestException {@link ErrorCode#ARTICLE_FORBIDDEN} — 비-ADMIN.
      * @throws RestException {@link ErrorCode#ARTICLE_NOT_FOUND} — 대상 없음.
-     * @throws RestException {@link ErrorCode#GLOBAL_INVALID_PARAMETER} — 변경 필드 0개.
      */
     public ArticleDto.ArticleResponse update(Long id, ArticleDto.UpdateRequest request, UserPrincipal principal) {
         assertAdmin(principal);
 
         if (!request.hasAnyChange()) {
-            throw new RestException(ErrorCode.GLOBAL_INVALID_PARAMETER);
+            Article article = articleRepository.findById(id)
+                    .orElseThrow(() -> new RestException(ErrorCode.ARTICLE_NOT_FOUND));
+            String nickname = lookupNickname(article.getCreatedBy());
+            return ArticleDto.ArticleResponse.from(article, nickname);
         }
 
         Article article = articleRepository.findById(id)

@@ -164,7 +164,7 @@ public interface ArticleApiSpecification {
 
                     - 모든 필드는 선택(`null` = 변경 없음).
                     - 빈 배열 `[]`을 `fileUrls`에 보내면 파일 목록과 썸네일이 모두 비워집니다.
-                    - 모든 필드가 `null`인 요청은 `400`으로 거부됩니다.
+                    - 모든 필드가 `null`인 요청은 변경 없이 기존 게시글을 `200`으로 반환합니다.
                     - 기존 `fileUrls`에서 제거된 URL의 S3 객체는 자동으로 삭제됩니다.
                     """)
     @ApiResponses(value = {
@@ -176,17 +176,17 @@ public interface ArticleApiSpecification {
                             schema = @Schema(implementation = ArticleDto.ArticleResponse.class))),
             @ApiResponse(
                     responseCode = "400",
-                    description = "유효성 검사 실패 또는 변경 필드 없음",
+                    description = "유효성 검사 실패",
                     content = @Content(
                             mediaType = MediaType.APPLICATION_JSON_VALUE,
                             schema = @Schema(implementation = ErrorResponse.class),
                             examples = @ExampleObject(
-                                    name = "모든 필드 null",
+                                    name = "title 빈 문자열",
                                     value = """
                                             {
                                               "status": "BAD_REQUEST",
-                                              "error": "GLOBAL_INVALID_PARAMETER",
-                                              "message": "변경할 필드가 하나 이상 있어야 합니다."
+                                              "error": "GLOBAL_BAD_REQUEST",
+                                              "message": "title : title 은 1~255자여야 합니다."
                                             }
                                             """))),
             @ApiResponse(
