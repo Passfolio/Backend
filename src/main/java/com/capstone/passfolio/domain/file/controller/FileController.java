@@ -3,11 +3,13 @@ package com.capstone.passfolio.domain.file.controller;
 import com.capstone.passfolio.domain.file.dto.FileDto;
 import com.capstone.passfolio.domain.file.entity.File;
 import com.capstone.passfolio.domain.file.service.FileService;
+import com.capstone.passfolio.system.security.model.UserPrincipal;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -145,5 +147,18 @@ public class FileController implements FileApiSpecification {
             @Valid @RequestBody FileDto.MultipartUploadAbortRequest request) {
         fileService.abortMultipartUpload(request.getKey(), request.getUploadId());
         return ResponseEntity.status(HttpStatus.NO_CONTENT).build();
+    }
+
+    // ============================================================
+    // 6) GET /api/v1/files/me
+    // ============================================================
+
+    @Override
+    @GetMapping("/me")
+    public ResponseEntity<FileDto.MyFileCdnUrlsResponse> listMyFileCdnUrls(
+            @AuthenticationPrincipal UserPrincipal userPrincipal) {
+        return ResponseEntity.ok(FileDto.MyFileCdnUrlsResponse.builder()
+                .cdnUrls(fileService.listMyFileCdnUrls(userPrincipal.getUserId()))
+                .build());
     }
 }
