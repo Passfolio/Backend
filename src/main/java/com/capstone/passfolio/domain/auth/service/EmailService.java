@@ -10,7 +10,6 @@ import jakarta.mail.internet.MimeMessage;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.core.io.ClassPathResource;
 import org.springframework.dao.DataAccessException;
 import org.springframework.data.redis.RedisConnectionFailureException;
 import org.springframework.mail.MailException;
@@ -53,9 +52,6 @@ public class EmailService {
 
             mimeMessageHelper.setSubject(EMAIL_SUBJECT);
             mimeMessageHelper.setText(setContext(verificationCode), true);
-
-            ClassPathResource logoResource = new ClassPathResource("templates/Passfolio_Main_logo.png");
-            mimeMessageHelper.addInline("passfolioLogo", logoResource, "image/png");
 
             javaMailSender.send(mimeMessage);
 
