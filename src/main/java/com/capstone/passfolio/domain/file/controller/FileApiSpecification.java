@@ -2,6 +2,7 @@ package com.capstone.passfolio.domain.file.controller;
 
 import com.capstone.passfolio.domain.file.dto.FileDto;
 import com.capstone.passfolio.system.exception.dto.ErrorResponse;
+import com.capstone.passfolio.system.security.model.UserPrincipal;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -490,4 +491,47 @@ public interface FileApiSpecification {
                                                                 """)))
             })
     ResponseEntity<Void> abortMultipartUpload(FileDto.MultipartUploadAbortRequest request);
+
+    // ============================================================
+    // 6) GET /api/v1/files/me
+    // ============================================================
+
+    @Operation(
+            summary = "현재 사용자가 업로드한 파일들의 CDN URL 목록 조회",
+            description =
+                    """
+                    인증된 사용자 본인이 업로드한 모든 파일의 CDN URL 을 최신 업로드 순으로 반환한다.
+
+                    ## 처리 흐름
+                    1. `@AuthenticationPrincipal` 로 현재 사용자 식별
+                    2. `FileRepository.findAllByCreatedByOrderByCreatedAtDesc(userId)` — `UserBaseEntity.createdBy` 기준 본인 행만 조회
+                    3. 각 `s3ObjectKey` 를 `FileUrlUtils.buildCdnUrl` 로 변환해 응답
+                    """)
+    @ApiResponses(
+            value = {
+                @ApiResponse(
+                        responseCode = "200",
+                        description = "조회 성공 — 본인이 업로드한 파일들의 CDN URL 목록",
+                        content =
+                                @Content(
+                                        mediaType = MediaType.APPLICATION_JSON_VALUE,
+                                        schema =
+                                                @Schema(
+                                                        implementation =
+                                                                FileDto.MyFileCdnUrlsResponse.class),
+                                        examples =
+                                                @ExampleObject(
+                                                        name = "2개 파일 업로드 이력",
+                                                        value =
+                                                                """
+                                                                {
+                                                                  "cdnUrls": [
+                                                                    "https://cdn.passfolio.com/files/pdf/3f2d04ec-...__resume.pdf",
+                                                                    "https://cdn.passfolio.com/files/images/aa11bb22-...__profile.png"
+                                                                  ]
+                                                                }
+                                                                """)))
+            })
+    ResponseEntity<FileDto.MyFileCdnUrlsResponse> listMyFileCdnUrls(
+            @Parameter(hidden = true) UserPrincipal userPrincipal);
 }

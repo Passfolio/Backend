@@ -361,4 +361,22 @@ public class FileDto {
                     .build();
         }
     }
+
+    /**
+     * {@code GET /api/v1/files/me} 응답 본문.
+     *
+     * <p>현재 인증된 사용자가 업로드(즉, {@link File#getCreatedBy()} 가 본인의 userId 와 일치)한 모든 파일의
+     * CDN URL 목록. 각 URL 은 {@link FileUrlUtils#buildCdnUrl(String)} 로 도출된다.
+     */
+    @Getter
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Schema(description = "현재 사용자가 업로드한 파일들의 CDN URL 목록 응답")
+    public static class MyFileCdnUrlsResponse {
+
+        @Schema(description = "사용자가 업로드한 파일들의 CDN URL 목록 (최신 업로드 순).",
+                example = "[\"https://cdn.passfolio.com/files/pdf/uuid__resume.pdf\"]")
+        private List<String> cdnUrls;
+    }
 }
