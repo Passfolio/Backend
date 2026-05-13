@@ -4,6 +4,7 @@ import com.capstone.passfolio.domain.file.dto.FileDto;
 import com.capstone.passfolio.domain.file.entity.File;
 import com.capstone.passfolio.domain.file.entity.enums.MediaType;
 import com.capstone.passfolio.domain.file.repository.FileRepository;
+import com.capstone.passfolio.common.util.FileUrlUtils;
 import com.capstone.passfolio.domain.s3.dto.S3ServiceDto;
 import com.capstone.passfolio.domain.s3.service.S3Service;
 import com.capstone.passfolio.system.config.file.FileUploadProperties;
@@ -263,6 +264,26 @@ public class FileService {
                 .key(key)
                 .uploadId(uploadId)
                 .build());
+    }
+
+    // ============================================================
+    // 6) 현재 사용자가 업로드한 파일의 CDN URL 목록 조회
+    // ============================================================
+
+    /**
+     * 현재 인증된 사용자가 업로드한 모든 파일의 CDN URL 목록을 반환한다.
+     *
+     * <p>{@link File#getCreatedBy()} 가 {@code userId} 와 일치하는 행을 최신순으로 조회한 뒤
+     * {@link FileUrlUtils#buildCdnUrl(String)} 로 변환한다. 빈 결과일 경우 빈 리스트를 반환한다.
+     *
+     * @param userId 현재 인증된 사용자의 PK
+     * @return 사용자가 업로드한 파일의 CDN URL 목록 (최신 업로드 순)
+     */
+    @Transactional(readOnly = true)
+    public List<String> listMyFileCdnUrls(Long userId) {
+        return fileRepository.findAllByCreatedByOrderByCreatedAtDesc(userId).stream()
+                .map(file -> FileUrlUtils.buildCdnUrl(file.getS3ObjectKey()))
+                .toList();
     }
 
     // ============================================================
