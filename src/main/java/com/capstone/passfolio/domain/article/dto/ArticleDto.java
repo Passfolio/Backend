@@ -30,9 +30,8 @@ import java.util.List;
  *       Validation 으로 입력 가드, 응답 DTO ({@link ArticleResponse}, {@link ArticlePageResponse})는
  *       엔티티 → 응답 변환 책임만 진다. 양쪽을 같은 클래스로 합치는 것은 swagger 모호성 + 검증 누설 위험.</li>
  *   <li><b>{@link UpdateRequest} 모든 필드 nullable</b> — PATCH semantics. {@code null} = "변경 없음".
- *       단, 모든 필드가 동시에 {@code null}인 요청은 의미가 없으므로 service 레이어에서 {@link UpdateRequest#hasAnyChange()}
- *       로 검증해 거부한다 (Bean Validation 단계로 끌어올리지 않은 이유: cross-field 검증은 별도
- *       custom validator를 요구하는데 효익 대비 비용이 크다 — service 한 줄 가드면 충분).</li>
+ *       모든 필드가 동시에 {@code null}인 요청은 idempotent no-op 으로 현재 게시글을 그대로 반환한다
+ *       ({@link UpdateRequest#hasAnyChange()}).</li>
  *   <li><b>{@link ArticlePageResponse} 는 {@code @QueryProjection}</b> — QueryDSL constructor projection
  *       으로 컴파일 타임 타입 안전을 얻는다. 목록 응답이라 {@code contents}/{@code fileUrls} 같은 큰
  *       payload는 제외 — 본문은 단건 조회({@link ArticleResponse})에서만 노출.</li>
@@ -110,7 +109,7 @@ public class ArticleDto {
      *       처리되어 fileUrls와 thumbnail이 비워진다 ({@link Article#replaceFileUrls(List)} 동작).</li>
      * </ul>
      *
-     * <p>최소 한 필드는 비-null 이어야 한다 — service 레이어가 {@link #hasAnyChange()}로 가드한다.
+     * <p>모든 필드가 {@code null}이면 service 레이어가 기존 게시글을 그대로 반환한다.
      */
     @Getter
     @Builder
@@ -135,7 +134,7 @@ public class ArticleDto {
                 @Size(max = 2048, message = "fileUrls 요소는 2048자를 초과할 수 없습니다.") String> fileUrls;
 
         /**
-         * "최소 한 필드는 비-null" 검증 헬퍼. service 레이어에서 호출.
+         * PATCH 본문에 변경 의도가 포함됐는지 판별. service 레이어에서 호출.
          */
         public boolean hasAnyChange() {
             return title != null || contents != null || fileUrls != null;

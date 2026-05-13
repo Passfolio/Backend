@@ -54,7 +54,7 @@ import org.springframework.test.util.ReflectionTestUtils;
  * <ul>
  *   <li><b>create</b> — ADMIN 만 통과, fileUrls 가 비었어도 정상 (썸네일 null), repository.save 호출,
  *       응답에 닉네임 결합. USER/null principal 은 {@code ARTICLE_FORBIDDEN}.</li>
- *   <li><b>update</b> — ADMIN 만 통과, hasAnyChange=false → {@code GLOBAL_INVALID_PARAMETER},
+ *   <li><b>update</b> — ADMIN 만 통과, hasAnyChange=false → 기존 게시글 그대로 반환,
  *       대상 미존재 → {@code ARTICLE_NOT_FOUND}, fileUrls 변경 시 차집합만 S3 cleanup,
  *       fileUrls null 이면 S3 호출 없음, 부분 필드 PATCH 동작.</li>
  *   <li><b>delete</b> — ADMIN 만 통과, S3 호출 → DB 삭제 순서, fileUrls 비어있으면 S3 호출 없음.</li>
@@ -210,15 +210,19 @@ class ArticleServiceTest {
         }
 
         @Test
-        @DisplayName("hasAnyChange=false (모든 필드 null) → GLOBAL_INVALID_PARAMETER")
-        void noChange_throwsInvalidParameter() {
-            ArticleDto.UpdateRequest req = ArticleDto.UpdateRequest.builder().build();
-            assertThatThrownBy(() -> articleService.update(1L, req, admin))
-                    .isInstanceOf(RestException.class)
-                    .satisfies(e -> assertThat(((RestException) e).getErrorCode())
-                            .isEqualTo(ErrorCode.GLOBAL_INVALID_PARAMETER));
+        @DisplayName("hasAnyChange=false (모든 필드 null) → 기존 게시글 그대로 반환")
+        void noChange_returnsExistingArticle() {
+            Article existing = persistedArticle(1L, 1L, List.of());
+            given(articleRepository.findById(1L)).willReturn(Optional.of(existing));
+            given(userRepository.findById(1L)).willReturn(Optional.of(userWithNickname(1L, "n")));
 
-            then(articleRepository).should(never()).findById(anyLong());
+            ArticleDto.UpdateRequest req = ArticleDto.UpdateRequest.builder().build();
+            ArticleDto.ArticleResponse resp = articleService.update(1L, req, admin);
+
+            assertThat(resp.getId()).isEqualTo(1L);
+            assertThat(resp.getTitle()).isEqualTo("제목");
+            then(articleRepository).should(times(1)).findById(1L);
+            then(s3Service).shouldHaveNoInteractions();
         }
 
         @Test
