@@ -3,6 +3,8 @@ package com.capstone.passfolio.domain.file.repository;
 import com.capstone.passfolio.domain.file.entity.File;
 import org.springframework.data.jpa.repository.JpaRepository;
 
+import java.util.List;
+
 /**
  * Spring Data JPA repository for {@link File} (post-upload metadata of S3 multipart uploads).
  *
@@ -24,4 +26,13 @@ import org.springframework.data.jpa.repository.JpaRepository;
  * Spring Data 는 {@link JpaRepository} 인터페이스 자체로 빈 후보를 자동 등록하므로 기능상 영향이 없다.
  */
 public interface FileRepository extends JpaRepository<File, Long> {
+
+    /**
+     * 특정 사용자가 업로드한 파일 전체를 최신순으로 조회한다.
+     *
+     * <p>{@link com.capstone.passfolio.common.auditor.UserBaseEntity#getCreatedBy()} 가 파라미터 {@code userId}
+     * 와 일치하는 행을 모두 반환. {@code GET /api/v1/files/me} 가 사용자의 업로드 CDN URL 목록을
+     * 반환할 때 호출된다.
+     */
+    List<File> findAllByCreatedByOrderByCreatedAtDesc(Long userId);
 }
