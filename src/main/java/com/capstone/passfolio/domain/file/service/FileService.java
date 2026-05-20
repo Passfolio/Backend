@@ -243,6 +243,8 @@ public class FileService {
                 .filename(request.getOriginalFileName())
                 .fileSize(actualSize)
                 .mediaType(mediaType)
+                .documentType(request.getDocumentType())
+                .actionType(request.getActionType())
                 .build();
 
         return fileRepository.save(file);
