@@ -14,6 +14,7 @@ public enum ErrorCode {
     GLOBAL_METHOD_NOT_ALLOWED(HttpStatus.METHOD_NOT_ALLOWED, "GLOBAL METHOD NOT ALLOWED", "허용되지 않는 메서드입니다."),
     GLOBAL_INVALID_PARAMETER(HttpStatus.BAD_REQUEST, "GLOBAL INVALID PARAMETER", "필수 요청 파라미터가 누락되었습니다."),
     GLOBAL_INTERNAL_SERVER_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "GLOBAL INTERNAL SERVER ERROR", "서버 내부에 오류가 발생했습니다."),
+    JSON_PARSE_ERROR(HttpStatus.BAD_REQUEST, "JSON_PARSE_ERROR", "요청 본문의 JSON 형식이 올바르지 않습니다."),
 
     // JWT Errors
     JWT_INVALID(HttpStatus.UNAUTHORIZED, "JWT INVALID", "유효하지 않은 토큰입니다."),
