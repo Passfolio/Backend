@@ -12,6 +12,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.capstone.passfolio.domain.file.entity.enums.ActionType;
+import com.capstone.passfolio.domain.file.entity.enums.DocumentType;
 import com.capstone.passfolio.domain.file.repository.FileRepository;
 import com.capstone.passfolio.support.AbstractIntegrationTest;
 
@@ -235,6 +237,45 @@ class FileUploadE2ETest extends AbstractIntegrationTest {
                         assertThat(f.getFilename()).isEqualTo("resume.pdf");
                         assertThat(f.getFileSize()).isEqualTo(104_857_600L);
                         assertThat(f.getMediaType().name()).isEqualTo("PDF");
+                    });
+        }
+
+        @Test
+        @DisplayName("complete(documentType=PORTFOLIO, actionType=GENERATE) → 200 + 응답 JSON 에 두 필드 노출 + DB 행에도 영속화")
+        void complete_persistsAndExposesDocumentTypeAndActionType_endToEnd() throws Exception {
+            String key = "files/pdf/" + UUID.randomUUID() + "__portfolio.pdf";
+            given(s3Client.headObject(any(HeadObjectRequest.class)))
+                    .willReturn(HeadObjectResponse.builder().contentLength(104_857_600L).build());
+
+            String requestBody = """
+                    {
+                      "key": "%s",
+                      "uploadId": "test-upload-id-12345",
+                      "parts": [
+                        { "partNumber": 1, "etag": "\\"etag-1\\"" },
+                        { "partNumber": 2, "etag": "\\"etag-2\\"" }
+                      ],
+                      "originalFileName": "portfolio.pdf",
+                      "fileSize": 104857600,
+                      "mimeType": "application/pdf",
+                      "documentType": "PORTFOLIO",
+                      "actionType": "GENERATE"
+                    }
+                    """.formatted(key);
+
+            mockMvc.perform(post("/api/v1/files/multipart/complete")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(requestBody))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.documentType").value("PORTFOLIO"))
+                    .andExpect(jsonPath("$.actionType").value("GENERATE"));
+
+            assertThat(fileRepository.findAll())
+                    .hasSize(1)
+                    .first()
+                    .satisfies(f -> {
+                        assertThat(f.getDocumentType()).isEqualTo(DocumentType.PORTFOLIO);
+                        assertThat(f.getActionType()).isEqualTo(ActionType.GENERATE);
                     });
         }
 
