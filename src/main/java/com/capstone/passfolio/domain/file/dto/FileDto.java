@@ -2,12 +2,10 @@ package com.capstone.passfolio.domain.file.dto;
 
 import com.capstone.passfolio.common.util.FileUrlUtils;
 import com.capstone.passfolio.domain.file.entity.File;
+import com.capstone.passfolio.domain.file.entity.enums.ActionType;
+import com.capstone.passfolio.domain.file.entity.enums.DocumentType;
 import io.swagger.v3.oas.annotations.media.Schema;
-import jakarta.validation.constraints.Max;
-import jakarta.validation.constraints.Min;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotEmpty;
-import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -260,6 +258,12 @@ public class FileDto {
 
         @Schema(description = "Content-Type. 누락 시 서버가 확장자에서 추론.", example = "video/mp4")
         private String mimeType;
+
+        @Schema(description = "클라이언트가 지정한 문서 타입", example = "COVER_LETTER | PORTFOLIO")
+        private DocumentType documentType;
+
+        @Schema(description = "클라이언트가 지정한 액션 타입", example = "GENERATE | EDIT")
+        private ActionType actionType;
     }
 
     /**
