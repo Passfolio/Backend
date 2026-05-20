@@ -1,6 +1,7 @@
 package com.capstone.passfolio.domain.file.controller;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.nullValue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
@@ -16,6 +17,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.capstone.passfolio.domain.file.dto.FileDto;
 import com.capstone.passfolio.domain.file.entity.File;
+import com.capstone.passfolio.domain.file.entity.enums.ActionType;
+import com.capstone.passfolio.domain.file.entity.enums.DocumentType;
 import com.capstone.passfolio.domain.file.entity.enums.MediaType;
 import com.capstone.passfolio.domain.file.service.FileService;
 import com.capstone.passfolio.system.exception.handler.GlobalExceptionHandler;
@@ -594,7 +597,9 @@ class FileControllerTest {
                     .andExpect(jsonPath("$.cdnUrl").value("https://cdn.passfolio.test/files/uuid__resume.pdf"))
                     .andExpect(jsonPath("$.fileSize").value(104_857_600L))
                     .andExpect(jsonPath("$.mediaType").value("PDF"))
-                    .andExpect(jsonPath("$.status").value("AVAILABLE"));
+                    .andExpect(jsonPath("$.status").value("AVAILABLE"))
+                    .andExpect(jsonPath("$.documentType").value(nullValue()))
+                    .andExpect(jsonPath("$.actionType").value(nullValue()));
 
             // 위임 contract — controller 가 입력 body 를 그대로 서비스에 넘겼는지 확인
             ArgumentCaptor<FileDto.CompleteMultipartUploadRequest> captor =
@@ -696,6 +701,130 @@ class FileControllerTest {
                     .andExpect(status().isBadRequest())
                     .andExpect(jsonPath("$.error").value("FILE_SIZE_MISMATCH"))
                     .andExpect(jsonPath("$.message").value("업로드된 파일 크기가 약속한 크기와 일치하지 않습니다."));
+        }
+
+        @Test
+        @DisplayName("documentType + actionType 바인딩 + 응답 노출 + 서비스에 그대로 위임")
+        void complete_bindsAndExposesDocumentTypeAndActionType() throws Exception {
+            File savedFile = File.builder()
+                    .id(7L)
+                    .s3ObjectKey("files/uuid__portfolio.pdf")
+                    .filename("portfolio.pdf")
+                    .fileSize(1024L)
+                    .mediaType(MediaType.PDF)
+                    .documentType(DocumentType.PORTFOLIO)
+                    .actionType(ActionType.GENERATE)
+                    .build();
+            given(fileService.completeMultipartUpload(any(FileDto.CompleteMultipartUploadRequest.class)))
+                    .willReturn(savedFile);
+
+            String requestBody = """
+                    {
+                      "key": "files/uuid__portfolio.pdf",
+                      "uploadId": "u-id",
+                      "parts": [{ "partNumber": 1, "etag": "\\"e\\"" }],
+                      "originalFileName": "portfolio.pdf",
+                      "fileSize": 1024,
+                      "documentType": "PORTFOLIO",
+                      "actionType": "GENERATE"
+                    }
+                    """;
+
+            mockMvc.perform(post("/api/v1/files/multipart/complete")
+                            .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                            .content(requestBody))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.documentType").value("PORTFOLIO"))
+                    .andExpect(jsonPath("$.actionType").value("GENERATE"));
+
+            ArgumentCaptor<FileDto.CompleteMultipartUploadRequest> captor =
+                    ArgumentCaptor.forClass(FileDto.CompleteMultipartUploadRequest.class);
+            then(fileService).should().completeMultipartUpload(captor.capture());
+            assertThat(captor.getValue().getDocumentType()).isEqualTo(DocumentType.PORTFOLIO);
+            assertThat(captor.getValue().getActionType()).isEqualTo(ActionType.GENERATE);
+        }
+
+        @Test
+        @DisplayName("documentType + actionType 미포함 JSON → 200 + 두 필드 null 위임 + 응답에도 null 노출")
+        void complete_acceptsNullDocumentTypeAndActionType() throws Exception {
+            File savedFile = File.builder()
+                    .id(8L)
+                    .s3ObjectKey("files/uuid__x.pdf")
+                    .filename("x.pdf")
+                    .fileSize(1024L)
+                    .mediaType(MediaType.PDF)
+                    .build();
+            given(fileService.completeMultipartUpload(any(FileDto.CompleteMultipartUploadRequest.class)))
+                    .willReturn(savedFile);
+
+            String requestBody = """
+                    {
+                      "key": "files/uuid__x.pdf",
+                      "uploadId": "u-id",
+                      "parts": [{ "partNumber": 1, "etag": "\\"e\\"" }],
+                      "originalFileName": "x.pdf",
+                      "fileSize": 1024
+                    }
+                    """;
+
+            mockMvc.perform(post("/api/v1/files/multipart/complete")
+                            .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                            .content(requestBody))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.documentType").value(nullValue()))
+                    .andExpect(jsonPath("$.actionType").value(nullValue()));
+
+            ArgumentCaptor<FileDto.CompleteMultipartUploadRequest> captor =
+                    ArgumentCaptor.forClass(FileDto.CompleteMultipartUploadRequest.class);
+            then(fileService).should().completeMultipartUpload(captor.capture());
+            assertThat(captor.getValue().getDocumentType()).isNull();
+            assertThat(captor.getValue().getActionType()).isNull();
+        }
+
+        @Test
+        @DisplayName("documentType 에 정의되지 않은 enum 문자열 → 400 + error=JSON_PARSE_ERROR, 서비스 호출 X")
+        void complete_invalidDocumentTypeEnum_returns400_withJsonParseErrorCode() throws Exception {
+            String requestBody = """
+                    {
+                      "key": "files/uuid__x.pdf",
+                      "uploadId": "u-id",
+                      "parts": [{ "partNumber": 1, "etag": "\\"e\\"" }],
+                      "originalFileName": "x.pdf",
+                      "fileSize": 1024,
+                      "documentType": "INVALID_VALUE"
+                    }
+                    """;
+
+            mockMvc.perform(post("/api/v1/files/multipart/complete")
+                            .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                            .content(requestBody))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.error").value("JSON_PARSE_ERROR"));
+
+            then(fileService).should(never()).completeMultipartUpload(any());
+        }
+
+        @Test
+        @DisplayName("actionType 에 정의되지 않은 enum 문자열 → 400 + error=JSON_PARSE_ERROR, 서비스 호출 X")
+        void complete_invalidActionTypeEnum_returns400_withJsonParseErrorCode() throws Exception {
+            String requestBody = """
+                    {
+                      "key": "files/uuid__x.pdf",
+                      "uploadId": "u-id",
+                      "parts": [{ "partNumber": 1, "etag": "\\"e\\"" }],
+                      "originalFileName": "x.pdf",
+                      "fileSize": 1024,
+                      "actionType": "DELETE"
+                    }
+                    """;
+
+            mockMvc.perform(post("/api/v1/files/multipart/complete")
+                            .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                            .content(requestBody))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.error").value("JSON_PARSE_ERROR"));
+
+            then(fileService).should(never()).completeMultipartUpload(any());
         }
     }
 

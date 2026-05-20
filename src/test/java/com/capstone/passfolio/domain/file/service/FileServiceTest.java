@@ -11,6 +11,8 @@ import static org.mockito.Mockito.times;
 
 import com.capstone.passfolio.domain.file.dto.FileDto;
 import com.capstone.passfolio.domain.file.entity.File;
+import com.capstone.passfolio.domain.file.entity.enums.ActionType;
+import com.capstone.passfolio.domain.file.entity.enums.DocumentType;
 import com.capstone.passfolio.domain.file.entity.enums.MediaType;
 import com.capstone.passfolio.domain.file.repository.FileRepository;
 import com.capstone.passfolio.domain.s3.dto.S3ServiceDto;
@@ -616,6 +618,75 @@ class FileServiceTest {
                     .extracting("errorCode").isEqualTo(ErrorCode.FILE_SIZE_MISMATCH);
             then(s3Service).should().abortUpload(any());
             then(fileRepository).should(never()).save(any());
+        }
+
+        @Test
+        @DisplayName("documentType + actionType 모두 지정 → save 엔티티에 그대로 전달")
+        void complete_persistsDocumentTypeAndActionType_whenProvided() {
+            given(s3Service.completeUpload(any())).willReturn(
+                    CompleteMultipartUploadResponse.builder().location("loc").eTag("\"e\"").build());
+            given(s3Service.getObjectActualSize(S3_KEY)).willReturn(MB);
+            given(fileRepository.save(any(File.class))).willAnswer(inv -> inv.getArgument(0));
+
+            FileDto.CompleteMultipartUploadRequest req = FileDto.CompleteMultipartUploadRequest.builder()
+                    .key(S3_KEY).uploadId(UPLOAD_ID)
+                    .parts(List.of(FileDto.Part.builder().partNumber(1).etag("e").build()))
+                    .originalFileName("cover.pdf").fileSize(MB)
+                    .documentType(DocumentType.COVER_LETTER)
+                    .actionType(ActionType.EDIT)
+                    .build();
+
+            fileService.completeMultipartUpload(req);
+
+            ArgumentCaptor<File> cap = ArgumentCaptor.forClass(File.class);
+            then(fileRepository).should().save(cap.capture());
+            assertThat(cap.getValue().getDocumentType()).isEqualTo(DocumentType.COVER_LETTER);
+            assertThat(cap.getValue().getActionType()).isEqualTo(ActionType.EDIT);
+        }
+
+        @Test
+        @DisplayName("documentType / actionType 미지정 → save 엔티티 두 필드 모두 null (기존 데이터 호환성)")
+        void complete_persistsNulls_whenDocumentTypeAndActionTypeOmitted() {
+            given(s3Service.completeUpload(any())).willReturn(
+                    CompleteMultipartUploadResponse.builder().location("loc").eTag("\"e\"").build());
+            given(s3Service.getObjectActualSize(S3_KEY)).willReturn(MB);
+            given(fileRepository.save(any(File.class))).willAnswer(inv -> inv.getArgument(0));
+
+            FileDto.CompleteMultipartUploadRequest req = FileDto.CompleteMultipartUploadRequest.builder()
+                    .key(S3_KEY).uploadId(UPLOAD_ID)
+                    .parts(List.of(FileDto.Part.builder().partNumber(1).etag("e").build()))
+                    .originalFileName("a.pdf").fileSize(MB)
+                    .build();
+
+            fileService.completeMultipartUpload(req);
+
+            ArgumentCaptor<File> cap = ArgumentCaptor.forClass(File.class);
+            then(fileRepository).should().save(cap.capture());
+            assertThat(cap.getValue().getDocumentType()).isNull();
+            assertThat(cap.getValue().getActionType()).isNull();
+        }
+
+        @Test
+        @DisplayName("actionType 만 지정 → documentType=null, actionType=GENERATE (두 필드 독립 가정)")
+        void complete_persistsActionTypeOnly_whenDocumentTypeOmitted() {
+            given(s3Service.completeUpload(any())).willReturn(
+                    CompleteMultipartUploadResponse.builder().location("loc").eTag("\"e\"").build());
+            given(s3Service.getObjectActualSize(S3_KEY)).willReturn(MB);
+            given(fileRepository.save(any(File.class))).willAnswer(inv -> inv.getArgument(0));
+
+            FileDto.CompleteMultipartUploadRequest req = FileDto.CompleteMultipartUploadRequest.builder()
+                    .key(S3_KEY).uploadId(UPLOAD_ID)
+                    .parts(List.of(FileDto.Part.builder().partNumber(1).etag("e").build()))
+                    .originalFileName("a.pdf").fileSize(MB)
+                    .actionType(ActionType.GENERATE)
+                    .build();
+
+            fileService.completeMultipartUpload(req);
+
+            ArgumentCaptor<File> cap = ArgumentCaptor.forClass(File.class);
+            then(fileRepository).should().save(cap.capture());
+            assertThat(cap.getValue().getDocumentType()).isNull();
+            assertThat(cap.getValue().getActionType()).isEqualTo(ActionType.GENERATE);
         }
     }
 
