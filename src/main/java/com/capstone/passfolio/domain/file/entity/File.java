@@ -1,16 +1,10 @@
 package com.capstone.passfolio.domain.file.entity;
 
 import com.capstone.passfolio.common.auditor.UserBaseEntity;
+import com.capstone.passfolio.domain.file.entity.enums.ActionType;
+import com.capstone.passfolio.domain.file.entity.enums.DocumentType;
 import com.capstone.passfolio.domain.file.entity.enums.MediaType;
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
-import jakarta.persistence.UniqueConstraint;
+import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -58,4 +52,12 @@ public class File extends UserBaseEntity {
     @Enumerated(EnumType.STRING)
     @Column(name = "media_type", nullable = false, length = 16)
     private MediaType mediaType;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "document_type", length = 16) // nullable ok
+    private DocumentType documentType;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name="action_type", length = 16) // nullable ok
+    private ActionType actionType;
 }
