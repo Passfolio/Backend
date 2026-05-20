@@ -164,7 +164,7 @@ public class GlobalExceptionHandler {
         }
         
         log.warn("🔴 JSON 파싱 오류: {}", errorMessage);
-        return createErrorResponse(HttpStatus.BAD_REQUEST, "JSON_PARSE_ERROR", errorMessage);
+        return createErrorResponse(ErrorCode.JSON_PARSE_ERROR, errorMessage);
     }
 
     @ExceptionHandler(HttpMessageConversionException.class)

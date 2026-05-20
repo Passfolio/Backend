@@ -2,12 +2,10 @@ package com.capstone.passfolio.domain.file.dto;
 
 import com.capstone.passfolio.common.util.FileUrlUtils;
 import com.capstone.passfolio.domain.file.entity.File;
+import com.capstone.passfolio.domain.file.entity.enums.ActionType;
+import com.capstone.passfolio.domain.file.entity.enums.DocumentType;
 import io.swagger.v3.oas.annotations.media.Schema;
-import jakarta.validation.constraints.Max;
-import jakarta.validation.constraints.Min;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotEmpty;
-import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -260,6 +258,12 @@ public class FileDto {
 
         @Schema(description = "Content-Type. 누락 시 서버가 확장자에서 추론.", example = "video/mp4")
         private String mimeType;
+
+        @Schema(description = "클라이언트가 지정한 문서 타입", example = "COVER_LETTER | PORTFOLIO")
+        private DocumentType documentType;
+
+        @Schema(description = "클라이언트가 지정한 액션 타입", example = "GENERATE | EDIT")
+        private ActionType actionType;
     }
 
     /**
@@ -341,6 +345,12 @@ public class FileDto {
                 example = "AVAILABLE")
         private String status;
 
+        @Schema(description = "클라이언트가 지정한 문서 타입. 미지정 시 null.", example = "COVER_LETTER")
+        private String documentType;
+
+        @Schema(description = "클라이언트가 지정한 액션 타입. 미지정 시 null.", example = "GENERATE")
+        private String actionType;
+
         /**
          * 영속화된 {@link File} 엔티티에서 응답 DTO 를 생성한다.
          *
@@ -358,6 +368,8 @@ public class FileDto {
                     .fileSize(file.getFileSize())
                     .mediaType(file.getMediaType().name())
                     .status("AVAILABLE")
+                    .documentType(file.getDocumentType() != null ? file.getDocumentType().name() : null)
+                    .actionType(file.getActionType() != null ? file.getActionType().name() : null)
                     .build();
         }
     }

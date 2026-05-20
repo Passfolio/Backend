@@ -4,12 +4,18 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.capstone.passfolio.domain.file.entity.File;
+import com.capstone.passfolio.domain.file.entity.enums.ActionType;
+import com.capstone.passfolio.domain.file.entity.enums.DocumentType;
 import com.capstone.passfolio.domain.file.entity.enums.MediaType;
 import jakarta.persistence.PersistenceException;
 import java.util.Optional;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
@@ -170,6 +176,83 @@ class FileRepositoryTest {
             em.flush();
             assertThat(saved.getId()).isNotNull();
             assertThat(saved.getCreatedBy()).isNull();
+        }
+    }
+
+    @Nested
+    @DisplayName("documentType / actionType — nullable enum 메타데이터 라운드트립")
+    class DocumentTypeAndActionTypeRoundTrip {
+
+        @Test
+        @DisplayName("두 enum 모두 지정 → save → clear → findById 라운드트립 일치")
+        void roundTrips_documentTypeAndActionType_whenBothPresent() {
+            File toSave = File.builder()
+                    .s3ObjectKey("files/pdf/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa__doc.pdf")
+                    .filename("doc.pdf")
+                    .fileSize(1024L)
+                    .mediaType(MediaType.PDF)
+                    .documentType(DocumentType.COVER_LETTER)
+                    .actionType(ActionType.EDIT)
+                    .build();
+
+            File saved = fileRepository.save(toSave);
+            em.flush();
+            em.clear();
+
+            File found = fileRepository.findById(saved.getId()).orElseThrow();
+            assertThat(found.getDocumentType()).isEqualTo(DocumentType.COVER_LETTER);
+            assertThat(found.getActionType()).isEqualTo(ActionType.EDIT);
+        }
+
+        @Test
+        @DisplayName("두 enum 미지정 → save → findById 시 두 필드 모두 null (마이그레이션 불필요 가드)")
+        void roundTrips_nullDocumentTypeAndActionType() {
+            File toSave = File.builder()
+                    .s3ObjectKey("files/pdf/bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb__no-meta.pdf")
+                    .filename("no-meta.pdf")
+                    .fileSize(1024L)
+                    .mediaType(MediaType.PDF)
+                    .build();
+
+            File saved = fileRepository.save(toSave);
+            em.flush();
+            em.clear();
+
+            File found = fileRepository.findById(saved.getId()).orElseThrow();
+            assertThat(found.getDocumentType()).isNull();
+            assertThat(found.getActionType()).isNull();
+        }
+
+        static Stream<Arguments> documentTypeAndActionTypeCombinations() {
+            return Stream.of(
+                    Arguments.of(DocumentType.COVER_LETTER, ActionType.EDIT),
+                    Arguments.of(DocumentType.COVER_LETTER, ActionType.GENERATE),
+                    Arguments.of(DocumentType.PORTFOLIO, ActionType.EDIT),
+                    Arguments.of(DocumentType.PORTFOLIO, ActionType.GENERATE)
+            );
+        }
+
+        @ParameterizedTest(name = "[{index}] documentType={0}, actionType={1}")
+        @MethodSource("documentTypeAndActionTypeCombinations")
+        @DisplayName("DocumentType × ActionType 전 조합(2×2)이 STRING 컬럼(varchar(16))에 라운드트립")
+        void roundTrips_allDocumentTypeAndActionTypeCombinations(DocumentType doc, ActionType act) {
+            String key = "files/pdf/" + doc.name() + "-" + act.name() + "__combo.pdf";
+            File toSave = File.builder()
+                    .s3ObjectKey(key)
+                    .filename("combo.pdf")
+                    .fileSize(1024L)
+                    .mediaType(MediaType.PDF)
+                    .documentType(doc)
+                    .actionType(act)
+                    .build();
+
+            File saved = fileRepository.save(toSave);
+            em.flush();
+            em.clear();
+
+            File found = fileRepository.findById(saved.getId()).orElseThrow();
+            assertThat(found.getDocumentType()).isEqualTo(doc);
+            assertThat(found.getActionType()).isEqualTo(act);
         }
     }
 
