@@ -345,6 +345,12 @@ public class FileDto {
                 example = "AVAILABLE")
         private String status;
 
+        @Schema(description = "클라이언트가 지정한 문서 타입. 미지정 시 null.", example = "COVER_LETTER")
+        private String documentType;
+
+        @Schema(description = "클라이언트가 지정한 액션 타입. 미지정 시 null.", example = "GENERATE")
+        private String actionType;
+
         /**
          * 영속화된 {@link File} 엔티티에서 응답 DTO 를 생성한다.
          *
@@ -362,6 +368,8 @@ public class FileDto {
                     .fileSize(file.getFileSize())
                     .mediaType(file.getMediaType().name())
                     .status("AVAILABLE")
+                    .documentType(file.getDocumentType() != null ? file.getDocumentType().name() : null)
+                    .actionType(file.getActionType() != null ? file.getActionType().name() : null)
                     .build();
         }
     }
