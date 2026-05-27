@@ -90,6 +90,11 @@ public enum ErrorCode {
     ARTICLE_NOT_FOUND(HttpStatus.NOT_FOUND, "ARTICLE NOT FOUND", "존재하지 않는 게시글입니다."),
     ARTICLE_FORBIDDEN(HttpStatus.FORBIDDEN, "ARTICLE FORBIDDEN", "게시글 작성/수정/삭제는 관리자만 가능합니다."),
 
+    // AI Errors
+    AI_SERVER_ERROR(HttpStatus.BAD_GATEWAY, "AI_SERVER_ERROR", "AI 서버 오류가 발생했습니다."),
+    AI_SERVER_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE, "AI_SERVER_UNAVAILABLE", "AI 서버에 연결할 수 없습니다."),
+    AI_JOB_NOT_FOUND(HttpStatus.NOT_FOUND, "AI_JOB_NOT_FOUND", "AI 작업을 찾을 수 없습니다."),
+
     // GITHUB Errors
     GITHUB_TOKEN_NOT_FOUND(HttpStatus.UNAUTHORIZED, "GITHUB_TOKEN_NOT_FOUND", "GitHub 연동 토큰이 없습니다. GitHub으로 다시 로그인해주세요."),
     GITHUB_TOKEN_EXPIRED(HttpStatus.UNAUTHORIZED, "GITHUB_TOKEN_EXPIRED", "GitHub 토큰이 만료되었습니다. GitHub으로 다시 로그인해주세요."),
