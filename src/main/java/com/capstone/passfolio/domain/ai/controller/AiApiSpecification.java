@@ -1,0 +1,102 @@
+package com.capstone.passfolio.domain.ai.controller;
+
+import com.capstone.passfolio.domain.ai.dto.AiDto;
+import com.capstone.passfolio.system.exception.dto.ErrorResponse;
+import com.capstone.passfolio.system.security.model.UserPrincipal;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
+import org.springframework.http.ResponseEntity;
+
+@Tag(name = "AI", description = "AI 서버 연동 API — PDF 기반 문서 처리")
+public interface AiApiSpecification {
+
+    @SecurityRequirement(name = "bearerAuth")
+    @Operation(
+            summary = "포트폴리오 PDF 개선 작업 시작",
+            description = "업로드된 포트폴리오 PDF를 AI가 개선한다. 작업 ID를 즉시 반환하며 비동기로 처리된다.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "작업 시작 성공"),
+            @ApiResponse(responseCode = "401", description = "인증 필요",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+            @ApiResponse(responseCode = "404", description = "파일을 찾을 수 없음",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+            @ApiResponse(responseCode = "502", description = "AI 서버 오류",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+    })
+    ResponseEntity<AiDto.JobInitResponse> startPortfolioFromPdf(
+            UserPrincipal userPrincipal,
+            @Valid AiDto.PdfJobRequest request);
+
+    @SecurityRequirement(name = "bearerAuth")
+    @Operation(
+            summary = "자소서 PDF 개선 작업 시작",
+            description = "자소서 PDF를 AI가 개선한다. 비동기 처리.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "작업 시작 성공"),
+            @ApiResponse(responseCode = "401", description = "인증 필요",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+            @ApiResponse(responseCode = "404", description = "파일을 찾을 수 없음",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+            @ApiResponse(responseCode = "502", description = "AI 서버 오류",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+    })
+    ResponseEntity<AiDto.JobInitResponse> startCoverLetterFromPdf(
+            UserPrincipal userPrincipal,
+            @Valid AiDto.PdfJobRequest request);
+
+    @SecurityRequirement(name = "bearerAuth")
+    @Operation(
+            summary = "포트폴리오 PDF → 자소서 생성 작업 시작",
+            description = "포트폴리오 PDF를 기반으로 자소서를 생성한다. 비동기 처리.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "작업 시작 성공"),
+            @ApiResponse(responseCode = "401", description = "인증 필요",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+            @ApiResponse(responseCode = "404", description = "파일을 찾을 수 없음",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+            @ApiResponse(responseCode = "502", description = "AI 서버 오류",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+    })
+    ResponseEntity<AiDto.JobInitResponse> startCoverLetterFromPortfolio(
+            UserPrincipal userPrincipal,
+            @Valid AiDto.CoverLetterJobRequest request);
+
+    @SecurityRequirement(name = "bearerAuth")
+    @Operation(
+            summary = "자소서 PDF → 포트폴리오 생성 작업 시작",
+            description = "자소서 PDF를 기반으로 포트폴리오를 생성한다. 비동기 처리.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "작업 시작 성공"),
+            @ApiResponse(responseCode = "401", description = "인증 필요",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+            @ApiResponse(responseCode = "404", description = "파일을 찾을 수 없음",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+            @ApiResponse(responseCode = "502", description = "AI 서버 오류",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+    })
+    ResponseEntity<AiDto.JobInitResponse> startPortfolioFromCoverLetter(
+            UserPrincipal userPrincipal,
+            @Valid AiDto.CoverLetterJobRequest request);
+
+    @SecurityRequirement(name = "bearerAuth")
+    @Operation(
+            summary = "AI 작업 상태 조회",
+            description = "비동기 AI 작업의 현재 상태를 조회한다. PENDING이면 AI에 폴링하여 최신 상태로 갱신한다.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "상태 조회 성공"),
+            @ApiResponse(responseCode = "401", description = "인증 필요",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+            @ApiResponse(responseCode = "404", description = "작업을 찾을 수 없음",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+    })
+    ResponseEntity<AiDto.JobStatusResponse> getJobStatus(
+            UserPrincipal userPrincipal,
+            @Parameter(description = "BE 작업 ID", required = true) Long jobId);
+}
