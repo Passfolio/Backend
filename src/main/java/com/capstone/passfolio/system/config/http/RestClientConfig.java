@@ -14,6 +14,7 @@ import java.util.concurrent.Executors;
 public class RestClientConfig {
 
     public static final String GOV_DATA_REST_CLIENT = "govDataRestClient";
+    public static final String AI_REST_CLIENT = "aiRestClient";
 
     @Bean
     public RestClient restClient() {
@@ -29,6 +30,26 @@ public class RestClientConfig {
         requestFactory.setReadTimeout(Duration.ofSeconds(5)); // 읽기 타임아웃 5초
 
         // 3. RestClient 빌드
+        return RestClient.builder()
+                .requestFactory(requestFactory)
+                .build();
+    }
+
+    /**
+     * AI 서버 전용: AI 생성 작업이 길기 때문에 읽기 타임아웃을 60초로 설정한다.
+     */
+    @Bean
+    @Qualifier(AI_REST_CLIENT)
+    public RestClient aiRestClient() {
+        HttpClient jdkHttpClient = HttpClient.newBuilder()
+                .version(HttpClient.Version.HTTP_1_1)
+                .connectTimeout(Duration.ofSeconds(10))
+                .executor(Executors.newVirtualThreadPerTaskExecutor())
+                .build();
+
+        JdkClientHttpRequestFactory requestFactory = new JdkClientHttpRequestFactory(jdkHttpClient);
+        requestFactory.setReadTimeout(Duration.ofSeconds(60));
+
         return RestClient.builder()
                 .requestFactory(requestFactory)
                 .build();
