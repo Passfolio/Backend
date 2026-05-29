@@ -67,4 +67,11 @@ public class AiController implements AiApiSpecification {
                 aiJobService.getJobStatus(userPrincipal.getUserId(), jobId);
         return ResponseEntity.ok(response);
     }
+
+    @Override
+    @PostMapping("/jobs/complete")
+    public ResponseEntity<Void> completeJob(@Valid @RequestBody AiDto.JobCompleteRequest request) {
+        aiJobService.completeJob(request);
+        return ResponseEntity.ok().build();
+    }
 }

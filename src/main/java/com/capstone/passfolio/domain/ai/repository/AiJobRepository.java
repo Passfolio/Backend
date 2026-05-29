@@ -8,4 +8,6 @@ import java.util.Optional;
 public interface AiJobRepository extends JpaRepository<AiJob, Long> {
 
     Optional<AiJob> findByIdAndUserId(Long id, Long userId);
+
+    Optional<AiJob> findByAiJobId(String aiJobId);
 }
