@@ -4,6 +4,9 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Size;
+import org.hibernate.validator.constraints.URL;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -84,9 +87,14 @@ public class AiDto {
         private String aiJobId;
 
         @NotBlank(message = "status는 필수입니다.")
+        @Pattern(
+                regexp = "^(DONE|ERROR)$",
+                message = "status는 DONE 또는 ERROR만 허용됩니다."
+        )
         @Schema(description = "작업 결과 상태 (DONE 또는 ERROR)", example = "DONE")
         private String status;
 
+        @URL(message = "outputPdfUrl이 유효한 URL 형식이 아닙니다.")
         @Schema(description = "완료된 output PDF URL (DONE 상태일 때)", nullable = true)
         private String outputPdfUrl;
 
@@ -118,10 +126,20 @@ public class AiDto {
         private Long fileId;
 
         @NotBlank(message = "jobPosition은 필수입니다.")
+        @Size(max = 100, message = "jobPosition은 100자를 초과할 수 없습니다.")
+        @Pattern(
+                regexp = "^[a-zA-Z0-9가-힣\\s,\\-\\(\\)]+$",
+                message = "jobPosition에 허용되지 않는 문자가 포함되어 있습니다."
+        )
         @Schema(description = "직무 포지션", example = "백엔드 개발자")
         private String jobPosition;
 
         @NotBlank(message = "career는 필수입니다.")
+        @Size(max = 100, message = "career는 100자를 초과할 수 없습니다.")
+        @Pattern(
+                regexp = "^[a-zA-Z0-9가-힣\\s,\\-\\(\\)]+$",
+                message = "career에 허용되지 않는 문자가 포함되어 있습니다."
+        )
         @Schema(description = "경력 구분", example = "신입")
         private String career;
     }
