@@ -67,7 +67,7 @@ public class AiApiClient {
 
     public AiDto.AiJobInitResponse requestPortfolioFromCoverLetter(AiDto.AiCoverLetterRequest request) {
         return restClient.post()
-                .uri(aiBaseUrl + "/api/v1/cover-letter/to-portfolio")
+                .uri(aiBaseUrl + "/api/v1/portfolio/from-cover-letter")
                 .contentType(MediaType.APPLICATION_JSON)
                 .body(request)
                 .retrieve()
