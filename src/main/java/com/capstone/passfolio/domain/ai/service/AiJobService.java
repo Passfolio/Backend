@@ -24,24 +24,21 @@ public class AiJobService {
     private final FileService fileService;
     private final AiApiClient aiApiClient;
     private final AiJobRepository aiJobRepository;
+    private final AiJobWriter aiJobWriter;
 
-    @Transactional
     public AiDto.JobInitResponse startPortfolioFromPdf(Long userId, Long fileId) {
         return startJob(userId, fileId, AiJobType.PORTFOLIO_FROM_PDF, null, null);
     }
 
-    @Transactional
     public AiDto.JobInitResponse startCoverLetterFromPdf(Long userId, Long fileId) {
         return startJob(userId, fileId, AiJobType.COVER_LETTER_FROM_PDF, null, null);
     }
 
-    @Transactional
     public AiDto.JobInitResponse startCoverLetterFromPortfolio(Long userId, Long fileId,
                                                                 String jobPosition, String career) {
         return startJob(userId, fileId, AiJobType.COVER_LETTER_FROM_PORTFOLIO, jobPosition, career);
     }
 
-    @Transactional
     public AiDto.JobInitResponse startPortfolioFromCoverLetter(Long userId, Long fileId,
                                                                 String jobPosition, String career) {
         return startJob(userId, fileId, AiJobType.PORTFOLIO_FROM_COVER_LETTER, jobPosition, career);
@@ -69,23 +66,20 @@ public class AiJobService {
         File file = fileService.validateFileOwner(fileId, userId);
         String pdfS3Url = FileUrlUtils.buildCdnUrl(file.getS3ObjectKey());
 
-        AiDto.AiJobInitResponse aiResponse = callAiForJobStart(type, pdfS3Url, jobPosition, career, userId);
+        Long jobId = aiJobWriter.createPendingJob(userId, fileId, type);
+        log.info("[AiJobService] PENDING job created. beJobId={}, type={}, userId={}", jobId, type, userId);
 
-        AiJob job = AiJob.builder()
-                .userId(userId)
-                .aiJobId(aiResponse.getJobId())
-                .type(type)
-                .status(AiJobStatus.PENDING)
-                .inputFileId(fileId)
-                .build();
-        AiJob saved = aiJobRepository.save(job);
-
-        log.info("[AiJobService] Job started. beJobId={}, aiJobId={}, type={}, userId={}",
-                saved.getId(), aiResponse.getJobId(), type, userId);
-
-        return AiDto.JobInitResponse.builder()
-                .jobId(saved.getId())
-                .build();
+        try {
+            AiDto.AiJobInitResponse aiResponse = callAiForJobStart(type, pdfS3Url, jobPosition, career, userId);
+            aiJobWriter.assignAiJobId(jobId, aiResponse.getJobId());
+            log.info("[AiJobService] Job started. beJobId={}, aiJobId={}, type={}, userId={}",
+                    jobId, aiResponse.getJobId(), type, userId);
+            return AiDto.JobInitResponse.builder().jobId(jobId).build();
+        } catch (Exception e) {
+            log.error("[AiJobService] AI call failed, marking ERROR. beJobId={}, type={}", jobId, type, e);
+            aiJobWriter.markError(jobId, e.getMessage());
+            throw e;
+        }
     }
 
     private AiDto.AiJobInitResponse callAiForJobStart(AiJobType type, String pdfS3Url,
