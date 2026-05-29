@@ -24,6 +24,7 @@ public class AiJobService {
     private final AiApiClient aiApiClient;
     private final AiJobRepository aiJobRepository;
     private final AiJobWriter aiJobWriter;
+    private final AiSseService aiSseService;
 
     public AiDto.JobInitResponse startPortfolioFromPdf(Long userId, Long fileId) {
         return startJob(userId, fileId, AiJobType.PORTFOLIO_FROM_PDF, null, null);
@@ -57,15 +58,18 @@ public class AiJobService {
                 && (dto.getOutputPdfUrl() == null || dto.getOutputPdfUrl().isBlank())) {
             log.warn("[AiJobService] DONE with no outputPdfUrl, forcing ERROR. aiJobId={}", dto.getAiJobId());
             job.markError("AI reported DONE but provided no output URL");
+            aiSseService.push(job.getUserId(), job.getId(), job.getStatus().name(), null);
             return;
         }
 
         if ("DONE".equalsIgnoreCase(dto.getStatus())) {
             job.markDone(dto.getOutputPdfUrl());
             log.info("[AiJobService] Job DONE. beJobId={}, aiJobId={}", job.getId(), dto.getAiJobId());
+            aiSseService.push(job.getUserId(), job.getId(), job.getStatus().name(), job.getOutputPdfUrl());
         } else {
             job.markError(dto.getErrorMessage());
             log.info("[AiJobService] Job ERROR. beJobId={}, aiJobId={}", job.getId(), dto.getAiJobId());
+            aiSseService.push(job.getUserId(), job.getId(), job.getStatus().name(), null);
         }
     }
 
