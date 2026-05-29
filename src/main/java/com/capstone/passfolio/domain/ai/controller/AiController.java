@@ -51,7 +51,7 @@ public class AiController implements AiApiSpecification {
     }
 
     @Override
-    @PostMapping("/jobs/cover-letter/to-portfolio")
+    @PostMapping({"/jobs/portfolio/from-cover-letter"})
     public ResponseEntity<AiDto.JobInitResponse> startPortfolioFromCoverLetter(
             @AuthenticationPrincipal UserPrincipal userPrincipal,
             @Valid @RequestBody AiDto.CoverLetterJobRequest request) {
