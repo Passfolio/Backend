@@ -22,7 +22,7 @@ public class AiDto {
     @NoArgsConstructor
     @AllArgsConstructor
     public static class AiPdfRequest {
-        private String pdfS3Url;
+        private String pdfUrl;
         private Long userId;
     }
 
@@ -31,7 +31,7 @@ public class AiDto {
     @NoArgsConstructor
     @AllArgsConstructor
     public static class AiCoverLetterRequest {
-        private String pdfS3Url;
+        private String pdfUrl;
         @JsonProperty("job_position")
         private String jobPosition;
         private String career;
@@ -67,7 +67,7 @@ public class AiDto {
     @NoArgsConstructor
     @AllArgsConstructor
     public static class AiJobResult {
-        private String outputPdfS3Url;
+        private String outputPdfUrl;
     }
 
     // ============================================================
@@ -153,7 +153,7 @@ public class AiDto {
         private String status;
 
         @Schema(description = "완료된 output PDF의 S3 URL (DONE 상태일 때만 non-null)", nullable = true)
-        private String outputPdfS3Url;
+        private String outputPdfUrl;
 
         @Schema(description = "오류 메시지 (ERROR 상태일 때만 non-null)", nullable = true)
         private String errorMessage;

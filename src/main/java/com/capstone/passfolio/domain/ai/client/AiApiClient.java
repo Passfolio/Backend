@@ -30,21 +30,21 @@ public class AiApiClient {
         this.aiBaseUrl = aiBaseUrl;
     }
 
-    public AiDto.AiJobInitResponse requestPortfolioFromPdf(String pdfS3Url, Long userId) {
+    public AiDto.AiJobInitResponse requestPortfolioFromPdf(String pdfUrl, Long userId) {
         return restClient.post()
                 .uri(aiBaseUrl + "/api/v1/portfolio/from-pdf")
                 .contentType(MediaType.APPLICATION_JSON)
-                .body(new AiDto.AiPdfRequest(pdfS3Url, userId))
+                .body(new AiDto.AiPdfRequest(pdfUrl, userId))
                 .retrieve()
                 .onStatus(status -> !status.is2xxSuccessful(), this::handleError)
                 .body(AiDto.AiJobInitResponse.class);
     }
 
-    public AiDto.AiJobInitResponse requestCoverLetterFromPdf(String pdfS3Url, Long userId) {
+    public AiDto.AiJobInitResponse requestCoverLetterFromPdf(String pdfUrl, Long userId) {
         return restClient.post()
                 .uri(aiBaseUrl + "/api/v1/cover-letter/from-pdf")
                 .contentType(MediaType.APPLICATION_JSON)
-                .body(new AiDto.AiPdfRequest(pdfS3Url, userId))
+                .body(new AiDto.AiPdfRequest(pdfUrl, userId))
                 .retrieve()
                 .onStatus(status -> !status.is2xxSuccessful(), this::handleError)
                 .body(AiDto.AiJobInitResponse.class);

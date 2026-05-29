@@ -38,8 +38,8 @@ public class AiJob extends TimeBaseEntity {
     @Column(name = "input_file_id")
     private Long inputFileId;
 
-    @Column(name = "output_pdf_s3_url", columnDefinition = "TEXT")
-    private String outputPdfS3Url;
+    @Column(name = "output_pdf_url", columnDefinition = "TEXT")
+    private String outputPdfUrl;
 
     @Column(name = "error_message", columnDefinition = "TEXT")
     private String errorMessage;
@@ -48,9 +48,9 @@ public class AiJob extends TimeBaseEntity {
         this.aiJobId = aiJobId;
     }
 
-    public void markDone(String outputPdfS3Url) {
+    public void markDone(String outputPdfUrl) {
         this.status = AiJobStatus.DONE;
-        this.outputPdfS3Url = outputPdfS3Url;
+        this.outputPdfUrl = outputPdfUrl;
     }
 
     public void markError(String errorMessage) {

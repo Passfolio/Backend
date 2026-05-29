@@ -6,7 +6,7 @@ CREATE TABLE ai_jobs
     type               VARCHAR(40)  NOT NULL,
     status             VARCHAR(16)  NOT NULL DEFAULT 'PENDING',
     input_file_id      BIGINT,
-    output_pdf_s3_url  TEXT,
+    output_pdf_url  TEXT,
     error_message      TEXT,
     created_at         TIMESTAMP    NOT NULL DEFAULT NOW(),
     last_modified_at   TIMESTAMP    NOT NULL DEFAULT NOW()

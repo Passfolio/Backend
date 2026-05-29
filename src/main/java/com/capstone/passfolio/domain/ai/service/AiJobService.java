@@ -7,7 +7,6 @@ import com.capstone.passfolio.domain.ai.entity.AiJobStatus;
 import com.capstone.passfolio.domain.ai.entity.AiJobType;
 import com.capstone.passfolio.domain.ai.repository.AiJobRepository;
 import com.capstone.passfolio.domain.file.entity.File;
-import com.capstone.passfolio.common.util.FileUrlUtils;
 import com.capstone.passfolio.domain.file.service.FileService;
 import com.capstone.passfolio.system.exception.model.ErrorCode;
 import com.capstone.passfolio.system.exception.model.RestException;
@@ -78,7 +77,7 @@ public class AiJobService {
         return AiDto.JobStatusResponse.builder()
                 .jobId(job.getId())
                 .status(job.getStatus().name())
-                .outputPdfS3Url(job.getOutputPdfS3Url())
+                .outputPdfUrl(job.getOutputPdfUrl())
                 .errorMessage(job.getErrorMessage())
                 .build();
     }
@@ -86,13 +85,13 @@ public class AiJobService {
     private AiDto.JobInitResponse startJob(Long userId, Long fileId, AiJobType type,
                                             String jobPosition, String career) {
         File file = fileService.validateFileOwner(fileId, userId);
-        String pdfS3Url = FileUrlUtils.buildCdnUrl(file.getS3ObjectKey());
+        String pdfUrl = fileService.generateDownloadPresignedUrl(file.getS3ObjectKey());
 
         Long jobId = aiJobWriter.createPendingJob(userId, fileId, type);
         log.info("[AiJobService] PENDING job created. beJobId={}, type={}, userId={}", jobId, type, userId);
 
         try {
-            AiDto.AiJobInitResponse aiResponse = callAiForJobStart(type, pdfS3Url, jobPosition, career, userId);
+            AiDto.AiJobInitResponse aiResponse = callAiForJobStart(type, pdfUrl, jobPosition, career, userId);
             aiJobWriter.assignAiJobId(jobId, aiResponse.getJobId());
             log.info("[AiJobService] Job started. beJobId={}, aiJobId={}, type={}, userId={}",
                     jobId, aiResponse.getJobId(), type, userId);
@@ -104,21 +103,21 @@ public class AiJobService {
         }
     }
 
-    private AiDto.AiJobInitResponse callAiForJobStart(AiJobType type, String pdfS3Url,
+    private AiDto.AiJobInitResponse callAiForJobStart(AiJobType type, String pdfUrl,
                                                         String jobPosition, String career, Long userId) {
         return switch (type) {
-            case PORTFOLIO_FROM_PDF -> aiApiClient.requestPortfolioFromPdf(pdfS3Url, userId);
-            case COVER_LETTER_FROM_PDF -> aiApiClient.requestCoverLetterFromPdf(pdfS3Url, userId);
+            case PORTFOLIO_FROM_PDF -> aiApiClient.requestPortfolioFromPdf(pdfUrl, userId);
+            case COVER_LETTER_FROM_PDF -> aiApiClient.requestCoverLetterFromPdf(pdfUrl, userId);
             case COVER_LETTER_FROM_PORTFOLIO -> aiApiClient.requestCoverLetterFromPortfolio(
                     AiDto.AiCoverLetterRequest.builder()
-                            .pdfS3Url(pdfS3Url)
+                            .pdfUrl(pdfUrl)
                             .jobPosition(jobPosition)
                             .career(career)
                             .userId(userId)
                             .build());
             case PORTFOLIO_FROM_COVER_LETTER -> aiApiClient.requestPortfolioFromCoverLetter(
                     AiDto.AiCoverLetterRequest.builder()
-                            .pdfS3Url(pdfS3Url)
+                            .pdfUrl(pdfUrl)
                             .jobPosition(jobPosition)
                             .career(career)
                             .userId(userId)
