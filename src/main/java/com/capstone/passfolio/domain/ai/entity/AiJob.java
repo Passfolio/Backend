@@ -44,6 +44,10 @@ public class AiJob extends TimeBaseEntity {
     @Column(name = "error_message", columnDefinition = "TEXT")
     private String errorMessage;
 
+    public void assignAiJobId(String aiJobId) {
+        this.aiJobId = aiJobId;
+    }
+
     public void markDone(String outputPdfS3Url) {
         this.status = AiJobStatus.DONE;
         this.outputPdfS3Url = outputPdfS3Url;
