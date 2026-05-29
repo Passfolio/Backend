@@ -1,6 +1,8 @@
 package com.capstone.passfolio.domain.ai.dto;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.PropertyNamingStrategies;
+import com.fasterxml.jackson.databind.annotation.JsonNaming;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -24,6 +26,7 @@ public class AiDto {
     @Builder
     @NoArgsConstructor
     @AllArgsConstructor
+    @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
     public static class AiPdfRequest {
         private String pdfUrl;
         private Long userId;
@@ -33,6 +36,7 @@ public class AiDto {
     @Builder
     @NoArgsConstructor
     @AllArgsConstructor
+    @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
     public static class AiCoverLetterRequest {
         private String pdfUrl;
         @JsonProperty("job_position")
@@ -46,6 +50,7 @@ public class AiDto {
     @Builder
     @NoArgsConstructor
     @AllArgsConstructor
+    @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
     public static class AiJobInitResponse {
         @JsonProperty("job_id")
         private String jobId;
@@ -57,6 +62,7 @@ public class AiDto {
     @Builder
     @NoArgsConstructor
     @AllArgsConstructor
+    @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
     public static class AiJobStatusResponse {
         @JsonProperty("job_id")
         private String jobId;
@@ -69,6 +75,7 @@ public class AiDto {
     @Builder
     @NoArgsConstructor
     @AllArgsConstructor
+    @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
     public static class AiJobResult {
         private String outputPdfUrl;
     }
@@ -80,6 +87,7 @@ public class AiDto {
     @Getter
     @NoArgsConstructor
     @AllArgsConstructor
+    @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
     @Schema(description = "AI 서버 작업 완료 콜백 요청")
     public static class JobCompleteRequest {
         @NotBlank(message = "aiJobId는 필수입니다.")
