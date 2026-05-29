@@ -27,6 +27,9 @@ public class RequestMatcherHolder {
     private static final PathPatternParser PARSER = new PathPatternParser();
 
     private static final List<RequestInfo> REQUEST_INFO_LIST = List.of(
+            // AI webhook (AI 서버 → BE, VPC 내부 호출)
+            new RequestInfo(HttpMethod.POST, "/api/v1/ai/jobs/complete", null),
+
             // auth
             new RequestInfo(HttpMethod.POST, "/api/v1/auth/register", null),
             new RequestInfo(HttpMethod.POST, "/api/v1/auth/login", null),

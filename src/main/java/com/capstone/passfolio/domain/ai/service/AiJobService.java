@@ -45,13 +45,35 @@ public class AiJobService {
     }
 
     @Transactional
+    public void completeJob(AiDto.JobCompleteRequest dto) {
+        AiJob job = aiJobRepository.findByAiJobId(dto.getAiJobId())
+                .orElseThrow(() -> new RestException(ErrorCode.AI_JOB_NOT_FOUND));
+
+        if (job.getStatus() != AiJobStatus.PENDING) {
+            log.info("[AiJobService] completeJob skipped (already {}). aiJobId={}", job.getStatus(), dto.getAiJobId());
+            return;
+        }
+
+        if ("DONE".equalsIgnoreCase(dto.getStatus())
+                && (dto.getOutputPdfUrl() == null || dto.getOutputPdfUrl().isBlank())) {
+            log.warn("[AiJobService] DONE with no outputPdfUrl, forcing ERROR. aiJobId={}", dto.getAiJobId());
+            job.markError("AI reported DONE but provided no output URL");
+            return;
+        }
+
+        if ("DONE".equalsIgnoreCase(dto.getStatus())) {
+            job.markDone(dto.getOutputPdfUrl());
+            log.info("[AiJobService] Job DONE. beJobId={}, aiJobId={}", job.getId(), dto.getAiJobId());
+        } else {
+            job.markError(dto.getErrorMessage());
+            log.info("[AiJobService] Job ERROR. beJobId={}, aiJobId={}", job.getId(), dto.getAiJobId());
+        }
+    }
+
+    @Transactional(readOnly = true)
     public AiDto.JobStatusResponse getJobStatus(Long userId, Long jobId) {
         AiJob job = aiJobRepository.findByIdAndUserId(jobId, userId)
                 .orElseThrow(() -> new RestException(ErrorCode.AI_JOB_NOT_FOUND));
-
-        if (job.getStatus() == AiJobStatus.PENDING) {
-            syncStatusFromAi(job);
-        }
 
         return AiDto.JobStatusResponse.builder()
                 .jobId(job.getId())
@@ -104,25 +126,4 @@ public class AiJobService {
         };
     }
 
-    private void syncStatusFromAi(AiJob job) {
-        try {
-            log.info("[AiJobService] Polling AI. beJobId={}, aiJobId={}", job.getId(), job.getAiJobId());
-            AiDto.AiJobStatusResponse aiStatus = aiApiClient.getJobStatus(job.getAiJobId());
-            if ("done".equalsIgnoreCase(aiStatus.getStatus())) {
-                String outputUrl = aiStatus.getResult() != null
-                        ? aiStatus.getResult().getOutputPdfS3Url()
-                        : null;
-                job.markDone(outputUrl);
-                log.info("[AiJobService] Job DONE saved. beJobId={}, aiJobId={}, outputPdfS3Url={}",
-                        job.getId(), job.getAiJobId(), outputUrl);
-            } else if ("error".equalsIgnoreCase(aiStatus.getStatus())) {
-                job.markError(aiStatus.getMessage());
-                log.info("[AiJobService] Job ERROR saved. beJobId={}, aiJobId={}, message={}",
-                        job.getId(), job.getAiJobId(), aiStatus.getMessage());
-            }
-        } catch (Exception e) {
-            log.warn("[AiJobService] Failed to sync AI job status. beJobId={}, aiJobId={}",
-                    job.getId(), job.getAiJobId(), e);
-        }
-    }
 }

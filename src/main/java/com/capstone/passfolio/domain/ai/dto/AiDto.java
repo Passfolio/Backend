@@ -71,6 +71,30 @@ public class AiDto {
     }
 
     // ============================================================
+    // AI → BE Webhook (AI 서버 완료 콜백)
+    // ============================================================
+
+    @Getter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Schema(description = "AI 서버 작업 완료 콜백 요청")
+    public static class JobCompleteRequest {
+        @NotBlank(message = "aiJobId는 필수입니다.")
+        @Schema(description = "AI 서버가 발급한 작업 ID", example = "abc-123")
+        private String aiJobId;
+
+        @NotBlank(message = "status는 필수입니다.")
+        @Schema(description = "작업 결과 상태 (DONE 또는 ERROR)", example = "DONE")
+        private String status;
+
+        @Schema(description = "완료된 output PDF URL (DONE 상태일 때)", nullable = true)
+        private String outputPdfUrl;
+
+        @Schema(description = "오류 메시지 (ERROR 상태일 때)", nullable = true)
+        private String errorMessage;
+    }
+
+    // ============================================================
     // User-facing request DTOs (FE → BE)
     // ============================================================
 

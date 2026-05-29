@@ -88,7 +88,7 @@ public interface AiApiSpecification {
     @SecurityRequirement(name = "bearerAuth")
     @Operation(
             summary = "AI 작업 상태 조회",
-            description = "비동기 AI 작업의 현재 상태를 조회한다. PENDING이면 AI에 폴링하여 최신 상태로 갱신한다.")
+            description = "비동기 AI 작업의 현재 상태를 조회한다. 상태는 AI 서버 Webhook(POST /jobs/complete)으로 업데이트된다.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "상태 조회 성공"),
             @ApiResponse(responseCode = "401", description = "인증 필요",
@@ -99,4 +99,14 @@ public interface AiApiSpecification {
     ResponseEntity<AiDto.JobStatusResponse> getJobStatus(
             UserPrincipal userPrincipal,
             @Parameter(description = "BE 작업 ID", required = true) Long jobId);
+
+    @Operation(
+            summary = "AI 작업 완료 콜백 (AI 서버 전용)",
+            description = "AI 서버가 작업 완료/실패 시 호출하는 내부 Webhook. 인증 불필요.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "처리 성공 (멱등성 보장 — 이미 완료된 잡도 200 반환)"),
+            @ApiResponse(responseCode = "404", description = "작업을 찾을 수 없음",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+    })
+    ResponseEntity<Void> completeJob(@Valid AiDto.JobCompleteRequest request);
 }
