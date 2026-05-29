@@ -45,7 +45,7 @@ public class AiJobService {
         return startJob(userId, fileId, AiJobType.PORTFOLIO_FROM_COVER_LETTER, jobPosition, career);
     }
 
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     public void completeJob(AiDto.JobCompleteRequest dto) {
         MDC.put("aiJobId", dto.getAiJobId());
         try {
@@ -106,6 +106,9 @@ public class AiJobService {
 
             try {
                 AiDto.AiJobInitResponse aiResponse = callAiForJobStart(type, pdfUrl, jobPosition, career, userId);
+                if (aiResponse == null || aiResponse.getJobId() == null) {
+                    throw new RestException(ErrorCode.AI_SERVER_ERROR, "AI 서버가 유효한 jobId를 반환하지 않았습니다.");
+                }
                 aiJobWriter.assignAiJobId(jobId, aiResponse.getJobId());
                 log.info("[AiJobService] Job started. beJobId={}, aiJobId={}, type={}, userId={}",
                         jobId, aiResponse.getJobId(), type, userId);
