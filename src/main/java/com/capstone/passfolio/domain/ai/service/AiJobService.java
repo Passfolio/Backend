@@ -12,6 +12,7 @@ import com.capstone.passfolio.system.exception.model.ErrorCode;
 import com.capstone.passfolio.system.exception.model.RestException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.slf4j.MDC;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -46,30 +47,37 @@ public class AiJobService {
 
     @Transactional
     public void completeJob(AiDto.JobCompleteRequest dto) {
-        AiJob job = aiJobRepository.findByAiJobId(dto.getAiJobId())
-                .orElseThrow(() -> new RestException(ErrorCode.AI_JOB_NOT_FOUND));
+        MDC.put("aiJobId", dto.getAiJobId());
+        try {
+            AiJob job = aiJobRepository.findByAiJobId(dto.getAiJobId())
+                    .orElseThrow(() -> new RestException(ErrorCode.AI_JOB_NOT_FOUND));
+            MDC.put("beJobId", String.valueOf(job.getId()));
 
-        if (job.getStatus() != AiJobStatus.PENDING) {
-            log.info("[AiJobService] completeJob skipped (already {}). aiJobId={}", job.getStatus(), dto.getAiJobId());
-            return;
-        }
+            if (job.getStatus() != AiJobStatus.PENDING) {
+                log.info("[AiJobService] completeJob skipped (already {}). aiJobId={}", job.getStatus(), dto.getAiJobId());
+                return;
+            }
 
-        if ("DONE".equalsIgnoreCase(dto.getStatus())
-                && (dto.getOutputPdfUrl() == null || dto.getOutputPdfUrl().isBlank())) {
-            log.warn("[AiJobService] DONE with no outputPdfUrl, forcing ERROR. aiJobId={}", dto.getAiJobId());
-            job.markError("AI reported DONE but provided no output URL");
-            aiSseService.push(job.getUserId(), job.getId(), job.getStatus().name(), null);
-            return;
-        }
+            if ("DONE".equalsIgnoreCase(dto.getStatus())
+                    && (dto.getOutputPdfUrl() == null || dto.getOutputPdfUrl().isBlank())) {
+                log.warn("[AiJobService] DONE with no outputPdfUrl, forcing ERROR. aiJobId={}", dto.getAiJobId());
+                job.markError("AI reported DONE but provided no output URL");
+                aiSseService.push(job.getUserId(), job.getId(), job.getStatus().name(), null);
+                return;
+            }
 
-        if ("DONE".equalsIgnoreCase(dto.getStatus())) {
-            job.markDone(dto.getOutputPdfUrl());
-            log.info("[AiJobService] Job DONE. beJobId={}, aiJobId={}", job.getId(), dto.getAiJobId());
-            aiSseService.push(job.getUserId(), job.getId(), job.getStatus().name(), job.getOutputPdfUrl());
-        } else {
-            job.markError(dto.getErrorMessage());
-            log.info("[AiJobService] Job ERROR. beJobId={}, aiJobId={}", job.getId(), dto.getAiJobId());
-            aiSseService.push(job.getUserId(), job.getId(), job.getStatus().name(), null);
+            if ("DONE".equalsIgnoreCase(dto.getStatus())) {
+                job.markDone(dto.getOutputPdfUrl());
+                log.info("[AiJobService] Job DONE. beJobId={}, aiJobId={}", job.getId(), dto.getAiJobId());
+                aiSseService.push(job.getUserId(), job.getId(), job.getStatus().name(), job.getOutputPdfUrl());
+            } else {
+                job.markError(dto.getErrorMessage());
+                log.info("[AiJobService] Job ERROR. beJobId={}, aiJobId={}", job.getId(), dto.getAiJobId());
+                aiSseService.push(job.getUserId(), job.getId(), job.getStatus().name(), null);
+            }
+        } finally {
+            MDC.remove("aiJobId");
+            MDC.remove("beJobId");
         }
     }
 
@@ -88,22 +96,27 @@ public class AiJobService {
 
     private AiDto.JobInitResponse startJob(Long userId, Long fileId, AiJobType type,
                                             String jobPosition, String career) {
-        File file = fileService.validateFileOwner(fileId, userId);
-        String pdfUrl = fileService.generateDownloadPresignedUrl(file.getS3ObjectKey());
-
-        Long jobId = aiJobWriter.createPendingJob(userId, fileId, type);
-        log.info("[AiJobService] PENDING job created. beJobId={}, type={}, userId={}", jobId, type, userId);
-
+        MDC.put("userId", String.valueOf(userId));
         try {
-            AiDto.AiJobInitResponse aiResponse = callAiForJobStart(type, pdfUrl, jobPosition, career, userId);
-            aiJobWriter.assignAiJobId(jobId, aiResponse.getJobId());
-            log.info("[AiJobService] Job started. beJobId={}, aiJobId={}, type={}, userId={}",
-                    jobId, aiResponse.getJobId(), type, userId);
-            return AiDto.JobInitResponse.builder().jobId(jobId).build();
-        } catch (Exception e) {
-            log.error("[AiJobService] AI call failed, marking ERROR. beJobId={}, type={}", jobId, type, e);
-            aiJobWriter.markError(jobId, e.getMessage());
-            throw e;
+            File file = fileService.validateFileOwner(fileId, userId);
+            String pdfUrl = fileService.generateDownloadPresignedUrl(file.getS3ObjectKey());
+
+            Long jobId = aiJobWriter.createPendingJob(userId, fileId, type);
+            log.info("[AiJobService] PENDING job created. beJobId={}, type={}, userId={}", jobId, type, userId);
+
+            try {
+                AiDto.AiJobInitResponse aiResponse = callAiForJobStart(type, pdfUrl, jobPosition, career, userId);
+                aiJobWriter.assignAiJobId(jobId, aiResponse.getJobId());
+                log.info("[AiJobService] Job started. beJobId={}, aiJobId={}, type={}, userId={}",
+                        jobId, aiResponse.getJobId(), type, userId);
+                return AiDto.JobInitResponse.builder().jobId(jobId).build();
+            } catch (Exception e) {
+                log.error("[AiJobService] AI call failed, marking ERROR. beJobId={}, type={}", jobId, type, e);
+                aiJobWriter.markError(jobId, e.getMessage());
+                throw e;
+            }
+        } finally {
+            MDC.remove("userId");
         }
     }
 
