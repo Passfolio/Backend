@@ -11,6 +11,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
+
 @Service
 @RequiredArgsConstructor
 public class AiJobWriter {
@@ -19,6 +21,10 @@ public class AiJobWriter {
 
     @Transactional
     public Long createPendingJob(Long userId, Long fileId, AiJobType type) {
+        if (aiJobRepository.existsByUserIdAndInputFileIdAndTypeAndStatus(
+                userId, fileId, type, AiJobStatus.PENDING)) {
+            throw new RestException(ErrorCode.AI_JOB_ALREADY_PENDING);
+        }
         AiJob job = AiJob.builder()
                 .userId(userId)
                 .type(type)
@@ -39,5 +45,14 @@ public class AiJobWriter {
     public void markError(Long jobId, String message) {
         aiJobRepository.findById(jobId)
                 .ifPresent(job -> job.markError(message));
+    }
+
+    @Transactional
+    public int cleanupStalePendingJobs(LocalDateTime cutoff) {
+        return aiJobRepository.markStalePendingAsError(
+                AiJobStatus.PENDING,
+                AiJobStatus.ERROR,
+                cutoff,
+                "Stale job — automatically expired by scheduler");
     }
 }

@@ -94,6 +94,7 @@ public enum ErrorCode {
     AI_SERVER_ERROR(HttpStatus.BAD_GATEWAY, "AI_SERVER_ERROR", "AI 서버 오류가 발생했습니다."),
     AI_SERVER_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE, "AI_SERVER_UNAVAILABLE", "AI 서버에 연결할 수 없습니다."),
     AI_JOB_NOT_FOUND(HttpStatus.NOT_FOUND, "AI_JOB_NOT_FOUND", "AI 작업을 찾을 수 없습니다."),
+    AI_JOB_ALREADY_PENDING(HttpStatus.CONFLICT, "AI_JOB_ALREADY_PENDING", "동일 파일로 이미 처리 중인 AI 작업이 있습니다."),
 
     // GITHUB Errors
     GITHUB_TOKEN_NOT_FOUND(HttpStatus.UNAUTHORIZED, "GITHUB_TOKEN_NOT_FOUND", "GitHub 연동 토큰이 없습니다. GitHub으로 다시 로그인해주세요."),
