@@ -2,7 +2,9 @@ package com.capstone.passfolio.domain.ai.controller;
 
 import com.capstone.passfolio.domain.ai.dto.AiDto;
 import com.capstone.passfolio.domain.ai.service.AiJobService;
+import com.capstone.passfolio.domain.ai.service.AiSseService;
 import com.capstone.passfolio.system.security.model.UserPrincipal;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -15,6 +17,7 @@ import org.springframework.web.bind.annotation.*;
 public class AiController implements AiApiSpecification {
 
     private final AiJobService aiJobService;
+    private final AiSseService aiSseService;
 
     @Override
     @PostMapping("/jobs/portfolio/from-pdf")
@@ -73,5 +76,12 @@ public class AiController implements AiApiSpecification {
     public ResponseEntity<Void> completeJob(@Valid @RequestBody AiDto.JobCompleteRequest request) {
         aiJobService.completeJob(request);
         return ResponseEntity.ok().build();
+    }
+
+    @Override
+    @GetMapping("/jobs/subscribe")
+    public SseEmitter subscribeToJobStatus(
+            @AuthenticationPrincipal UserPrincipal userPrincipal) {
+        return aiSseService.subscribe(userPrincipal.getUserId());
     }
 }

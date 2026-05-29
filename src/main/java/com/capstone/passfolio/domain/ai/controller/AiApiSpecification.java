@@ -13,6 +13,7 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 @Tag(name = "AI", description = "AI 서버 연동 API — PDF 기반 문서 처리")
 public interface AiApiSpecification {
@@ -109,4 +110,15 @@ public interface AiApiSpecification {
                     content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     })
     ResponseEntity<Void> completeJob(@Valid AiDto.JobCompleteRequest request);
+
+    @SecurityRequirement(name = "bearerAuth")
+    @Operation(
+            summary = "AI 작업 완료 SSE 구독",
+            description = "AI 작업 완료 시 실시간 이벤트를 수신하기 위한 SSE 연결. 이벤트명: AI_JOB_STATUS.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "SSE 연결 성공"),
+            @ApiResponse(responseCode = "401", description = "인증 필요",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+    })
+    SseEmitter subscribeToJobStatus(UserPrincipal userPrincipal);
 }

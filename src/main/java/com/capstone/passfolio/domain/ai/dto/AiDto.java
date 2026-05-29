@@ -176,4 +176,24 @@ public class AiDto {
         @Schema(description = "오류 메시지 (ERROR 상태일 때만 non-null)", nullable = true)
         private String errorMessage;
     }
+
+    // ============================================================
+    // SSE 푸시 페이로드
+    // ============================================================
+
+    @Getter
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Schema(description = "AI 작업 완료 SSE 이벤트 페이로드")
+    public static class AiJobSsePayload {
+        @Schema(description = "BE 내부 작업 ID", example = "1")
+        private Long jobId;
+
+        @Schema(description = "작업 상태 (DONE / ERROR)", example = "DONE")
+        private String status;
+
+        @Schema(description = "완료된 output PDF URL (DONE 상태일 때)", nullable = true)
+        private String outputPdfUrl;
+    }
 }
