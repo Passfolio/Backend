@@ -6,6 +6,7 @@ import com.capstone.passfolio.domain.ai.entity.AiJob;
 import com.capstone.passfolio.domain.ai.entity.AiJobStatus;
 import com.capstone.passfolio.domain.ai.entity.AiJobType;
 import com.capstone.passfolio.domain.ai.repository.AiJobRepository;
+import com.capstone.passfolio.common.util.FileUrlUtils;
 import com.capstone.passfolio.domain.file.entity.File;
 import com.capstone.passfolio.domain.file.service.FileService;
 import com.capstone.passfolio.system.exception.model.ErrorCode;
@@ -67,7 +68,7 @@ public class AiJobService {
             }
 
             if ("DONE".equalsIgnoreCase(dto.getStatus())) {
-                job.markDone(dto.getOutputPdfUrl());
+                job.markDone(toOutputCdnUrl(dto.getOutputPdfUrl()));
                 log.info("[AiJobService] Job DONE. beJobId={}, aiJobId={}", job.getId(), dto.getAiJobId());
                 aiSseService.push(job.getUserId(), job.getId(), job.getStatus().name(), job.getOutputPdfUrl());
             } else {
@@ -99,7 +100,7 @@ public class AiJobService {
         MDC.put("userId", String.valueOf(userId));
         try {
             File file = fileService.validateFileOwner(fileId, userId);
-            String pdfUrl = fileService.generateDownloadPresignedUrl(file.getS3ObjectKey());
+            String pdfUrl = FileUrlUtils.buildCdnUrl(file.getS3ObjectKey());
 
             Long jobId = aiJobWriter.createPendingJob(userId, fileId, type);
             log.info("[AiJobService] PENDING job created. beJobId={}, type={}, userId={}", jobId, type, userId);
@@ -143,6 +144,18 @@ public class AiJobService {
                             .userId(userId)
                             .build());
         };
+    }
+
+    private String toOutputCdnUrl(String s3Url) {
+        if (s3Url == null || s3Url.isBlank()) return s3Url;
+        try {
+            String path = java.net.URI.create(s3Url).getPath();
+            String key = path.startsWith("/") ? path.substring(1) : path;
+            return FileUrlUtils.buildCdnUrl(key);
+        } catch (Exception e) {
+            log.warn("[AiJobService] output_pdf_url CDN 변환 실패, 원본 사용. url={}", s3Url);
+            return s3Url;
+        }
     }
 
 }
