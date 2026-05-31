@@ -27,6 +27,7 @@ import software.amazon.awssdk.services.s3.model.S3Exception;
 import software.amazon.awssdk.services.s3.model.StorageClass;
 import software.amazon.awssdk.services.s3.model.UploadPartRequest;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
+import software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignRequest;
 import software.amazon.awssdk.services.s3.presigner.model.PresignedUploadPartRequest;
 import software.amazon.awssdk.services.s3.presigner.model.UploadPartPresignRequest;
 
@@ -186,7 +187,19 @@ public class S3Service {
     }
 
     // ============================================================
-    // 2-b) 모든 Part Presigned URL 일괄 발급
+    // 2-b) GET Presigned URL 발급 — AI 서버용 임시 다운로드 링크
+    // ============================================================
+
+    public String generateGetPresignedUrl(String key) {
+        GetObjectPresignRequest presignRequest = GetObjectPresignRequest.builder()
+                .signatureDuration(Duration.ofMinutes(uploadProperties.getPresignedUrlTtlMinutes()))
+                .getObjectRequest(r -> r.bucket(bucketName).key(key))
+                .build();
+        return s3Presigner.presignGetObject(presignRequest).url().toString();
+    }
+
+    // ============================================================
+    // 2-c) 모든 Part Presigned URL 일괄 발급
     // ============================================================
 
     /**

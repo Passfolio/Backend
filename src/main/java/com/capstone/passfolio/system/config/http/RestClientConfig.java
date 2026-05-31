@@ -1,6 +1,7 @@
 package com.capstone.passfolio.system.config.http;
 
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.client.JdkClientHttpRequestFactory;
@@ -14,6 +15,7 @@ import java.util.concurrent.Executors;
 public class RestClientConfig {
 
     public static final String GOV_DATA_REST_CLIENT = "govDataRestClient";
+    public static final String AI_REST_CLIENT = "aiRestClient";
 
     @Bean
     public RestClient restClient() {
@@ -31,6 +33,27 @@ public class RestClientConfig {
         // 3. RestClient 빌드
         return RestClient.builder()
                 .requestFactory(requestFactory)
+                .build();
+    }
+
+    /**
+     * AI 서버 전용: AI 생성 작업이 길기 때문에 읽기 타임아웃을 60초로 설정한다.
+     */
+    @Bean
+    @Qualifier(AI_REST_CLIENT)
+    public RestClient aiRestClient(@Value("${ai.internal-api-key}") String internalApiKey) {
+        HttpClient jdkHttpClient = HttpClient.newBuilder()
+                .version(HttpClient.Version.HTTP_1_1)
+                .connectTimeout(Duration.ofSeconds(10))
+                .executor(Executors.newVirtualThreadPerTaskExecutor())
+                .build();
+
+        JdkClientHttpRequestFactory requestFactory = new JdkClientHttpRequestFactory(jdkHttpClient);
+        requestFactory.setReadTimeout(Duration.ofSeconds(60));
+
+        return RestClient.builder()
+                .requestFactory(requestFactory)
+                .defaultHeader("X-INTERNAL-API-KEY", internalApiKey)
                 .build();
     }
 
