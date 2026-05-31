@@ -44,6 +44,7 @@ public class SecurityConfig {
     private final RequestMatcherHolder requestMatcherHolder;
     private final CustomFailureHandler customFailureHandler;
     private final CustomOAuth2AuthorizationRequestResolver customOAuth2AuthorizationRequestResolver;
+    private final ObjectMapper objectMapper;
 
     @Value("${app.front-base-url}")
     private String frontBaseUrlConfig;
@@ -52,13 +53,19 @@ public class SecurityConfig {
     private String allowedOrigins;
 
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+    public InternalApiKeyFilter internalApiKeyFilter(@Value("${ai.internal-api-key}") String internalApiKey) {
+        return new InternalApiKeyFilter(internalApiKey, objectMapper);
+    }
+
+    @Bean
+    public SecurityFilterChain securityFilterChain(HttpSecurity http, InternalApiKeyFilter internalApiKeyFilter) throws Exception {
         http
                 .csrf(AbstractHttpConfigurer::disable)
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .formLogin(AbstractHttpConfigurer::disable)
                 .httpBasic(AbstractHttpConfigurer::disable)
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
+                .addFilterBefore(internalApiKeyFilter, JwtAuthenticationFilter.class)
                 .oauth2Login(oauth2 -> {
                     // front-base-url의 첫 번째 값을 기본값으로 사용 (동적 처리는 CustomFailureHandler에서 수행)
                     List<String> allowedBaseUrls = PropertiesParserUtils.propertiesParser(frontBaseUrlConfig);
@@ -78,7 +85,8 @@ public class SecurityConfig {
                         .requestMatchers(request ->
                             request.getDispatcherType() == DispatcherType.ASYNC
                             && (request.getRequestURI().startsWith("/api/v1/sse/")
-                                || request.getRequestURI().startsWith("/api/v1/notifications/"))
+                                || request.getRequestURI().startsWith("/api/v1/notifications/")
+                                || request.getRequestURI().startsWith("/api/v1/ai/jobs/subscribe"))
                         ).permitAll()
                         // 1. 비인증 경로들 (RequestMatcherHolder에서 관리)
                         .requestMatchers(requestMatcherHolder.getRequestMatchersByMinRole(null)).permitAll()
@@ -108,7 +116,7 @@ public class SecurityConfig {
         response.setCharacterEncoding("UTF-8");
 
         ErrorResponse errorResponse = ErrorResponse.of(errorCode);
-        new ObjectMapper().writeValue(response.getWriter(), errorResponse);
+        objectMapper.writeValue(response.getWriter(), errorResponse);
     }
 
     @Bean

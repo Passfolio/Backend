@@ -289,6 +289,14 @@ public class FileService {
     }
 
     // ============================================================
+    // 7) AI 서버용 임시 다운로드 Presigned URL 발급
+    // ============================================================
+
+    public String generateDownloadPresignedUrl(String s3ObjectKey) {
+        return s3Service.generateGetPresignedUrl(s3ObjectKey);
+    }
+
+    // ============================================================
     // 정책 검증 (private)
     // ============================================================
 
