@@ -1,6 +1,7 @@
 package com.capstone.passfolio.system.config.http;
 
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.client.JdkClientHttpRequestFactory;
@@ -40,7 +41,7 @@ public class RestClientConfig {
      */
     @Bean
     @Qualifier(AI_REST_CLIENT)
-    public RestClient aiRestClient() {
+    public RestClient aiRestClient(@Value("${ai.internal-api-key}") String internalApiKey) {
         HttpClient jdkHttpClient = HttpClient.newBuilder()
                 .version(HttpClient.Version.HTTP_1_1)
                 .connectTimeout(Duration.ofSeconds(10))
@@ -52,6 +53,7 @@ public class RestClientConfig {
 
         return RestClient.builder()
                 .requestFactory(requestFactory)
+                .defaultHeader("X-INTERNAL-API-KEY", internalApiKey)
                 .build();
     }
 

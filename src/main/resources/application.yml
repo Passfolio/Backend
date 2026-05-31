@@ -186,6 +186,7 @@ management:
 # AI Service
 ai:
   base-url: ${AI_BASE_URL:http://localhost:8000}
+  internal-api-key: ${PASSFOLIO_INTERNAL_API_KEY}
 
 # AWS Service
 aws:
