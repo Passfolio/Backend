@@ -188,6 +188,11 @@ ai:
   base-url: ${AI_BASE_URL:http://localhost:8000}
   internal-api-key: ${PASSFOLIO_INTERNAL_API_KEY}
 
+# Project Analysis (Lambda 연동) — 분석 완료 웹훅 검증용 별도 내부 키.
+# 값은 Lambda와 공유(운영: Secrets Manager/KMS, 로컬/dev: 환경변수).
+project-analysis:
+  internal-api-key: ${PROJECT_ANALYSIS_INTERNAL_API_KEY:${PASSFOLIO_INTERNAL_API_KEY}}
+
 # AWS Service
 aws:
   stepfunction:
