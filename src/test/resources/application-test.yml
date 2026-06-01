@@ -95,10 +95,10 @@ ai:
 project-analysis:
   internal-api-key: test-project-internal-key
 
-# LambdaTokenEncryptor는 32바이트 base64 키 필요(test 고정값 재사용)
-analysis:
-  dispatch:
-    github-aes-key: MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=
+# LambdaTokenEncryptor(KMS Encrypt)의 키 ID — test 컨텍스트 부팅용(실 KMS 호출은 없음/mock)
+aws:
+  kms:
+    token-key-id: alias/passfolio/github-token-payload
 
 ratelimit:
   enabled: false
