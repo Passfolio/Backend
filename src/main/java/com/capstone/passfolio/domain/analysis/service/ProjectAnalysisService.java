@@ -11,9 +11,11 @@ import com.capstone.passfolio.domain.aws.sqs.SqsMessageSender;
 import com.capstone.passfolio.domain.github.client.GitHubApiClient;
 import com.capstone.passfolio.domain.github.dto.GitHubDto;
 import com.capstone.passfolio.domain.user.entity.User;
+import com.capstone.passfolio.domain.user.entity.enums.Role;
 import com.capstone.passfolio.domain.user.repository.UserRepository;
 import com.capstone.passfolio.system.exception.model.ErrorCode;
 import com.capstone.passfolio.system.exception.model.RestException;
+import com.capstone.passfolio.system.security.model.UserPrincipal;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.MDC;
@@ -49,6 +51,7 @@ public class ProjectAnalysisService {
     private long maxRepoSizeKb;
 
     private static final int MAX_BATCH = 3;
+    private static final int MAX_ADMIN_TEST_BATCH = 20;
 
     // ============================================================
     // 디스패치 (FE → BE → Lambda), 다중 repo 배치
@@ -126,6 +129,76 @@ public class ProjectAnalysisService {
     }
 
     private record RepoMeta(String repoUrl, long sizeKb, boolean isPrivate) { }
+
+    // ============================================================
+    // ADMIN 전용 테스트 디스패치 — 공개 repo 다수를 토큰 없이 동시 디스패치(파이프라인/메트릭 부하 테스트).
+    // 기존 /start 흐름 미접촉: 토큰 준비·size 게이트·admission 페이서 우회(동시성 그대로 스트레스,
+    // 정밀 size 가드는 Lambda p0이 보유), dominant_fallback=true(핸들↔git신원 불일치 흡수),
+    // mode=STEP(handleBatchOutcome의 FastAPI 핸드오프는 NONSTOP만 → 자동 스킵).
+    // ============================================================
+    public ProjectAnalysisDto.AdminTestBatchResponse initiateAdminTestBatch(
+            UserPrincipal caller, ProjectAnalysisDto.AdminTestBatchRequest request) {
+        assertAdmin(caller);
+        List<String> repoUrls = request.getRepoUrls();
+        if (repoUrls == null || repoUrls.isEmpty() || repoUrls.size() > MAX_ADMIN_TEST_BATCH) {
+            throw new RestException(ErrorCode.ANALYSIS_BATCH_SIZE_EXCEEDED);
+        }
+        User adminUser = userRepository.findById(caller.getUserId())
+                .orElseThrow(() -> new RestException(ErrorCode.AUTH_USER_NOT_FOUND));
+        String mode = normalizeMode(request.getMode() == null || request.getMode().isBlank() ? "STEP" : request.getMode());
+
+        String batchId = UUID.randomUUID().toString();
+        batchProgressTracker.createBatch(batchId, repoUrls.size());
+
+        List<ProjectAnalysisDto.AdminDispatchedItem> dispatched = new ArrayList<>();
+        BatchOutcome syncOutcome = null;
+        int seq = 0;
+        for (String repoUrl : repoUrls) {
+            OwnerRepo or = parseOwnerRepo(repoUrl);
+            String analysisId = UUID.randomUUID().toString();
+            projectAnalysisWriter.createYet(batchId, analysisId, repoUrl, adminUser, mode);
+            String status;
+            try {
+                sqsMessageSender.send(analysisQueueUrl, buildAdminMessage(analysisId, or.owner(), repoUrl, caller.getUserId(), mode));
+                projectAnalysisWriter.markInProgress(analysisId);
+                status = AnalysisFlag.IN_PROGRESS.name();
+            } catch (Exception e) {
+                log.error("[ProjectAnalysisService] ADMIN test SQS 디스패치 실패. batchId={}, analysisId={}", batchId, analysisId, e);
+                projectAnalysisWriter.markFailed(analysisId, "디스패치 실패");
+                syncOutcome = batchProgressTracker.recordTerminal(batchId, true);
+                status = AnalysisFlag.FAILED.name();
+            }
+            dispatched.add(ProjectAnalysisDto.AdminDispatchedItem.builder()
+                    .analysisId(analysisId).repoUrl(repoUrl).owner(or.owner()).dispatchSeq(seq++).status(status).build());
+        }
+        if (syncOutcome != null && syncOutcome.allDone()) {
+            handleBatchOutcome(batchId, caller.getUserId(), mode, syncOutcome);
+        }
+        log.info("[ProjectAnalysisService] ADMIN test batch dispatched. batchId={}, count={}, adminId={}",
+                batchId, repoUrls.size(), caller.getUserId());
+        return ProjectAnalysisDto.AdminTestBatchResponse.builder().batchId(batchId).analyses(dispatched).build();
+    }
+
+    private void assertAdmin(UserPrincipal caller) {
+        if (caller == null || caller.getRole() == null || caller.getRole() != Role.ADMIN) {
+            throw new RestException(ErrorCode.AUTH_FORBIDDEN);
+        }
+    }
+
+    private ProjectAnalysisDto.LambdaJobMessage buildAdminMessage(
+            String analysisId, String owner, String repoUrl, Long adminId, String mode) {
+        return ProjectAnalysisDto.LambdaJobMessage.builder()
+                .analysisId(analysisId)
+                .githubUsername(owner)        // dominant 모드라 핸들 불일치여도 최다 기여자로 해석
+                .repoUrl(repoUrl)
+                .userPk(String.valueOf(adminId))
+                .isPrivate(false)
+                .repoSizeMb(0.0)              // size 게이트 우회(Lambda p0 정밀 가드가 담당)
+                .encryptedToken(null)         // 공개 repo — 토큰 불필요
+                .mode(mode)
+                .dominantFallback(true)
+                .build();
+    }
 
     private ProjectAnalysisDto.LambdaJobMessage buildMessage(
             String analysisId, String githubUsername, RepoMeta m, Long userId, String encryptedToken, String mode) {

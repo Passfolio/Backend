@@ -66,6 +66,46 @@ public class ProjectAnalysisDto {
     }
 
     // ============================================================
+    // ADMIN 전용 테스트 디스패치 (공개 repo 다수, token 없이 — 파이프라인/메트릭 부하 테스트)
+    // ============================================================
+    @Getter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Schema(description = "ADMIN 분석 부하 테스트 요청(공개 repo, 토큰 불필요, 최대 20개)")
+    public static class AdminTestBatchRequest {
+        @NotEmpty(message = "repoUrls는 최소 1개 필요합니다.")
+        @Size(max = 20, message = "한 번에 요청 가능한 저장소는 최대 20개입니다.")
+        @Schema(description = "분석할 공개 GitHub 저장소 URL 목록(1~20개)")
+        private List<@NotBlank @URL(message = "repoUrl이 유효한 URL 형식이 아닙니다.") String> repoUrls;
+
+        @Schema(description = "분석 모드(기본 STEP — FastAPI 핸드오프 없이 분석만).", nullable = true)
+        private String mode;
+    }
+
+    @Getter
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Schema(description = "ADMIN 테스트 디스패치 응답")
+    public static class AdminTestBatchResponse {
+        private String batchId;
+        private List<AdminDispatchedItem> analyses;
+    }
+
+    @Getter
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Schema(description = "ADMIN 테스트로 디스패치된 개별 분석(디스패치 순번 포함)")
+    public static class AdminDispatchedItem {
+        private String analysisId;
+        private String repoUrl;
+        private String owner;        // dominant 모드 username(=repo owner)
+        private int dispatchSeq;     // 디스패치 순번(0-based)
+        private String status;       // IN_PROGRESS / FAILED(디스패치 실패)
+    }
+
+    // ============================================================
     // SSE 푸시 페이로드 (BE → FE)
     // ============================================================
     @Getter
@@ -113,6 +153,10 @@ public class ProjectAnalysisDto {
         private double repoSizeMb;
         private String encryptedToken; // KMS base64 ciphertext
         private String mode;
+        // admin 테스트 디스패치 전용: Lambda p1이 dominant 기여자 모드로 해석(핸들↔git신원 불일치 흡수).
+        // 일반 /start 경로는 false(미설정) → 무회귀.
+        @JsonProperty("dominant_fallback")
+        private boolean dominantFallback;
     }
 
     // ============================================================
