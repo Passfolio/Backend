@@ -54,6 +54,7 @@ class ProjectAnalysisServiceTest {
     @Mock private AnalysisAdmissionPacer admissionPacer;
     @Mock private SqsMessageSender sqsMessageSender;
     @Mock private BatchProgressTracker batchProgressTracker;
+    @Mock private BatchPhoneStore batchPhoneStore;
     @Mock private ProjectAnalysisSseService sseService;
     @Mock private AiApiClient aiApiClient;
     @Mock private SmsNotifier smsNotifier;
@@ -70,7 +71,7 @@ class ProjectAnalysisServiceTest {
     // ---------- 배치 디스패치 ----------
 
     private ProjectAnalysisDto.StartRequest startReq(List<String> repoUrls) {
-        return new ProjectAnalysisDto.StartRequest(repoUrls, "NONSTOP");
+        return new ProjectAnalysisDto.StartRequest(repoUrls, "NONSTOP", null);
     }
 
     // size 게이트 직전까지 공통 스텁(단일 repo).

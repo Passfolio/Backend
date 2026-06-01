@@ -37,6 +37,7 @@ public class ProjectAnalysisService {
     private final AnalysisAdmissionPacer admissionPacer;
     private final SqsMessageSender sqsMessageSender;
     private final BatchProgressTracker batchProgressTracker;
+    private final BatchPhoneStore batchPhoneStore;
     private final ProjectAnalysisSseService sseService;
     private final AiApiClient aiApiClient;
     private final SmsNotifier smsNotifier;
@@ -89,9 +90,10 @@ public class ProjectAnalysisService {
         tokenPreparer.assertSufficientTtl(userId);
         String encryptedToken = tokenPreparer.reencryptForLambda(plainToken);
 
-        // 5) 배치 등록
+        // 5) 배치 등록 + 완료 SMS용 phone transient 저장(선택, DB 미저장)
         String batchId = UUID.randomUUID().toString();
         batchProgressTracker.createBatch(batchId, metas.size());
+        batchPhoneStore.store(batchId, request.getPhone());
 
         // 6) repo별 디스패치
         List<ProjectAnalysisDto.DispatchedItem> dispatched = new ArrayList<>();

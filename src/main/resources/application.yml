@@ -199,6 +199,8 @@ aws:
     arn: ${STEP_FUNCTION_ARN:}
   sqs:
     analysis-queue-url: ${AWS_SQS_ANALYSIS_QUEUE_URL:}   # DevSkill 분석 작업 큐(Lambda 트리거)
+  sns:
+    enabled: ${AWS_SNS_ENABLED:false}                    # 배치 완료 SMS 발송(개발 false=로그만)
 
 # Project Analysis 디스패치(admission 페이서 + 토큰 유효성 임계값 + Lambda 공유 키)
 analysis:

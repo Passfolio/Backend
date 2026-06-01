@@ -34,6 +34,11 @@ public class ProjectAnalysisDto {
         @Schema(description = "분석 모드 (NONSTOP=완료 후 포트폴리오 생성 / STEP=분석만). 기본 NONSTOP",
                 example = "NONSTOP", nullable = true)
         private String mode;
+
+        @Size(max = 20, message = "phone은 20자를 초과할 수 없습니다.")
+        @Schema(description = "배치 완료 SMS 수신 번호(선택, E.164 권장). DB 미저장·transient.",
+                example = "+821012345678", nullable = true)
+        private String phone;
     }
 
     @Getter
