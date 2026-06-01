@@ -45,6 +45,17 @@ public class AiApiClient {
                 .body(AiDto.AiJobInitResponse.class);
     }
 
+    /** 배치 분석 결과(전원 성공) → 포트폴리오 생성 요청(FastAPI). */
+    public AiDto.AiJobInitResponse requestPortfolioFromAnalyses(AiDto.AnalysisResultsRequest request) {
+        return restClient.post()
+                .uri(aiBaseUrl + "/api/v1/portfolio/from-analyses")
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(request)
+                .retrieve()
+                .onStatus(status -> !status.is2xxSuccessful(), this::handleError)
+                .body(AiDto.AiJobInitResponse.class);
+    }
+
     public AiDto.AiJobInitResponse requestCoverLetterFromPdf(String pdfUrl, Long userId) {
         return restClient.post()
                 .uri(aiBaseUrl + "/api/v1/cover-letter/from-pdf")

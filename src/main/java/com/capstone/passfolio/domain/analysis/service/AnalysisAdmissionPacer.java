@@ -33,11 +33,17 @@ public class AnalysisAdmissionPacer {
 
     /** 디스패치 슬롯 1개 확보. 실패(rate 초과) 시 예외. */
     public void acquireOrThrow() {
+        acquireOrThrow(1);
+    }
+
+    /** 디스패치 슬롯 permits개 확보(배치=all-or-none). 실패(rate 초과) 시 예외. */
+    public void acquireOrThrow(int permits) {
         RRateLimiter limiter = redissonClient.getRateLimiter(LIMITER_KEY);
         // 최초 1회만 설정(이미 설정돼 있으면 no-op). interval당 rate건 OVERALL(모든 인스턴스 합산).
         limiter.trySetRate(RateType.OVERALL, rate, intervalSeconds, RateIntervalUnit.SECONDS);
-        if (!limiter.tryAcquire(1)) {
-            log.info("[AnalysisAdmissionPacer] dispatch rate exceeded ({}/{}s) — rejecting", rate, intervalSeconds);
+        if (!limiter.tryAcquire(permits)) {
+            log.info("[AnalysisAdmissionPacer] dispatch rate exceeded ({}/{}s, need {}) — rejecting",
+                    rate, intervalSeconds, permits);
             throw new RestException(ErrorCode.PROJECT_ANALYSIS_RATE_LIMITED);
         }
     }

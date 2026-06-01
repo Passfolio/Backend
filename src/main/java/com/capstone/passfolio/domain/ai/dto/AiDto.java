@@ -111,6 +111,31 @@ public class AiDto {
     }
 
     // ============================================================
+    // BE → AI(FastAPI) 분석결과 기반 포트폴리오 생성 (배치 all-done·NONSTOP 시)
+    // ============================================================
+    @Getter
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
+    public static class AnalysisResultsRequest {
+        private java.util.List<AnalysisItem> analyses;
+        private Long userId;
+    }
+
+    @Getter
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
+    public static class AnalysisItem {
+        private String analysisId;
+        private String repoUrl;
+        private String resultCdnUrl; // Lambda 산출물(final.json) CDN URL
+        private String serviceName;
+    }
+
+    // ============================================================
     // User-facing request DTOs (FE → BE)
     // ============================================================
 

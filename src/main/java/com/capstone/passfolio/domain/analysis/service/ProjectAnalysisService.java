@@ -1,9 +1,12 @@
 package com.capstone.passfolio.domain.analysis.service;
 
+import com.capstone.passfolio.domain.ai.client.AiApiClient;
+import com.capstone.passfolio.domain.ai.dto.AiDto;
 import com.capstone.passfolio.domain.analysis.dto.ProjectAnalysisDto;
 import com.capstone.passfolio.domain.analysis.entity.ProjectAnalysis;
 import com.capstone.passfolio.domain.analysis.entity.enums.AnalysisFlag;
 import com.capstone.passfolio.domain.analysis.repository.ProjectAnalysisRepository;
+import com.capstone.passfolio.domain.analysis.service.BatchProgressTracker.BatchOutcome;
 import com.capstone.passfolio.domain.aws.sqs.SqsMessageSender;
 import com.capstone.passfolio.domain.github.client.GitHubApiClient;
 import com.capstone.passfolio.domain.github.dto.GitHubDto;
@@ -18,6 +21,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 
@@ -33,6 +38,10 @@ public class ProjectAnalysisService {
     private final AnalysisTokenPreparer tokenPreparer;
     private final AnalysisAdmissionPacer admissionPacer;
     private final SqsMessageSender sqsMessageSender;
+    private final BatchProgressTracker batchProgressTracker;
+    private final ProjectAnalysisSseService sseService;
+    private final AiApiClient aiApiClient;
+    private final SmsNotifier smsNotifier;
 
     @Value("${aws.sqs.analysis-queue-url}")
     private String analysisQueueUrl;
@@ -40,72 +49,101 @@ public class ProjectAnalysisService {
     @Value("${analysis.dispatch.max-repo-size-kb}")
     private long maxRepoSizeKb;
 
-    // Lambda가 보내는 완료 상태 토큰(대소문자 무시) → 성공으로 간주.
+    private static final int MAX_BATCH = 3;
     private static final Set<String> SUCCESS_TOKENS = Set.of("analyzed", "done", "success");
 
     // ============================================================
-    // 디스패치 (FE → BE → Lambda)
+    // 디스패치 (FE → BE → Lambda), 다중 repo 배치
     // ============================================================
 
     /**
-     * 분석 시작: 토큰 준비(복호·TTL) → repo size 게이트 → admission → TTL 재점검 → KMS 재암호화
-     * → ProjectAnalysis 생성 → SQS enqueue → IN_PROGRESS. 외부호출은 트랜잭션 밖(짧은 저장만 txn).
+     * 배치 분석 시작: 토큰 준비(1회) → 전 repo size 게이트 → admission(N, all-or-none)
+     * → TTL 재점검 → 공유키 재암호화 → batchId + Redis 배치 등록 → repo별 디스패치.
      */
-    public ProjectAnalysisDto.StartResponse initiateAnalysis(Long userId, ProjectAnalysisDto.StartRequest request) {
+    public ProjectAnalysisDto.StartResponse initiateBatch(Long userId, ProjectAnalysisDto.StartRequest request) {
+        List<String> repoUrls = request.getRepoUrls();
+        if (repoUrls == null || repoUrls.isEmpty() || repoUrls.size() > MAX_BATCH) {
+            throw new RestException(ErrorCode.ANALYSIS_BATCH_SIZE_EXCEEDED);
+        }
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new RestException(ErrorCode.AUTH_USER_NOT_FOUND));
         String githubUsername = user.getGithubLogin();
-        String repoUrl = request.getRepoUrl();
-        OwnerRepo ownerRepo = parseOwnerRepo(repoUrl);
-        String mode = (request.getMode() == null || request.getMode().isBlank()) ? "NONSTOP" : request.getMode();
+        String mode = normalizeMode(request.getMode());
 
-        // 1) 토큰: Redis 조회 → AESGCM 복호 (+ TTL 점검)
+        // 1) 토큰 1회 준비(복호 + TTL 점검)
         String plainToken = tokenPreparer.resolvePlaintextWithTtlCheck(userId);
 
-        // 2) repo size 게이트(GitHub API size = KB, history 포함). 정밀 100MB 작업트리는 Lambda clone에서.
-        GitHubDto.ApiRepo repo = gitHubApiClient.fetchRepo(plainToken, ownerRepo.owner(), ownerRepo.repo());
-        long sizeKb = repo.getSize() != null ? repo.getSize() : 0L;
-        if (sizeKb > maxRepoSizeKb) {
-            throw new RestException(ErrorCode.ANALYSIS_REPO_SIZE_EXCEEDED);
+        // 2) 전 repo size 게이트(하나라도 초과 시 아무것도 디스패치하지 않고 거부)
+        List<RepoMeta> metas = new ArrayList<>();
+        for (String repoUrl : repoUrls) {
+            OwnerRepo or = parseOwnerRepo(repoUrl);
+            GitHubDto.ApiRepo repo = gitHubApiClient.fetchRepo(plainToken, or.owner(), or.repo());
+            long sizeKb = repo.getSize() != null ? repo.getSize() : 0L;
+            if (sizeKb > maxRepoSizeKb) {
+                throw new RestException(ErrorCode.ANALYSIS_REPO_SIZE_EXCEEDED);
+            }
+            metas.add(new RepoMeta(repoUrl, sizeKb, repo.isPrivateRepo()));
         }
 
-        // 3) admission(디스패치 rate 페이싱) — 초과 시 429
-        admissionPacer.acquireOrThrow();
+        // 3) admission(N건 한꺼번에) — all-or-none
+        admissionPacer.acquireOrThrow(metas.size());
 
-        // 4) 전송 직전 TTL 재점검 + KMS 재암호화
+        // 4) 전송 직전 TTL 재점검 + 재암호화(1회)
         tokenPreparer.assertSufficientTtl(userId);
         String encryptedToken = tokenPreparer.reencryptForLambda(plainToken);
 
-        // 5) ProjectAnalysis(YET) 생성·저장
-        String analysisId = UUID.randomUUID().toString();
-        projectAnalysisWriter.createYet(analysisId, repoUrl, user);
+        // 5) 배치 등록
+        String batchId = UUID.randomUUID().toString();
+        batchProgressTracker.createBatch(batchId, metas.size());
 
-        // 6) SQS enqueue (Lambda event 포맷). 실패 시 FAILED 기록 후 502.
-        ProjectAnalysisDto.LambdaJobMessage message = ProjectAnalysisDto.LambdaJobMessage.builder()
+        // 6) repo별 디스패치
+        List<ProjectAnalysisDto.DispatchedItem> dispatched = new ArrayList<>();
+        BatchOutcome syncOutcome = null;
+        for (RepoMeta m : metas) {
+            String analysisId = UUID.randomUUID().toString();
+            projectAnalysisWriter.createYet(batchId, analysisId, m.repoUrl(), user, mode);
+            String status;
+            try {
+                sqsMessageSender.send(analysisQueueUrl, buildMessage(analysisId, githubUsername, m, userId, encryptedToken, mode));
+                projectAnalysisWriter.markInProgress(analysisId);
+                status = AnalysisFlag.IN_PROGRESS.name();
+            } catch (Exception e) {
+                log.error("[ProjectAnalysisService] SQS 디스패치 실패. batchId={}, analysisId={}", batchId, analysisId, e);
+                projectAnalysisWriter.markFailed(analysisId, "디스패치 실패");
+                syncOutcome = batchProgressTracker.recordTerminal(batchId, true); // 디스패치 실패도 종료 1건
+                status = AnalysisFlag.FAILED.name();
+            }
+            dispatched.add(ProjectAnalysisDto.DispatchedItem.builder()
+                    .analysisId(analysisId).repoUrl(m.repoUrl()).status(status).build());
+        }
+
+        // 모든 repo가 디스패치 단계에서 실패해 배치가 즉시 종료된 경우(웹훅이 오지 않음) → 여기서 마무리.
+        if (syncOutcome != null && syncOutcome.allDone()) {
+            handleBatchOutcome(batchId, userId, mode, syncOutcome);
+        }
+
+        log.info("[ProjectAnalysisService] batch dispatched. batchId={}, count={}, userId={}", batchId, metas.size(), userId);
+        return ProjectAnalysisDto.StartResponse.builder().batchId(batchId).analyses(dispatched).build();
+    }
+
+    private record RepoMeta(String repoUrl, long sizeKb, boolean isPrivate) { }
+
+    private ProjectAnalysisDto.LambdaJobMessage buildMessage(
+            String analysisId, String githubUsername, RepoMeta m, Long userId, String encryptedToken, String mode) {
+        return ProjectAnalysisDto.LambdaJobMessage.builder()
                 .analysisId(analysisId)
                 .githubUsername(githubUsername)
-                .repoUrl(repoUrl)
+                .repoUrl(m.repoUrl())
                 .userPk(String.valueOf(userId))
-                .isPrivate(repo.isPrivateRepo())
-                .repoSizeMb(sizeKb / 1024.0)
+                .isPrivate(m.isPrivate())
+                .repoSizeMb(m.sizeKb() / 1024.0)
                 .encryptedToken(encryptedToken)
                 .mode(mode)
                 .build();
-        try {
-            sqsMessageSender.send(analysisQueueUrl, message);
-        } catch (Exception e) {
-            log.error("[ProjectAnalysisService] SQS 디스패치 실패. analysisId={}", analysisId, e);
-            projectAnalysisWriter.markFailed(analysisId, "디스패치 실패");
-            throw new RestException(ErrorCode.ANALYSIS_DISPATCH_FAILED, e);
-        }
+    }
 
-        // 7) IN_PROGRESS 전환
-        projectAnalysisWriter.markInProgress(analysisId);
-        log.info("[ProjectAnalysisService] dispatched. analysisId={}, repo={}, userId={}", analysisId, repoUrl, userId);
-        return ProjectAnalysisDto.StartResponse.builder()
-                .analysisId(analysisId)
-                .status(AnalysisFlag.IN_PROGRESS.name())
-                .build();
+    private String normalizeMode(String mode) {
+        return (mode == null || mode.isBlank()) ? "NONSTOP" : mode.trim().toUpperCase();
     }
 
     private record OwnerRepo(String owner, String repo) { }
@@ -126,11 +164,12 @@ public class ProjectAnalysisService {
     }
 
     // ============================================================
-    // 완료 콜백 (Lambda → BE)
+    // 완료 콜백 (Lambda → BE) + 배치 완료 처리
     // ============================================================
 
     /**
-     * 분석 완료 콜백 처리(Lambda → BE). 멱등성 보장 — 이미 종료(DONE/FAILED)된 건은 건너뜀.
+     * 분석 완료 콜백. 개별 repo 상태 갱신 + 개별 SSE + 배치 카운터 갱신. 멱등(이미 종료면 skip).
+     * 배치가 all-done이면 (전원 성공·NONSTOP) FastAPI 핸드오프 + 배치 SSE + SMS.
      */
     @Transactional(rollbackFor = Exception.class)
     public void completeAnalysis(ProjectAnalysisDto.WebhookCompleteRequest dto) {
@@ -147,25 +186,78 @@ public class ProjectAnalysisService {
 
             boolean success = dto.getStatus() != null
                     && SUCCESS_TOKENS.contains(dto.getStatus().trim().toLowerCase());
-
-            if (success) {
-                if (dto.getCdnUrl() == null || dto.getCdnUrl().isBlank()) {
-                    log.warn("[ProjectAnalysisService] success with no cdnUrl, forcing FAILED. analysisId={}",
-                            dto.getAnalysisId());
-                    analysis.markFailed("완료 보고됐으나 결과 CDN URL이 없습니다.");
-                    return;
-                }
+            if (success && (dto.getCdnUrl() == null || dto.getCdnUrl().isBlank())) {
+                log.warn("[ProjectAnalysisService] success with no cdnUrl, forcing FAILED. analysisId={}", dto.getAnalysisId());
+                success = false;
+                analysis.markFailed("완료 보고됐으나 결과 CDN URL이 없습니다.");
+            } else if (success) {
                 analysis.markDone(dto.getCdnUrl(), dto.getServiceName());
-                log.info("[ProjectAnalysisService] analysis DONE. analysisId={}, service={}",
-                        dto.getAnalysisId(), dto.getServiceName());
             } else {
                 analysis.markFailed(dto.getErrorMessage());
-                log.info("[ProjectAnalysisService] analysis FAILED. analysisId={}, status={}",
-                        dto.getAnalysisId(), dto.getStatus());
+            }
+            log.info("[ProjectAnalysisService] analysis {}. analysisId={}",
+                    analysis.getAnalysisFlag(), dto.getAnalysisId());
+
+            Long userId = analysis.getUser() != null ? analysis.getUser().getId() : null;
+
+            // 개별 repo 완료 SSE
+            sseService.pushAnalysis(userId, ProjectAnalysisDto.AnalysisSsePayload.builder()
+                    .analysisId(analysis.getId())
+                    .batchId(analysis.getBatchId())
+                    .status(analysis.getAnalysisFlag().name())
+                    .repoUrl(analysis.getRepoUrl())
+                    .cdnUrl(analysis.getResultCdnUrl())
+                    .serviceName(analysis.getServiceName())
+                    .build());
+
+            // 배치 카운터 갱신 + all-done 처리
+            String batchId = analysis.getBatchId();
+            if (batchId != null) {
+                boolean failed = analysis.getAnalysisFlag() == AnalysisFlag.FAILED;
+                BatchOutcome outcome = batchProgressTracker.recordTerminal(batchId, failed);
+                if (outcome.allDone()) {
+                    handleBatchOutcome(batchId, userId, analysis.getMode(), outcome);
+                }
             }
         } finally {
             MDC.remove("analysisId");
         }
+    }
+
+    /** 배치 전체 완료: 전원 성공·NONSTOP이면 FastAPI 핸드오프, 그 외 생략. 배치 SSE + SMS 통지. */
+    private void handleBatchOutcome(String batchId, Long userId, String mode, BatchOutcome outcome) {
+        List<ProjectAnalysis> repos = projectAnalysisRepository.findByBatchId(batchId);
+        boolean portfolioRequested = false;
+
+        if (outcome.allSuccess() && "NONSTOP".equalsIgnoreCase(mode)) {
+            try {
+                List<AiDto.AnalysisItem> items = repos.stream()
+                        .filter(a -> a.getAnalysisFlag() == AnalysisFlag.DONE)
+                        .map(a -> AiDto.AnalysisItem.builder()
+                                .analysisId(a.getId())
+                                .repoUrl(a.getRepoUrl())
+                                .resultCdnUrl(a.getResultCdnUrl())
+                                .serviceName(a.getServiceName())
+                                .build())
+                        .toList();
+                aiApiClient.requestPortfolioFromAnalyses(
+                        AiDto.AnalysisResultsRequest.builder().analyses(items).userId(userId).build());
+                portfolioRequested = true;
+                log.info("[ProjectAnalysisService] portfolio handoff requested. batchId={}, repos={}", batchId, items.size());
+            } catch (Exception e) {
+                // FastAPI 실패는 웹훅을 깨지 않음(로그). 배치 SSE/SMS는 그대로.
+                log.error("[ProjectAnalysisService] FastAPI 핸드오프 실패. batchId={}", batchId, e);
+            }
+        }
+
+        sseService.pushBatch(userId, ProjectAnalysisDto.BatchSsePayload.builder()
+                .batchId(batchId)
+                .status(outcome.allSuccess() ? "ALL_DONE" : "BATCH_FAILED")
+                .total(repos.size())
+                .failures(outcome.failures())
+                .portfolioRequested(portfolioRequested)
+                .build());
+        smsNotifier.notifyBatchCompleted(userId, batchId, repos.size(), outcome.allSuccess());
     }
 
     private boolean isTerminal(AnalysisFlag flag) {

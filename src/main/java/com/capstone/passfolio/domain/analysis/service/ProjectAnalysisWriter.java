@@ -20,11 +20,13 @@ public class ProjectAnalysisWriter {
     private final ProjectAnalysisRepository projectAnalysisRepository;
 
     @Transactional
-    public void createYet(String analysisId, String repoUrl, User user) {
+    public void createYet(String batchId, String analysisId, String repoUrl, User user, String mode) {
         projectAnalysisRepository.save(ProjectAnalysis.builder()
                 .id(analysisId)
+                .batchId(batchId)
                 .repoUrl(repoUrl)
                 .user(user)
+                .mode(mode)
                 .analysisFlag(AnalysisFlag.YET)
                 .build());
     }

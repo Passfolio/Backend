@@ -12,9 +12,22 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 @Tag(name = "Project Analysis", description = "프로젝트 분석 — 디스패치 + Lambda 연동")
 public interface ProjectAnalysisApiSpecification {
+
+    @SecurityRequirement(name = "bearerAuth")
+    @Operation(
+            summary = "분석 완료 SSE 구독",
+            description = "개별 repo 완료(PROJECT_ANALYSIS_STATUS)·배치 전체 완료"
+                    + "(PROJECT_ANALYSIS_BATCH_STATUS) 이벤트를 실시간 수신하는 SSE 연결.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "SSE 연결 성공"),
+            @ApiResponse(responseCode = "401", description = "인증 필요",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+    })
+    SseEmitter subscribeToAnalysis(UserPrincipal userPrincipal);
 
     @SecurityRequirement(name = "bearerAuth")
     @Operation(

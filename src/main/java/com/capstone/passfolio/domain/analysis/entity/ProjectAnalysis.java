@@ -20,15 +20,23 @@ import lombok.experimental.SuperBuilder;
         indexes = {
                 // 사용자 정보로 좁힌 뒤 repo_url 필터하는 조회 경로의 보조 인덱스.
                 // (repo_url=VARCHAR(2048)는 btree 크기 한도 위험 → user_id 단일 인덱스로 둠)
-                @Index(name = "idx_project_analysis_user_id", columnList = "user_id")
+                @Index(name = "idx_project_analysis_user_id", columnList = "user_id"),
+                // 배치(그룹) 단위 조회(all-done 시 결과 수집).
+                @Index(name = "idx_project_analysis_batch_id", columnList = "batch_id")
         }
 )
 public class ProjectAnalysis extends TimeBaseEntity {
     @Id
     private String id; // Surrogate Key — analysis_id(외부에서 발급). Lambda 이벤트/완료 콜백의 상관키.
 
+    @Column(name = "batch_id", length = 64)
+    private String batchId; // 다중 repo 요청을 묶는 배치(그룹) ID
+
     @Column(name = "repo_url", nullable = false, length = 2048)
     private String repoUrl;
+
+    @Column(name = "mode", length = 16)
+    private String mode; // NONSTOP/STEP — all-done 시 FastAPI 핸드오프 여부 결정(배치 단위)
 
     @Builder.Default
     @Enumerated(EnumType.STRING)
