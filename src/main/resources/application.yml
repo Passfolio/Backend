@@ -191,12 +191,28 @@ ai:
 # Project Analysis (Lambda 연동) — 분석 완료 웹훅 검증용 별도 내부 키.
 # 값은 Lambda와 공유(운영: Secrets Manager/KMS, 로컬/dev: 환경변수).
 project-analysis:
-  internal-api-key: ${PROJECT_ANALYSIS_INTERNAL_API_KEY:${PASSFOLIO_INTERNAL_API_KEY}}
+  internal-api-key: ${PROJECT_ANALYSIS_INTERNAL_API_KEY:local-dev-internal-key}
 
 # AWS Service
 aws:
   stepfunction:
     arn: ${STEP_FUNCTION_ARN:}
+  sqs:
+    analysis-queue-url: ${AWS_SQS_ANALYSIS_QUEUE_URL:}   # DevSkill 분석 작업 큐(Lambda 트리거)
+
+# Project Analysis 디스패치(admission 페이서 + 토큰 유효성 임계값 + Lambda 공유 키)
+analysis:
+  dispatch:
+    # GitHub 토큰 재암호화 키(Redis용 github.token.encryption-key와 다른 추가 키).
+    # Lambda의 GITHUB_AES_KEY와 동일 값 공유(운영: Secrets Manager/KMS). 32바이트 base64.
+    github-aes-key: ${GITHUB_AES_KEY:${GITHUB_TOKEN_ENCRYPTION_KEY}}
+    # Redisson RRateLimiter: interval(초)당 rate 건만 디스패치 허용(초과 시 429).
+    rate-limit: ${ANALYSIS_DISPATCH_RATE:30}
+    rate-interval-seconds: ${ANALYSIS_DISPATCH_INTERVAL_SECONDS:60}
+    # repo 크기 상한(KB). GitHub size 기준 coarse 차단(정밀 100MB 작업트리는 Lambda clone에서).
+    max-repo-size-kb: ${ANALYSIS_MAX_REPO_SIZE_KB:1048576}  # 1GiB(git history 상한)
+    # 분석 전 GitHub 토큰이 최소 이 시간 이상 남아있어야 함(분석 소요+큐 대기 여유).
+    min-token-ttl-minutes: ${ANALYSIS_MIN_TOKEN_TTL_MINUTES:30}
 
 # Swagger (Prod에선 Open 비활성화: 릴리즈 전까지만 오픈->주석처리)
 springdoc:
