@@ -2,7 +2,7 @@ name: Deploy To EC2 (Compose)
 
 on:
   push:
-      branches: [ "main" ]
+      branches: [ "main", "PASS-020-FEAT-PROJECT-ANALYSIS" ]
 
   workflow_dispatch:
 
