@@ -89,6 +89,17 @@ github:
   token:
     encryption-key: MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=
 
+# 내부 호출 인증 키(test 컨텍스트 부팅용 — 운영은 env/Secrets)
+ai:
+  internal-api-key: test-ai-internal-key
+project-analysis:
+  internal-api-key: test-project-internal-key
+
+# LambdaTokenEncryptor는 32바이트 base64 키 필요(test 고정값 재사용)
+analysis:
+  dispatch:
+    github-aes-key: MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=
+
 ratelimit:
   enabled: false
   proxy:
