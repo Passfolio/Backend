@@ -202,7 +202,9 @@ aws:
   sns:
     enabled: ${AWS_SNS_ENABLED:false}                    # 배치 완료 SMS 발송(개발 false=로그만)
   kms:
-    token-key-id: ${AWS_KMS_TOKEN_KEY_ID:alias/passfolio/github-token-payload}  # GitHub 토큰 암호화 CMK(Lambda와 공유)
+    # GitHub 토큰 암호화 CMK(Lambda와 공유). 실제 값은 운영 APPLICATION_YML secret이 소스.
+    # 키 ARN 권장(alias가 'alias/alias/...' 이중 prefix라 모호). 리포엔 구체값 미커밋.
+    token-key-id: ${AWS_KMS_TOKEN_KEY_ID}
 
 # Project Analysis 디스패치(admission 페이서 + 토큰 유효성 임계값 + Lambda 공유 키)
 analysis:

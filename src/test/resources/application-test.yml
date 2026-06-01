@@ -96,9 +96,10 @@ project-analysis:
   internal-api-key: test-project-internal-key
 
 # LambdaTokenEncryptor(KMS Encrypt)의 키 ID — test 컨텍스트 부팅용(실 KMS 호출은 없음/mock)
+# 실제 키 식별자가 아닌 더미. 운영 값은 APPLICATION_YML secret이 소스.
 aws:
   kms:
-    token-key-id: alias/passfolio/github-token-payload
+    token-key-id: test-kms-token-key
 
 ratelimit:
   enabled: false
