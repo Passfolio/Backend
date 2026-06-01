@@ -5,11 +5,15 @@ import com.fasterxml.jackson.databind.PropertyNamingStrategies;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotEmpty;
+import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import org.hibernate.validator.constraints.URL;
+
+import java.util.List;
 
 public class ProjectAnalysisDto {
 
@@ -19,12 +23,13 @@ public class ProjectAnalysisDto {
     @Getter
     @NoArgsConstructor
     @AllArgsConstructor
-    @Schema(description = "프로젝트 분석 시작 요청")
+    @Schema(description = "프로젝트 분석 시작 요청(다중 repo, 최대 3개)")
     public static class StartRequest {
-        @NotBlank(message = "repoUrl은 필수입니다.")
-        @URL(message = "repoUrl이 유효한 URL 형식이 아닙니다.")
-        @Schema(description = "분석할 GitHub 저장소 URL", example = "https://github.com/owner/repo")
-        private String repoUrl;
+        @NotEmpty(message = "repoUrls는 최소 1개 필요합니다.")
+        @Size(max = 3, message = "한 번에 요청 가능한 저장소는 최대 3개입니다.")
+        @Schema(description = "분석할 GitHub 저장소 URL 목록(1~3개)",
+                example = "[\"https://github.com/owner/repo1\", \"https://github.com/owner/repo2\"]")
+        private List<@NotBlank @URL(message = "repoUrl이 유효한 URL 형식이 아닙니다.") String> repoUrls;
 
         @Schema(description = "분석 모드 (NONSTOP=완료 후 포트폴리오 생성 / STEP=분석만). 기본 NONSTOP",
                 example = "NONSTOP", nullable = true)
@@ -35,13 +40,54 @@ public class ProjectAnalysisDto {
     @Builder
     @NoArgsConstructor
     @AllArgsConstructor
-    @Schema(description = "프로젝트 분석 시작 응답")
+    @Schema(description = "프로젝트 분석 시작 응답(배치)")
     public static class StartResponse {
-        @Schema(description = "분석 ID", example = "a1b2c3")
-        private String analysisId;
+        @Schema(description = "배치 ID", example = "batch-uuid")
+        private String batchId;
 
-        @Schema(description = "현재 상태", example = "IN_PROGRESS")
-        private String status;
+        @Schema(description = "디스패치된 분석 목록")
+        private List<DispatchedItem> analyses;
+    }
+
+    @Getter
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Schema(description = "디스패치된 개별 분석")
+    public static class DispatchedItem {
+        private String analysisId;
+        private String repoUrl;
+        private String status; // IN_PROGRESS / FAILED(디스패치 실패)
+    }
+
+    // ============================================================
+    // SSE 푸시 페이로드 (BE → FE)
+    // ============================================================
+    @Getter
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Schema(description = "개별 repo 분석 완료 SSE 페이로드")
+    public static class AnalysisSsePayload {
+        private String analysisId;
+        private String batchId;
+        private String status;       // DONE / FAILED
+        private String repoUrl;
+        private String cdnUrl;       // DONE 시
+        private String serviceName;  // DONE 시
+    }
+
+    @Getter
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Schema(description = "배치 전체 완료 SSE 페이로드")
+    public static class BatchSsePayload {
+        private String batchId;
+        private String status;             // ALL_DONE(전원 성공·핸드오프) / BATCH_FAILED(일부 실패)
+        private int total;
+        private int failures;
+        private boolean portfolioRequested; // FastAPI 핸드오프 여부(NONSTOP·전원성공일 때만 true)
     }
 
     // ============================================================

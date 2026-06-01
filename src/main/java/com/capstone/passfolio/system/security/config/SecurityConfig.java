@@ -94,7 +94,8 @@ public class SecurityConfig {
                             request.getDispatcherType() == DispatcherType.ASYNC
                             && (request.getRequestURI().startsWith("/api/v1/sse/")
                                 || request.getRequestURI().startsWith("/api/v1/notifications/")
-                                || request.getRequestURI().startsWith("/api/v1/ai/jobs/subscribe"))
+                                || request.getRequestURI().startsWith("/api/v1/ai/jobs/subscribe")
+                                || request.getRequestURI().startsWith("/api/v1/project-analysis/subscribe"))
                         ).permitAll()
                         // 1. 비인증 경로들 (RequestMatcherHolder에서 관리)
                         .requestMatchers(requestMatcherHolder.getRequestMatchersByMinRole(null)).permitAll()
