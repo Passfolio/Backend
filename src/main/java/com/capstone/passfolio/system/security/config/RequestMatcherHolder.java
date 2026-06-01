@@ -30,6 +30,9 @@ public class RequestMatcherHolder {
             // AI webhook (AI 서버 → BE, VPC 내부 호출)
             new RequestInfo(HttpMethod.POST, "/api/v1/ai/jobs/complete", null),
 
+            // Project Analysis webhook (Lambda → BE, 내부 호출; X-INTERNAL-API-KEY로 별도 검증)
+            new RequestInfo(HttpMethod.POST, "/api/v1/project-analysis/webhook", null),
+
             // auth
             new RequestInfo(HttpMethod.POST, "/api/v1/auth/register", null),
             new RequestInfo(HttpMethod.POST, "/api/v1/auth/login", null),
