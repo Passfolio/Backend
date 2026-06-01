@@ -19,11 +19,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.slf4j.MDC;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Set;
 import java.util.UUID;
 
 @Slf4j
@@ -50,7 +48,6 @@ public class ProjectAnalysisService {
     private long maxRepoSizeKb;
 
     private static final int MAX_BATCH = 3;
-    private static final Set<String> SUCCESS_TOKENS = Set.of("analyzed", "done", "success");
 
     // ============================================================
     // 디스패치 (FE → BE → Lambda), 다중 repo 배치
@@ -168,55 +165,33 @@ public class ProjectAnalysisService {
     // ============================================================
 
     /**
-     * 분석 완료 콜백. 개별 repo 상태 갱신 + 개별 SSE + 배치 카운터 갱신. 멱등(이미 종료면 skip).
-     * 배치가 all-done이면 (전원 성공·NONSTOP) FastAPI 핸드오프 + 배치 SSE + SMS.
+     * 분석 완료 콜백. DB 변경은 writer 트랜잭션에서 커밋한 뒤(외부호출은 txn 밖에서 안전하게)
+     * 개별 SSE + 배치 카운터 갱신 + all-done 처리(전원 성공·NONSTOP → FastAPI / 배치 SSE / SMS).
+     * 멱등(이미 종료면 skip). 미존재면 PROJECT_ANALYSIS_NOT_FOUND.
      */
-    @Transactional(rollbackFor = Exception.class)
     public void completeAnalysis(ProjectAnalysisDto.WebhookCompleteRequest dto) {
         MDC.put("analysisId", dto.getAnalysisId());
         try {
-            ProjectAnalysis analysis = projectAnalysisRepository.findById(dto.getAnalysisId())
-                    .orElseThrow(() -> new RestException(ErrorCode.PROJECT_ANALYSIS_NOT_FOUND));
-
-            if (isTerminal(analysis.getAnalysisFlag())) {
-                log.info("[ProjectAnalysisService] completeAnalysis skipped (already {}). analysisId={}",
-                        analysis.getAnalysisFlag(), dto.getAnalysisId());
+            // 1) DB 변경 + 커밋 (트랜잭션 경계는 writer)
+            ProjectAnalysisWriter.CompletionResult r = projectAnalysisWriter.applyCompletion(dto);
+            if (r == null) {
+                log.info("[ProjectAnalysisService] completeAnalysis skipped (already terminal). analysisId={}",
+                        dto.getAnalysisId());
                 return;
             }
+            log.info("[ProjectAnalysisService] analysis {}. analysisId={}", r.statusName(), r.analysisId());
 
-            boolean success = dto.getStatus() != null
-                    && SUCCESS_TOKENS.contains(dto.getStatus().trim().toLowerCase());
-            if (success && (dto.getCdnUrl() == null || dto.getCdnUrl().isBlank())) {
-                log.warn("[ProjectAnalysisService] success with no cdnUrl, forcing FAILED. analysisId={}", dto.getAnalysisId());
-                success = false;
-                analysis.markFailed("완료 보고됐으나 결과 CDN URL이 없습니다.");
-            } else if (success) {
-                analysis.markDone(dto.getCdnUrl(), dto.getServiceName());
-            } else {
-                analysis.markFailed(dto.getErrorMessage());
-            }
-            log.info("[ProjectAnalysisService] analysis {}. analysisId={}",
-                    analysis.getAnalysisFlag(), dto.getAnalysisId());
-
-            Long userId = analysis.getUser() != null ? analysis.getUser().getId() : null;
-
-            // 개별 repo 완료 SSE
-            sseService.pushAnalysis(userId, ProjectAnalysisDto.AnalysisSsePayload.builder()
-                    .analysisId(analysis.getId())
-                    .batchId(analysis.getBatchId())
-                    .status(analysis.getAnalysisFlag().name())
-                    .repoUrl(analysis.getRepoUrl())
-                    .cdnUrl(analysis.getResultCdnUrl())
-                    .serviceName(analysis.getServiceName())
+            // 2) 커밋 후 통지(외부호출 — txn 밖)
+            sseService.pushAnalysis(r.userId(), ProjectAnalysisDto.AnalysisSsePayload.builder()
+                    .analysisId(r.analysisId()).batchId(r.batchId()).status(r.statusName())
+                    .repoUrl(r.repoUrl()).cdnUrl(r.cdnUrl()).serviceName(r.serviceName())
                     .build());
 
-            // 배치 카운터 갱신 + all-done 처리
-            String batchId = analysis.getBatchId();
-            if (batchId != null) {
-                boolean failed = analysis.getAnalysisFlag() == AnalysisFlag.FAILED;
-                BatchOutcome outcome = batchProgressTracker.recordTerminal(batchId, failed);
+            // 3) 배치 카운터 갱신 + all-done 처리
+            if (r.batchId() != null) {
+                BatchOutcome outcome = batchProgressTracker.recordTerminal(r.batchId(), r.failed());
                 if (outcome.allDone()) {
-                    handleBatchOutcome(batchId, userId, analysis.getMode(), outcome);
+                    handleBatchOutcome(r.batchId(), r.userId(), r.mode(), outcome);
                 }
             }
         } finally {
@@ -258,9 +233,5 @@ public class ProjectAnalysisService {
                 .portfolioRequested(portfolioRequested)
                 .build());
         smsNotifier.notifyBatchCompleted(userId, batchId, repos.size(), outcome.allSuccess());
-    }
-
-    private boolean isTerminal(AnalysisFlag flag) {
-        return flag == AnalysisFlag.DONE || flag == AnalysisFlag.FAILED;
     }
 }

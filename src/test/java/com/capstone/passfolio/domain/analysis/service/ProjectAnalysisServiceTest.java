@@ -147,72 +147,80 @@ class ProjectAnalysisServiceTest {
         then(sseService).should().pushBatch(eq(7L), any());
     }
 
-    // ---------- 완료 콜백 ----------
-
-    private ProjectAnalysis inProgress(String id) {
-        return ProjectAnalysis.builder()
-                .id(id).repoUrl("https://github.com/o/r.git").analysisFlag(AnalysisFlag.IN_PROGRESS).build();
-    }
+    // ---------- 완료 콜백 (DB는 writer가 커밋, service는 커밋 후 통지/배치 오케스트레이션) ----------
 
     private ProjectAnalysisDto.WebhookCompleteRequest req(
             String id, String status, String cdnUrl, String serviceName, String errorMessage) {
         return new ProjectAnalysisDto.WebhookCompleteRequest(id, status, cdnUrl, serviceName, errorMessage);
     }
 
-    @Test
-    @DisplayName("analyzed + cdnUrl → DONE + 개별 SSE (batch 없음)")
-    void complete_success_single() {
-        ProjectAnalysis a = inProgress("a1");
-        given(projectAnalysisRepository.findById("a1")).willReturn(Optional.of(a));
-
-        projectAnalysisService.completeAnalysis(req("a1", "analyzed", "https://cdn.x/r.json", "Svc", null));
-
-        assertThat(a.getAnalysisFlag()).isEqualTo(AnalysisFlag.DONE);
-        assertThat(a.getResultCdnUrl()).isEqualTo("https://cdn.x/r.json");
-        then(sseService).should().pushAnalysis(any(), any());
-        then(batchProgressTracker).should(never())
-                .recordTerminal(anyString(), org.mockito.ArgumentMatchers.anyBoolean()); // batchId null
+    private ProjectAnalysisWriter.CompletionResult result(String batchId, boolean failed, String mode) {
+        return new ProjectAnalysisWriter.CompletionResult(
+                "a1", batchId, 7L, mode, failed, "repo", "https://cdn.x/r.json", "Svc",
+                failed ? "FAILED" : "DONE");
     }
 
     @Test
-    @DisplayName("배치 all-done 전원성공 + NONSTOP → FastAPI 핸드오프 + 배치 SSE")
-    void complete_batch_all_success_handoff() {
-        User user = mock(User.class);
-        given(user.getId()).willReturn(7L);
-        ProjectAnalysis a = ProjectAnalysis.builder()
-                .id("a1").batchId("b1").repoUrl("https://github.com/o/r").mode("NONSTOP")
-                .user(user).analysisFlag(AnalysisFlag.IN_PROGRESS).build();
-        given(projectAnalysisRepository.findById("a1")).willReturn(Optional.of(a));
-        given(batchProgressTracker.recordTerminal("b1", false))
-                .willReturn(new BatchProgressTracker.BatchOutcome(true, true, 0));
-        given(projectAnalysisRepository.findByBatchId("b1")).willReturn(List.of(a));
+    @DisplayName("성공 콜백 → 개별 SSE (batch 없음 → 카운터 미수행)")
+    void complete_pushes_individual_sse() {
+        given(projectAnalysisWriter.applyCompletion(any())).willReturn(result(null, false, "NONSTOP"));
 
         projectAnalysisService.completeAnalysis(req("a1", "analyzed", "https://cdn.x/r.json", "Svc", null));
 
-        assertThat(a.getAnalysisFlag()).isEqualTo(AnalysisFlag.DONE);
+        then(sseService).should().pushAnalysis(eq(7L), any());
+        then(batchProgressTracker).should(never())
+                .recordTerminal(anyString(), org.mockito.ArgumentMatchers.anyBoolean());
+    }
+
+    @Test
+    @DisplayName("배치 all-done 전원성공 + NONSTOP → FastAPI 핸드오프 + 배치 SSE + SMS (커밋 후)")
+    void complete_batch_all_success_handoff() {
+        given(projectAnalysisWriter.applyCompletion(any())).willReturn(result("b1", false, "NONSTOP"));
+        given(batchProgressTracker.recordTerminal("b1", false))
+                .willReturn(new BatchProgressTracker.BatchOutcome(true, true, 0));
+        ProjectAnalysis done = ProjectAnalysis.builder()
+                .id("a1").batchId("b1").repoUrl("repo").analysisFlag(AnalysisFlag.DONE)
+                .resultCdnUrl("https://cdn.x/r.json").serviceName("Svc").build();
+        given(projectAnalysisRepository.findByBatchId("b1")).willReturn(List.of(done));
+
+        projectAnalysisService.completeAnalysis(req("a1", "analyzed", "https://cdn.x/r.json", "Svc", null));
+
         then(aiApiClient).should().requestPortfolioFromAnalyses(any(AiDto.AnalysisResultsRequest.class));
         then(sseService).should().pushBatch(eq(7L), any());
         then(smsNotifier).should().notifyBatchCompleted(eq(7L), eq("b1"), eq(1), eq(true));
     }
 
     @Test
-    @DisplayName("이미 종료(DONE) → 멱등 skip(상태 불변, 카운터·SSE 미수행)")
-    void complete_idempotent_skip() {
-        ProjectAnalysis a = ProjectAnalysis.builder()
-                .id("a1").repoUrl("r").analysisFlag(AnalysisFlag.DONE).build();
-        given(projectAnalysisRepository.findById("a1")).willReturn(Optional.of(a));
+    @DisplayName("배치 all-done 실패 포함 → FastAPI 핸드오프 생략, 배치 SSE")
+    void complete_batch_with_failure_no_handoff() {
+        given(projectAnalysisWriter.applyCompletion(any())).willReturn(result("b1", true, "NONSTOP"));
+        given(batchProgressTracker.recordTerminal("b1", true))
+                .willReturn(new BatchProgressTracker.BatchOutcome(true, false, 1));
+        given(projectAnalysisRepository.findByBatchId("b1")).willReturn(List.of());
 
-        projectAnalysisService.completeAnalysis(req("a1", "failed", null, null, "late"));
+        projectAnalysisService.completeAnalysis(req("a1", "failed", null, null, "boom"));
 
-        assertThat(a.getAnalysisFlag()).isEqualTo(AnalysisFlag.DONE);
-        then(sseService).should(never()).pushAnalysis(any(), any());
-        then(batchProgressTracker).should(never()).recordTerminal(anyString(), org.mockito.ArgumentMatchers.anyBoolean());
+        then(aiApiClient).should(never()).requestPortfolioFromAnalyses(any());
+        then(sseService).should().pushBatch(eq(7L), any());
     }
 
     @Test
-    @DisplayName("존재하지 않는 분석 → PROJECT_ANALYSIS_NOT_FOUND")
+    @DisplayName("이미 종료 → writer가 null 반환 → 통지·카운터 미수행(멱등)")
+    void complete_idempotent_skip() {
+        given(projectAnalysisWriter.applyCompletion(any())).willReturn(null);
+
+        projectAnalysisService.completeAnalysis(req("a1", "failed", null, null, "late"));
+
+        then(sseService).should(never()).pushAnalysis(any(), any());
+        then(batchProgressTracker).should(never())
+                .recordTerminal(anyString(), org.mockito.ArgumentMatchers.anyBoolean());
+    }
+
+    @Test
+    @DisplayName("미존재 → PROJECT_ANALYSIS_NOT_FOUND 전파")
     void complete_not_found() {
-        given(projectAnalysisRepository.findById("missing")).willReturn(Optional.empty());
+        willThrow(new RestException(ErrorCode.PROJECT_ANALYSIS_NOT_FOUND))
+                .given(projectAnalysisWriter).applyCompletion(any());
 
         assertThatThrownBy(() -> projectAnalysisService.completeAnalysis(
                 req("missing", "analyzed", "https://cdn.x/r.json", "S", null)))

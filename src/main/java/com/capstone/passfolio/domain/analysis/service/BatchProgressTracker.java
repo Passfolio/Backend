@@ -45,7 +45,8 @@ public class BatchProgressTracker {
             redissonClient.getAtomicLong(failuresKey(batchId)).incrementAndGet();
         }
         long remaining = redissonClient.getAtomicLong(remainingKey(batchId)).decrementAndGet();
-        if (remaining > 0) {
+        // 정확히 0일 때만 all-done(중복/지연 호출로 음수가 되면 재트리거하지 않음 — 가드).
+        if (remaining != 0) {
             return new BatchOutcome(false, false, 0);
         }
         long failures = redissonClient.getAtomicLong(failuresKey(batchId)).get();
