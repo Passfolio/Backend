@@ -201,13 +201,13 @@ aws:
     analysis-queue-url: ${AWS_SQS_ANALYSIS_QUEUE_URL:}   # DevSkill 분석 작업 큐(Lambda 트리거)
   sns:
     enabled: ${AWS_SNS_ENABLED:false}                    # 배치 완료 SMS 발송(개발 false=로그만)
+  kms:
+    token-key-id: ${AWS_KMS_TOKEN_KEY_ID:alias/passfolio/github-token-payload}  # GitHub 토큰 암호화 CMK(Lambda와 공유)
 
 # Project Analysis 디스패치(admission 페이서 + 토큰 유효성 임계값 + Lambda 공유 키)
 analysis:
   dispatch:
-    # GitHub 토큰 재암호화 키(Redis용 github.token.encryption-key와 다른 추가 키).
-    # Lambda의 GITHUB_AES_KEY와 동일 값 공유(운영: Secrets Manager/KMS). 32바이트 base64.
-    github-aes-key: ${GITHUB_AES_KEY:${GITHUB_TOKEN_ENCRYPTION_KEY}}
+    # (토큰 재암호화는 KMS로 — 위 aws.kms.token-key-id 참조. 원시 AES 공유키 미사용.)
     # Redisson RRateLimiter: interval(초)당 rate 건만 디스패치 허용(초과 시 429).
     rate-limit: ${ANALYSIS_DISPATCH_RATE:30}
     rate-interval-seconds: ${ANALYSIS_DISPATCH_INTERVAL_SECONDS:60}
