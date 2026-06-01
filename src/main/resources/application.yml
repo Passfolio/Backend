@@ -213,6 +213,10 @@ analysis:
     max-repo-size-kb: ${ANALYSIS_MAX_REPO_SIZE_KB:1048576}  # 1GiB(git history 상한)
     # 분석 전 GitHub 토큰이 최소 이 시간 이상 남아있어야 함(분석 소요+큐 대기 여유).
     min-token-ttl-minutes: ${ANALYSIS_MIN_TOKEN_TTL_MINUTES:30}
+    # 배치 완료 추적 Redis 카운터 TTL(시간). stale-timeout보다 충분히 길게.
+    batch-ttl-hours: ${ANALYSIS_BATCH_TTL_HOURS:6}
+    # stale 안전망: IN_PROGRESS가 이 시간 이상 정체되면 실패 처리(Lambda 최대 15분 → 여유).
+    stale-timeout-minutes: ${ANALYSIS_STALE_TIMEOUT_MINUTES:30}
 
 # Swagger (Prod에선 Open 비활성화: 릴리즈 전까지만 오픈->주석처리)
 springdoc:
