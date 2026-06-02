@@ -6,9 +6,11 @@ import com.capstone.passfolio.domain.analysis.entity.enums.RepoAvailabilityStatu
 import com.capstone.passfolio.domain.analysis.repository.RepoAvailabilityRepository;
 import com.capstone.passfolio.domain.aws.sqs.SqsMessageSender;
 import com.capstone.passfolio.domain.user.entity.User;
+import com.capstone.passfolio.domain.user.entity.enums.Role;
 import com.capstone.passfolio.domain.user.repository.UserRepository;
 import com.capstone.passfolio.system.exception.model.ErrorCode;
 import com.capstone.passfolio.system.exception.model.RestException;
+import com.capstone.passfolio.system.security.model.UserPrincipal;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -89,6 +91,60 @@ public class RepoAvailabilityService {
         }
         log.info("[RepoAvailability] precheck dispatched. userId={}, count={}", userId, repoUrls.size());
         return RepoAvailabilityDto.PrecheckStartResponse.builder().items(items).build();
+    }
+
+    /**
+     * ADMIN 테스트 전용: 공개 repo(≤5)를 토큰 없이 precheck 디스패치(소유권 무관).
+     * GitHub 토큰 없는 시스템 admin이 precheck 파이프라인/UI를 검증하는 용도. is_private=false·token=null.
+     */
+    @Transactional
+    public RepoAvailabilityDto.PrecheckStartResponse initiateAdminPrecheck(UserPrincipal caller, List<String> repoUrls) {
+        assertAdmin(caller);
+        if (repoUrls == null || repoUrls.isEmpty() || repoUrls.size() > MAX_PRECHECK_BATCH) {
+            throw new RestException(ErrorCode.ANALYSIS_PRECHECK_BATCH_SIZE_EXCEEDED);
+        }
+        User adminUser = userRepository.findById(caller.getUserId())
+                .orElseThrow(() -> new RestException(ErrorCode.AUTH_USER_NOT_FOUND));
+
+        List<RepoAvailabilityDto.PrecheckItem> items = new ArrayList<>();
+        for (String repoUrl : repoUrls) {
+            RepoAvailability row = repoAvailabilityRepository.findByUser_IdAndRepoUrl(caller.getUserId(), repoUrl)
+                    .map(existing -> {
+                        existing.markChecking();
+                        return existing;
+                    })
+                    .orElseGet(() -> RepoAvailability.builder()
+                            .id(UUID.randomUUID().toString())
+                            .user(adminUser)
+                            .repoUrl(repoUrl)
+                            .status(RepoAvailabilityStatus.CHECKING)
+                            .build());
+            repoAvailabilityRepository.save(row);
+
+            try {
+                sqsMessageSender.send(precheckQueueUrl, RepoAvailabilityDto.PrecheckJobMessage.builder()
+                        .precheckId(row.getId())
+                        .repoUrl(repoUrl)
+                        .userPk(String.valueOf(caller.getUserId()))
+                        .isPrivate(false)          // 공개 repo — 토큰 불필요(익명 clone)
+                        .encryptedToken(null)
+                        .mode("PRECHECK")
+                        .build());
+            } catch (Exception e) {
+                log.error("[RepoAvailability] admin precheck 디스패치 실패. repoUrl={}", repoUrl, e);
+                row.markDisabled("점검 디스패치 실패", null, null);
+                repoAvailabilityRepository.save(row);
+            }
+            items.add(RepoAvailabilityDto.PrecheckItem.from(row));
+        }
+        log.info("[RepoAvailability] ADMIN precheck dispatched. adminId={}, count={}", caller.getUserId(), repoUrls.size());
+        return RepoAvailabilityDto.PrecheckStartResponse.builder().items(items).build();
+    }
+
+    private void assertAdmin(UserPrincipal caller) {
+        if (caller == null || caller.getRole() == null || caller.getRole() != Role.ADMIN) {
+            throw new RestException(ErrorCode.AUTH_FORBIDDEN);
+        }
     }
 
     /** Lambda 콜백: 점검 결과 반영(멱등) 후 SSE 통지. */
