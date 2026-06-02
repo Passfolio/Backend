@@ -38,6 +38,11 @@ public class GitHubTokenRedisRepository {
         stringRedisTemplate.delete(keyToken(userId));
     }
 
+    /** 토큰 잔여 TTL(초). 키 없음 -2, TTL 없음 -1, 미설정 null. (분석 디스패치 전 유효기간 점검용) */
+    public Long getAccessTokenTtlSeconds(Long userId) {
+        return stringRedisTemplate.getExpire(keyToken(userId));
+    }
+
     // --- Repos Cache ---
 
     /** 스키마(htmlUrl, fullName 등) 변경 시 버전 올려 기존 캐시 무효화 */
