@@ -13,6 +13,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import org.hibernate.validator.constraints.URL;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 public class ProjectAnalysisDto {
@@ -96,6 +97,15 @@ public class ProjectAnalysisDto {
     @Builder
     @NoArgsConstructor
     @AllArgsConstructor
+    @Schema(description = "ADMIN 테스트 디스패치 한도(호출자 기준)")
+    public static class AdminTestLimitResponse {
+        private int maxRepoCount; // 이 호출자가 한 번에 디스패치 가능한 최대 repo 수
+    }
+
+    @Getter
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
     @Schema(description = "ADMIN 테스트로 디스패치된 개별 분석(디스패치 순번 포함)")
     public static class AdminDispatchedItem {
         private String analysisId;
@@ -103,6 +113,50 @@ public class ProjectAnalysisDto {
         private String owner;        // dominant 모드 username(=repo owner)
         private int dispatchSeq;     // 디스패치 순번(0-based)
         private String status;       // IN_PROGRESS / FAILED(디스패치 실패)
+    }
+
+    // ============================================================
+    // ADMIN 배치 상태 폴링 (FE 대시보드가 5초 주기로 조회 — 상태 레벨 메트릭)
+    // ============================================================
+    @Getter
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Schema(description = "ADMIN 배치 상태 폴링 응답(project_analysis 상태 레벨 집계)")
+    public static class AdminBatchStatusResponse {
+        private String batchId;
+        private int total;
+        private boolean allTerminal;                  // done+failed == total(폴링 종료 신호)
+        private BatchStatusCounts counts;
+        private List<AdminBatchAnalysisItem> analyses;
+    }
+
+    @Getter
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Schema(description = "배치 상태 카운트(analysis_flag별)")
+    public static class BatchStatusCounts {
+        private int yet;
+        private int inProgress;
+        private int done;
+        private int failed;
+    }
+
+    @Getter
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Schema(description = "배치 내 개별 분석 상태")
+    public static class AdminBatchAnalysisItem {
+        private String analysisId;
+        private String repoUrl;
+        private String status;            // YET / IN_PROGRESS / DONE / FAILED
+        private String serviceName;       // DONE 시
+        private String cdnUrl;            // DONE 시
+        private String failureReason;     // FAILED 시
+        private LocalDateTime createdAt;
+        private LocalDateTime lastModifiedAt;
     }
 
     // ============================================================

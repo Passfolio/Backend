@@ -9,6 +9,8 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -37,5 +39,24 @@ public class AdminProjectAnalysisController {
             @AuthenticationPrincipal UserPrincipal userPrincipal,
             @Valid @RequestBody ProjectAnalysisDto.AdminTestBatchRequest request) {
         return ResponseEntity.ok(projectAnalysisService.initiateAdminTestBatch(userPrincipal, request));
+    }
+
+    @GetMapping("/test-batch/limit")
+    @Operation(summary = "내 테스트 디스패치 한도 조회(ADMIN)",
+            description = "호출 계정이 한 번에 디스패치 가능한 최대 repo 수를 반환(privileged=300, 그 외=11). "
+                    + "FE 슬라이더 상한을 맞추는 용도. ADMIN 전용.")
+    public ResponseEntity<ProjectAnalysisDto.AdminTestLimitResponse> testBatchLimit(
+            @AuthenticationPrincipal UserPrincipal userPrincipal) {
+        return ResponseEntity.ok(projectAnalysisService.getAdminTestLimit(userPrincipal));
+    }
+
+    @GetMapping("/batch/{batchId}")
+    @Operation(summary = "배치 상태 폴링 조회(ADMIN)",
+            description = "batchId로 묶인 분석들의 상태 레벨 메트릭(flag별 카운트 + repo별 상태/결과/사유)을 반환. "
+                    + "FE 대시보드가 5초 주기로 폴링. ADMIN 전용.")
+    public ResponseEntity<ProjectAnalysisDto.AdminBatchStatusResponse> batchStatus(
+            @AuthenticationPrincipal UserPrincipal userPrincipal,
+            @PathVariable String batchId) {
+        return ResponseEntity.ok(projectAnalysisService.getAdminBatchStatus(userPrincipal, batchId));
     }
 }
