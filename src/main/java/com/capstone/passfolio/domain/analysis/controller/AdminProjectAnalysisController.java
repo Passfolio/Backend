@@ -1,7 +1,9 @@
 package com.capstone.passfolio.domain.analysis.controller;
 
 import com.capstone.passfolio.domain.analysis.dto.ProjectAnalysisDto;
+import com.capstone.passfolio.domain.analysis.dto.RepoAvailabilityDto;
 import com.capstone.passfolio.domain.analysis.service.ProjectAnalysisService;
+import com.capstone.passfolio.domain.analysis.service.RepoAvailabilityService;
 import com.capstone.passfolio.system.security.model.UserPrincipal;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -31,6 +33,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class AdminProjectAnalysisController {
 
     private final ProjectAnalysisService projectAnalysisService;
+    private final RepoAvailabilityService repoAvailabilityService;
 
     @PostMapping("/test-batch")
     @Operation(summary = "공개 repo 다수 동시 디스패치(ADMIN)",
@@ -39,6 +42,15 @@ public class AdminProjectAnalysisController {
             @AuthenticationPrincipal UserPrincipal userPrincipal,
             @Valid @RequestBody ProjectAnalysisDto.AdminTestBatchRequest request) {
         return ResponseEntity.ok(projectAnalysisService.initiateAdminTestBatch(userPrincipal, request));
+    }
+
+    @PostMapping("/precheck-test")
+    @Operation(summary = "공개 repo 사전 점검 테스트(ADMIN)",
+            description = "토큰 없이 공개 repo(≤5)를 precheck 디스패치. GitHub 미연동 admin이 precheck 파이프라인 검증용.")
+    public ResponseEntity<RepoAvailabilityDto.PrecheckStartResponse> precheckTest(
+            @AuthenticationPrincipal UserPrincipal userPrincipal,
+            @Valid @RequestBody RepoAvailabilityDto.PrecheckStartRequest request) {
+        return ResponseEntity.ok(repoAvailabilityService.initiateAdminPrecheck(userPrincipal, request.getRepoUrls()));
     }
 
     @GetMapping("/test-batch/limit")
