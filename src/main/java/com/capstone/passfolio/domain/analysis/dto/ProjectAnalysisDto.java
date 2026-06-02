@@ -97,6 +97,15 @@ public class ProjectAnalysisDto {
     @Builder
     @NoArgsConstructor
     @AllArgsConstructor
+    @Schema(description = "ADMIN 테스트 디스패치 한도(호출자 기준)")
+    public static class AdminTestLimitResponse {
+        private int maxRepoCount; // 이 호출자가 한 번에 디스패치 가능한 최대 repo 수
+    }
+
+    @Getter
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
     @Schema(description = "ADMIN 테스트로 디스패치된 개별 분석(디스패치 순번 포함)")
     public static class AdminDispatchedItem {
         private String analysisId;

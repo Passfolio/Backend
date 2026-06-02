@@ -221,6 +221,10 @@ analysis:
     batch-ttl-hours: ${ANALYSIS_BATCH_TTL_HOURS:6}
     # stale 안전망: IN_PROGRESS가 이 시간 이상 정체되면 실패 처리(Lambda 최대 15분 → 여유).
     stale-timeout-minutes: ${ANALYSIS_STALE_TIMEOUT_MINUTES:30}
+  admin-test:
+    # 여기 등록된 username(=가입 이메일, 소문자) 만 최대 300개 디스패치 가능. 그 외 ADMIN은 11개 제한.
+    # 콤마 구분. 미설정 시 전원 11개로 제한. 예: ANALYSIS_ADMIN_TEST_PRIVILEGED_USERNAMES=owner@example.com
+    privileged-usernames: ${ANALYSIS_ADMIN_TEST_PRIVILEGED_USERNAMES:}
 
 # Swagger (Prod에선 Open 비활성화: 릴리즈 전까지만 오픈->주석처리)
 springdoc:
