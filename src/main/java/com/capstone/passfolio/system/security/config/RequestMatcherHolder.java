@@ -32,6 +32,8 @@ public class RequestMatcherHolder {
 
             // Project Analysis webhook (Lambda → BE, 내부 호출; X-INTERNAL-API-KEY로 별도 검증)
             new RequestInfo(HttpMethod.POST, "/api/v1/project-analysis/webhook", null),
+            // Project Analysis precheck webhook (Lambda → BE, 내부 호출; X-INTERNAL-API-KEY로 별도 검증)
+            new RequestInfo(HttpMethod.POST, "/api/v1/project-analysis/precheck/webhook", null),
 
             // auth
             new RequestInfo(HttpMethod.POST, "/api/v1/auth/register", null),

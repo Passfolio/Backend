@@ -44,6 +44,7 @@ public class ProjectAnalysisService {
     private final ProjectAnalysisSseService sseService;
     private final AiApiClient aiApiClient;
     private final SmsNotifier smsNotifier;
+    private final RepoAvailabilityService repoAvailabilityService;
 
     @Value("${aws.sqs.analysis-queue-url}")
     private String analysisQueueUrl;
@@ -84,6 +85,8 @@ public class ProjectAnalysisService {
         // 2) 전 repo size 게이트(하나라도 초과 시 아무것도 디스패치하지 않고 거부)
         List<RepoMeta> metas = new ArrayList<>();
         for (String repoUrl : repoUrls) {
+            // 사전 점검 게이트: AVAILABLE인 repo만 분석 허용(admin 테스트 경로엔 미적용).
+            repoAvailabilityService.assertAnalyzable(userId, repoUrl);
             OwnerRepo or = parseOwnerRepo(repoUrl);
             GitHubDto.ApiRepo repo = gitHubApiClient.fetchRepo(plainToken, or.owner(), or.repo());
             long sizeKb = repo.getSize() != null ? repo.getSize() : 0L;
