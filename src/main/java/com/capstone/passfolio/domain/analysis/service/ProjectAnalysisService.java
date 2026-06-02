@@ -51,7 +51,7 @@ public class ProjectAnalysisService {
     private long maxRepoSizeKb;
 
     private static final int MAX_BATCH = 3;
-    private static final int MAX_ADMIN_TEST_BATCH = 100;
+    private static final int MAX_ADMIN_TEST_BATCH = 200;
 
     // ============================================================
     // 디스패치 (FE → BE → Lambda), 다중 repo 배치
