@@ -9,6 +9,8 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -37,5 +39,15 @@ public class AdminProjectAnalysisController {
             @AuthenticationPrincipal UserPrincipal userPrincipal,
             @Valid @RequestBody ProjectAnalysisDto.AdminTestBatchRequest request) {
         return ResponseEntity.ok(projectAnalysisService.initiateAdminTestBatch(userPrincipal, request));
+    }
+
+    @GetMapping("/batch/{batchId}")
+    @Operation(summary = "배치 상태 폴링 조회(ADMIN)",
+            description = "batchId로 묶인 분석들의 상태 레벨 메트릭(flag별 카운트 + repo별 상태/결과/사유)을 반환. "
+                    + "FE 대시보드가 5초 주기로 폴링. ADMIN 전용.")
+    public ResponseEntity<ProjectAnalysisDto.AdminBatchStatusResponse> batchStatus(
+            @AuthenticationPrincipal UserPrincipal userPrincipal,
+            @PathVariable String batchId) {
+        return ResponseEntity.ok(projectAnalysisService.getAdminBatchStatus(userPrincipal, batchId));
     }
 }
