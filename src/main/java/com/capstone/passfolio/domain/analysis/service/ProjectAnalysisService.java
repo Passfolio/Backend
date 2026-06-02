@@ -23,6 +23,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
 
@@ -50,8 +51,14 @@ public class ProjectAnalysisService {
     @Value("${analysis.dispatch.max-repo-size-kb}")
     private long maxRepoSizeKb;
 
+    // admin 테스트 디스패치를 300개까지 허용할 username(=가입 이메일, 소문자) 목록(콤마 구분).
+    // 미설정 시 전원 DEFAULT_ADMIN_TEST_BATCH(11)로 제한.
+    @Value("${analysis.admin-test.privileged-usernames:}")
+    private String privilegedTesterUsernamesRaw;
+
     private static final int MAX_BATCH = 3;
-    private static final int MAX_ADMIN_TEST_BATCH = 300;
+    private static final int MAX_ADMIN_TEST_BATCH = 300;     // privileged 테스터 상한
+    private static final int DEFAULT_ADMIN_TEST_BATCH = 11;  // 일반 ADMIN 상한
 
     // ============================================================
     // 디스패치 (FE → BE → Lambda), 다중 repo 배치
@@ -140,7 +147,8 @@ public class ProjectAnalysisService {
             UserPrincipal caller, ProjectAnalysisDto.AdminTestBatchRequest request) {
         assertAdmin(caller);
         List<String> repoUrls = request.getRepoUrls();
-        if (repoUrls == null || repoUrls.isEmpty() || repoUrls.size() > MAX_ADMIN_TEST_BATCH) {
+        int maxBatch = resolveAdminTestMaxBatch(caller); // privileged=300, 그 외 ADMIN=11
+        if (repoUrls == null || repoUrls.isEmpty() || repoUrls.size() > maxBatch) {
             throw new RestException(ErrorCode.ANALYSIS_BATCH_SIZE_EXCEEDED);
         }
         User adminUser = userRepository.findById(caller.getUserId())
@@ -183,6 +191,32 @@ public class ProjectAnalysisService {
         if (caller == null || caller.getRole() == null || caller.getRole() != Role.ADMIN) {
             throw new RestException(ErrorCode.AUTH_FORBIDDEN);
         }
+    }
+
+    /** 호출 ADMIN의 테스트 디스패치 상한. privileged 화이트리스트면 300, 그 외 11. */
+    private int resolveAdminTestMaxBatch(UserPrincipal caller) {
+        return isPrivilegedTester(caller) ? MAX_ADMIN_TEST_BATCH : DEFAULT_ADMIN_TEST_BATCH;
+    }
+
+    /** caller.username(=가입 이메일, 소문자)이 privileged-usernames(콤마 구분)에 있는지. */
+    private boolean isPrivilegedTester(UserPrincipal caller) {
+        if (caller == null || caller.getUsername() == null
+                || privilegedTesterUsernamesRaw == null || privilegedTesterUsernamesRaw.isBlank()) {
+            return false;
+        }
+        String norm = caller.getUsername().trim().toLowerCase();
+        return Arrays.stream(privilegedTesterUsernamesRaw.split(","))
+                .map(s -> s.trim().toLowerCase())
+                .filter(s -> !s.isEmpty())
+                .anyMatch(norm::equals);
+    }
+
+    /** FE가 슬라이더 상한을 맞추기 위해 조회하는 호출자 기준 디스패치 한도. */
+    public ProjectAnalysisDto.AdminTestLimitResponse getAdminTestLimit(UserPrincipal caller) {
+        assertAdmin(caller);
+        return ProjectAnalysisDto.AdminTestLimitResponse.builder()
+                .maxRepoCount(resolveAdminTestMaxBatch(caller))
+                .build();
     }
 
     /**

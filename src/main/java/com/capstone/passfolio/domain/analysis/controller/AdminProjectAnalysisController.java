@@ -41,6 +41,15 @@ public class AdminProjectAnalysisController {
         return ResponseEntity.ok(projectAnalysisService.initiateAdminTestBatch(userPrincipal, request));
     }
 
+    @GetMapping("/test-batch/limit")
+    @Operation(summary = "내 테스트 디스패치 한도 조회(ADMIN)",
+            description = "호출 계정이 한 번에 디스패치 가능한 최대 repo 수를 반환(privileged=300, 그 외=11). "
+                    + "FE 슬라이더 상한을 맞추는 용도. ADMIN 전용.")
+    public ResponseEntity<ProjectAnalysisDto.AdminTestLimitResponse> testBatchLimit(
+            @AuthenticationPrincipal UserPrincipal userPrincipal) {
+        return ResponseEntity.ok(projectAnalysisService.getAdminTestLimit(userPrincipal));
+    }
+
     @GetMapping("/batch/{batchId}")
     @Operation(summary = "배치 상태 폴링 조회(ADMIN)",
             description = "batchId로 묶인 분석들의 상태 레벨 메트릭(flag별 카운트 + repo별 상태/결과/사유)을 반환. "
