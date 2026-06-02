@@ -74,8 +74,8 @@ public class ProjectAnalysisDto {
     @Schema(description = "ADMIN 분석 부하 테스트 요청(공개 repo, 토큰 불필요, 최대 20개)")
     public static class AdminTestBatchRequest {
         @NotEmpty(message = "repoUrls는 최소 1개 필요합니다.")
-        @Size(max = 20, message = "한 번에 요청 가능한 저장소는 최대 20개입니다.")
-        @Schema(description = "분석할 공개 GitHub 저장소 URL 목록(1~20개)")
+        @Size(max = 50, message = "한 번에 요청 가능한 저장소는 최대 50개입니다.")
+        @Schema(description = "분석할 공개 GitHub 저장소 URL 목록(1~50개)")
         private List<@NotBlank @URL(message = "repoUrl이 유효한 URL 형식이 아닙니다.") String> repoUrls;
 
         @Schema(description = "분석 모드(기본 STEP — FastAPI 핸드오프 없이 분석만).", nullable = true)
