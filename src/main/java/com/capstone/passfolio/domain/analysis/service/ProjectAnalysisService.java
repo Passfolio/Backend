@@ -229,7 +229,18 @@ public class ProjectAnalysisService {
      */
     public ProjectAnalysisDto.AdminBatchStatusResponse getAdminBatchStatus(UserPrincipal caller, String batchId) {
         assertAdmin(caller);
-        List<ProjectAnalysis> repos = projectAnalysisRepository.findByBatchId(batchId);
+        return buildBatchStatus(batchId, projectAnalysisRepository.findByBatchId(batchId));
+    }
+
+    /**
+     * 사용자 배치 상태 조회 — 본인(userId) 소유 행만 반환(타인 batch 접근 차단). FE 진행중 페이지 초기로드/폴링용.
+     * 응답 shape은 admin과 동일(AdminBatchStatusResponse 재사용 — 배치상태 공용 형태).
+     */
+    public ProjectAnalysisDto.AdminBatchStatusResponse getUserBatchStatus(Long userId, String batchId) {
+        return buildBatchStatus(batchId, projectAnalysisRepository.findByBatchIdAndUser_Id(batchId, userId));
+    }
+
+    private ProjectAnalysisDto.AdminBatchStatusResponse buildBatchStatus(String batchId, List<ProjectAnalysis> repos) {
         if (repos.isEmpty()) {
             throw new RestException(ErrorCode.PROJECT_ANALYSIS_NOT_FOUND);
         }
