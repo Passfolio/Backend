@@ -46,4 +46,35 @@ public class UserDto {
                     .build();
         }
     }
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Schema(description = "날짜별 가입자 수(사용자 유입 그래프용)")
+    public static class DailySignupResponse {
+        @Schema(description = "가입 날짜(yyyy-MM-dd)", example = "2026-06-01")
+        private String date;
+        @Schema(description = "해당 날짜 신규 가입자 수", example = "5")
+        private long count;
+    }
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Schema(description = "회원 목록 집계 항목(우선 id·nickname만 — QueryDSL/커버링 인덱스 최적화는 추후)")
+    public static class UserSummaryResponse {
+        @Schema(description = "사용자 PK", example = "1")
+        private Long userId;
+        @Schema(description = "사용자 닉네임", example = "hades")
+        private String nickname;
+
+        public static UserSummaryResponse from(User user) {
+            return UserSummaryResponse.builder()
+                    .userId(user.getId())
+                    .nickname(user.getNickname())
+                    .build();
+        }
+    }
 }
