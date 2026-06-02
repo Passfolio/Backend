@@ -1,5 +1,6 @@
 package com.capstone.passfolio.domain.user.service;
 
+import com.capstone.passfolio.common.dto.PageDto;
 import com.capstone.passfolio.domain.article.service.ArticleService;
 import com.capstone.passfolio.domain.user.dto.UserDto;
 import com.capstone.passfolio.domain.user.entity.User;
@@ -10,8 +11,15 @@ import com.capstone.passfolio.system.exception.model.RestException;
 import com.capstone.passfolio.system.security.model.UserPrincipal;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.List;
 
 @Slf4j
 @Service
@@ -131,5 +139,38 @@ public class UserService {
         if (caller == null || caller.getRole() == null || caller.getRole() != Role.ADMIN) {
             throw new RestException(ErrorCode.AUTH_FORBIDDEN);
         }
+    }
+
+    // ============================================================
+    // ADMIN 회원 관리 — 사용자 유입 집계 / 회원 목록(상태 레벨)
+    // ============================================================
+
+    /** 날짜별 가입자 수(오름차순). 가입 없는 날은 행이 없으므로 갭은 FE가 0으로 채워 연속 시계열로 그린다. */
+    @Transactional(readOnly = true)
+    public List<UserDto.DailySignupResponse> getDailySignups(UserPrincipal caller) {
+        assertAdminCaller(caller);
+        return userRepository.countDailySignups().stream()
+                .map(row -> UserDto.DailySignupResponse.builder()
+                        .date(toLocalDate(row[0]).format(DateTimeFormatter.ISO_LOCAL_DATE))
+                        .count(((Number) row[1]).longValue())
+                        .build())
+                .toList();
+    }
+
+    /** 회원 목록(페이지네이션). 우선 id·nickname만 — 추후 QueryDSL/커버링 인덱스로 필드 확장. */
+    @Transactional(readOnly = true)
+    public PageDto.PageListResponse<UserDto.UserSummaryResponse> listUsers(UserPrincipal caller, Pageable pageable) {
+        assertAdminCaller(caller);
+        Page<UserDto.UserSummaryResponse> page = userRepository.findAll(pageable)
+                .map(UserDto.UserSummaryResponse::from);
+        return PageDto.PageListResponse.of("회원 목록", page);
+    }
+
+    /** 네이티브/JPQL cast 결과(LocalDate / java.sql.Date / LocalDateTime 등)를 LocalDate로 정규화. */
+    private static LocalDate toLocalDate(Object value) {
+        if (value instanceof LocalDate localDate) return localDate;
+        if (value instanceof java.sql.Date sqlDate) return sqlDate.toLocalDate();
+        if (value instanceof LocalDateTime dateTime) return dateTime.toLocalDate();
+        return LocalDate.parse(value.toString());
     }
 }
