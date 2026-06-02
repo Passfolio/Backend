@@ -23,6 +23,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
 
@@ -50,8 +51,14 @@ public class ProjectAnalysisService {
     @Value("${analysis.dispatch.max-repo-size-kb}")
     private long maxRepoSizeKb;
 
+    // admin 테스트 디스패치를 300개까지 허용할 username(=가입 이메일, 소문자) 목록(콤마 구분).
+    // 미설정 시 전원 DEFAULT_ADMIN_TEST_BATCH(11)로 제한.
+    @Value("${analysis.admin-test.privileged-usernames:}")
+    private String privilegedTesterUsernamesRaw;
+
     private static final int MAX_BATCH = 3;
-    private static final int MAX_ADMIN_TEST_BATCH = 300;
+    private static final int MAX_ADMIN_TEST_BATCH = 300;     // privileged 테스터 상한
+    private static final int DEFAULT_ADMIN_TEST_BATCH = 11;  // 일반 ADMIN 상한
 
     // ============================================================
     // 디스패치 (FE → BE → Lambda), 다중 repo 배치
@@ -140,7 +147,8 @@ public class ProjectAnalysisService {
             UserPrincipal caller, ProjectAnalysisDto.AdminTestBatchRequest request) {
         assertAdmin(caller);
         List<String> repoUrls = request.getRepoUrls();
-        if (repoUrls == null || repoUrls.isEmpty() || repoUrls.size() > MAX_ADMIN_TEST_BATCH) {
+        int maxBatch = resolveAdminTestMaxBatch(caller); // privileged=300, 그 외 ADMIN=11
+        if (repoUrls == null || repoUrls.isEmpty() || repoUrls.size() > maxBatch) {
             throw new RestException(ErrorCode.ANALYSIS_BATCH_SIZE_EXCEEDED);
         }
         User adminUser = userRepository.findById(caller.getUserId())
@@ -183,6 +191,76 @@ public class ProjectAnalysisService {
         if (caller == null || caller.getRole() == null || caller.getRole() != Role.ADMIN) {
             throw new RestException(ErrorCode.AUTH_FORBIDDEN);
         }
+    }
+
+    /** 호출 ADMIN의 테스트 디스패치 상한. privileged 화이트리스트면 300, 그 외 11. */
+    private int resolveAdminTestMaxBatch(UserPrincipal caller) {
+        return isPrivilegedTester(caller) ? MAX_ADMIN_TEST_BATCH : DEFAULT_ADMIN_TEST_BATCH;
+    }
+
+    /** caller.username(=가입 이메일, 소문자)이 privileged-usernames(콤마 구분)에 있는지. */
+    private boolean isPrivilegedTester(UserPrincipal caller) {
+        if (caller == null || caller.getUsername() == null
+                || privilegedTesterUsernamesRaw == null || privilegedTesterUsernamesRaw.isBlank()) {
+            return false;
+        }
+        String norm = caller.getUsername().trim().toLowerCase();
+        return Arrays.stream(privilegedTesterUsernamesRaw.split(","))
+                .map(s -> s.trim().toLowerCase())
+                .filter(s -> !s.isEmpty())
+                .anyMatch(norm::equals);
+    }
+
+    /** FE가 슬라이더 상한을 맞추기 위해 조회하는 호출자 기준 디스패치 한도. */
+    public ProjectAnalysisDto.AdminTestLimitResponse getAdminTestLimit(UserPrincipal caller) {
+        assertAdmin(caller);
+        return ProjectAnalysisDto.AdminTestLimitResponse.builder()
+                .maxRepoCount(resolveAdminTestMaxBatch(caller))
+                .build();
+    }
+
+    /**
+     * ADMIN 배치 상태 조회(폴링) — FE 대시보드가 5초 주기로 호출. project_analysis를 batchId로 모아
+     * analysis_flag별 카운트 + repo별 상태/결과/사유/타임스탬프를 반환한다(상태 레벨 메트릭).
+     * 읽기 전용·스칼라 필드만 접근(user는 LAZY, 미접근)이라 별도 트랜잭션 불필요.
+     */
+    public ProjectAnalysisDto.AdminBatchStatusResponse getAdminBatchStatus(UserPrincipal caller, String batchId) {
+        assertAdmin(caller);
+        List<ProjectAnalysis> repos = projectAnalysisRepository.findByBatchId(batchId);
+        if (repos.isEmpty()) {
+            throw new RestException(ErrorCode.PROJECT_ANALYSIS_NOT_FOUND);
+        }
+
+        int yet = 0, inProgress = 0, done = 0, failed = 0;
+        List<ProjectAnalysisDto.AdminBatchAnalysisItem> items = new ArrayList<>();
+        for (ProjectAnalysis a : repos) {
+            switch (a.getAnalysisFlag()) {
+                case YET -> yet++;
+                case IN_PROGRESS -> inProgress++;
+                case DONE -> done++;
+                case FAILED -> failed++;
+            }
+            items.add(ProjectAnalysisDto.AdminBatchAnalysisItem.builder()
+                    .analysisId(a.getId())
+                    .repoUrl(a.getRepoUrl())
+                    .status(a.getAnalysisFlag().name())
+                    .serviceName(a.getServiceName())
+                    .cdnUrl(a.getResultCdnUrl())
+                    .failureReason(a.getFailureReason())
+                    .createdAt(a.getCreatedAt())
+                    .lastModifiedAt(a.getLastModifiedAt())
+                    .build());
+        }
+
+        int total = repos.size();
+        return ProjectAnalysisDto.AdminBatchStatusResponse.builder()
+                .batchId(batchId)
+                .total(total)
+                .allTerminal((done + failed) == total)
+                .counts(ProjectAnalysisDto.BatchStatusCounts.builder()
+                        .yet(yet).inProgress(inProgress).done(done).failed(failed).build())
+                .analyses(items)
+                .build();
     }
 
     private ProjectAnalysisDto.LambdaJobMessage buildAdminMessage(
