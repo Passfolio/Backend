@@ -54,4 +54,20 @@ public class ProjectAnalysisController implements ProjectAnalysisApiSpecificatio
             @PathVariable String batchId) {
         return ResponseEntity.ok(projectAnalysisService.getUserBatchStatus(userPrincipal.getUserId(), batchId));
     }
+
+    // 프로필 '분석 이력' 탭: 본인 분석 최근순 목록(재방문 진입점). 고정 경로라 변수경로보다 우선 매칭.
+    @GetMapping("/history")
+    public ResponseEntity<java.util.List<ProjectAnalysisDto.HistoryItem>> userHistory(
+            @AuthenticationPrincipal UserPrincipal userPrincipal) {
+        return ResponseEntity.ok(projectAnalysisService.getUserHistory(userPrincipal.getUserId()));
+    }
+
+    // 리포트 페이지: 본인 소유 단건 분석 리포트. DONE이면 결과 CDN JSON을 BE가 서버사이드로 fetch해 인라인 반환
+    // (CDN CORS 미설정 → 브라우저 직접 fetch 불가). 고정/2세그먼트 경로가 우선 매칭되어 충돌 없음.
+    @GetMapping("/{analysisId}/report")
+    public ResponseEntity<ProjectAnalysisDto.UserAnalysisReportResponse> userAnalysisReport(
+            @AuthenticationPrincipal UserPrincipal userPrincipal,
+            @PathVariable String analysisId) {
+        return ResponseEntity.ok(projectAnalysisService.getUserAnalysisReport(userPrincipal.getUserId(), analysisId));
+    }
 }
