@@ -9,6 +9,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -44,5 +45,13 @@ public class ProjectAnalysisController implements ProjectAnalysisApiSpecificatio
     public ResponseEntity<Void> completeAnalysis(@Valid @RequestBody ProjectAnalysisDto.WebhookCompleteRequest request) {
         projectAnalysisService.completeAnalysis(request);
         return ResponseEntity.ok().build();
+    }
+
+    // 진행중 페이지: 본인 소유 배치의 repo별 상태(폴링 백업 + 새로고침 초기로드). 라이브는 SSE.
+    @GetMapping("/batch/{batchId}")
+    public ResponseEntity<ProjectAnalysisDto.AdminBatchStatusResponse> userBatchStatus(
+            @AuthenticationPrincipal UserPrincipal userPrincipal,
+            @PathVariable String batchId) {
+        return ResponseEntity.ok(projectAnalysisService.getUserBatchStatus(userPrincipal.getUserId(), batchId));
     }
 }

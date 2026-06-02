@@ -16,6 +16,9 @@ public interface ProjectAnalysisRepository extends JpaRepository<ProjectAnalysis
     // 배치(그룹) 단위 조회 — all-done 시 결과 수집(FastAPI 핸드오프).
     List<ProjectAnalysis> findByBatchId(String batchId);
 
+    // 사용자 소유 배치 조회 — 사용자 진행중 페이지(타인 batch 접근 차단).
+    List<ProjectAnalysis> findByBatchIdAndUser_Id(String batchId, Long userId);
+
     // stale 안전망 — 지정 시각 이전에 마지막 갱신된 채 특정 상태(IN_PROGRESS)로 멈춘 분석.
     List<ProjectAnalysis> findByAnalysisFlagAndLastModifiedAtBefore(AnalysisFlag flag, LocalDateTime cutoff);
 }
