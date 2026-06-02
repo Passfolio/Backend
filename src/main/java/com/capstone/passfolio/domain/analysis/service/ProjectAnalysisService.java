@@ -16,12 +16,20 @@ import com.capstone.passfolio.domain.user.repository.UserRepository;
 import com.capstone.passfolio.system.exception.model.ErrorCode;
 import com.capstone.passfolio.system.exception.model.RestException;
 import com.capstone.passfolio.system.security.model.UserPrincipal;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.MDC;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -45,6 +53,12 @@ public class ProjectAnalysisService {
     private final AiApiClient aiApiClient;
     private final SmsNotifier smsNotifier;
     private final RepoAvailabilityService repoAvailabilityService;
+    private final ObjectMapper objectMapper;
+
+    // 결과 CDN JSON 서버사이드 fetch용(CDN CORS 미설정 → 브라우저 직접 fetch 불가). 소규모 JSON.
+    private static final HttpClient REPORT_HTTP_CLIENT = HttpClient.newBuilder()
+            .connectTimeout(Duration.ofSeconds(5))
+            .build();
 
     @Value("${aws.sqs.analysis-queue-url}")
     private String analysisQueueUrl;
@@ -238,6 +252,73 @@ public class ProjectAnalysisService {
      */
     public ProjectAnalysisDto.AdminBatchStatusResponse getUserBatchStatus(Long userId, String batchId) {
         return buildBatchStatus(batchId, projectAnalysisRepository.findByBatchIdAndUser_Id(batchId, userId));
+    }
+
+    /**
+     * 사용자 단건 분석 리포트 — 본인(userId) 소유만(타인 분석 차단). DONE이면 결과 CDN JSON을
+     * 서버사이드로 fetch해 report에 인라인 전달(CDN은 CORS 미설정이라 브라우저 직접 fetch 불가).
+     * fetch/parse 실패 시 report=null(FE가 에러 처리). 읽기 전용·스칼라 필드만 접근.
+     */
+    public ProjectAnalysisDto.UserAnalysisReportResponse getUserAnalysisReport(Long userId, String analysisId) {
+        ProjectAnalysis a = projectAnalysisRepository.findByIdAndUser_Id(analysisId, userId)
+                .orElseThrow(() -> new RestException(ErrorCode.PROJECT_ANALYSIS_NOT_FOUND));
+
+        JsonNode report = null;
+        if (a.getAnalysisFlag() == AnalysisFlag.DONE && a.getResultCdnUrl() != null) {
+            report = fetchReportJson(a.getResultCdnUrl(), analysisId);
+        }
+        return ProjectAnalysisDto.UserAnalysisReportResponse.builder()
+                .analysisId(a.getId())
+                .batchId(a.getBatchId())
+                .repoUrl(a.getRepoUrl())
+                .status(a.getAnalysisFlag().name())
+                .serviceName(a.getServiceName())
+                .failureReason(a.getFailureReason())
+                .report(report)
+                .build();
+    }
+
+    // 결과 CDN JSON 서버사이드 fetch + 파싱. 실패 시 null(리포트 페이지가 에러 상태로 처리).
+    private JsonNode fetchReportJson(String cdnUrl, String analysisId) {
+        try {
+            HttpRequest req = HttpRequest.newBuilder()
+                    .uri(URI.create(cdnUrl))
+                    .timeout(Duration.ofSeconds(10))
+                    .GET()
+                    .build();
+            HttpResponse<String> res = REPORT_HTTP_CLIENT.send(req, HttpResponse.BodyHandlers.ofString());
+            if (res.statusCode() != 200) {
+                log.warn("리포트 CDN fetch 비정상 status={} analysisId={}", res.statusCode(), analysisId);
+                return null;
+            }
+            return objectMapper.readTree(res.body());
+        } catch (Exception e) {
+            if (e instanceof InterruptedException) Thread.currentThread().interrupt();
+            log.warn("리포트 CDN fetch 실패 analysisId={} : {}", analysisId, e.toString());
+            return null;
+        }
+    }
+
+    private static final int HISTORY_LIMIT = 50;
+
+    /**
+     * 사용자 분석 이력(최근순, 최대 50건) — 프로필 '분석 이력' 탭. 본인 소유만(repo 쿼리 필터).
+     * 읽기 전용·스칼라 필드만 접근.
+     */
+    public List<ProjectAnalysisDto.HistoryItem> getUserHistory(Long userId) {
+        return projectAnalysisRepository
+                .findByUser_IdOrderByCreatedAtDesc(userId, PageRequest.of(0, HISTORY_LIMIT))
+                .stream()
+                .map(a -> ProjectAnalysisDto.HistoryItem.builder()
+                        .analysisId(a.getId())
+                        .batchId(a.getBatchId())
+                        .repoUrl(a.getRepoUrl())
+                        .status(a.getAnalysisFlag().name())
+                        .serviceName(a.getServiceName())
+                        .failureReason(a.getFailureReason())
+                        .createdAt(a.getCreatedAt())
+                        .build())
+                .toList();
     }
 
     private ProjectAnalysisDto.AdminBatchStatusResponse buildBatchStatus(String batchId, List<ProjectAnalysis> repos) {
