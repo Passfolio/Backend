@@ -89,6 +89,18 @@ github:
   token:
     encryption-key: MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=
 
+# 내부 호출 인증 키(test 컨텍스트 부팅용 — 운영은 env/Secrets)
+ai:
+  internal-api-key: test-ai-internal-key
+project-analysis:
+  internal-api-key: test-project-internal-key
+
+# LambdaTokenEncryptor(KMS Encrypt)의 키 ID — test 컨텍스트 부팅용(실 KMS 호출은 없음/mock)
+# 실제 키 식별자가 아닌 더미. 운영 값은 APPLICATION_YML secret이 소스.
+aws:
+  kms:
+    token-key-id: test-kms-token-key
+
 ratelimit:
   enabled: false
   proxy:

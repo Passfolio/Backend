@@ -98,6 +98,17 @@ public enum ErrorCode {
     AI_JOB_ALREADY_PENDING(HttpStatus.CONFLICT, "AI_JOB_ALREADY_PENDING", "동일 파일로 이미 처리 중인 AI 작업이 있습니다."),
     AI_UNAUTHORIZED(HttpStatus.UNAUTHORIZED, "AI_UNAUTHORIZED", "내부 API 키가 유효하지 않습니다."),
 
+    // Internal API (공유 내부 호출)
+    INTERNAL_API_UNAUTHORIZED(HttpStatus.UNAUTHORIZED, "INTERNAL_API_UNAUTHORIZED", "내부 API 키가 유효하지 않습니다."),
+
+    // Project Analysis Errors
+    PROJECT_ANALYSIS_NOT_FOUND(HttpStatus.NOT_FOUND, "PROJECT_ANALYSIS_NOT_FOUND", "프로젝트 분석을 찾을 수 없습니다."),
+    PROJECT_ANALYSIS_RATE_LIMITED(HttpStatus.TOO_MANY_REQUESTS, "PROJECT_ANALYSIS_RATE_LIMITED", "분석 요청이 많아 잠시 후 다시 시도해주세요."),
+    ANALYSIS_REPO_SIZE_EXCEEDED(HttpStatus.PAYLOAD_TOO_LARGE, "ANALYSIS_REPO_SIZE_EXCEEDED", "분석 가능한 저장소 크기를 초과했습니다."),
+    ANALYSIS_BATCH_SIZE_EXCEEDED(HttpStatus.BAD_REQUEST, "ANALYSIS_BATCH_SIZE_EXCEEDED", "한 번에 요청 가능한 저장소는 최대 3개입니다."),
+    ANALYSIS_TOKEN_EXPIRING_SOON(HttpStatus.UNAUTHORIZED, "ANALYSIS_TOKEN_EXPIRING_SOON", "GitHub 토큰 잔여 유효기간이 부족합니다. GitHub으로 다시 로그인해주세요."),
+    ANALYSIS_DISPATCH_FAILED(HttpStatus.BAD_GATEWAY, "ANALYSIS_DISPATCH_FAILED", "분석 작업 디스패치 중 오류가 발생했습니다."),
+
     // GITHUB Errors
     GITHUB_TOKEN_NOT_FOUND(HttpStatus.UNAUTHORIZED, "GITHUB_TOKEN_NOT_FOUND", "GitHub 연동 토큰이 없습니다. GitHub으로 다시 로그인해주세요."),
     GITHUB_TOKEN_EXPIRED(HttpStatus.UNAUTHORIZED, "GITHUB_TOKEN_EXPIRED", "GitHub 토큰이 만료되었습니다. GitHub으로 다시 로그인해주세요."),

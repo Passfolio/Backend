@@ -59,6 +59,9 @@ dependencies {
 	// https://mvnrepository.com/artifact/io.awspring.cloud/spring-cloud-aws-starter-s3
 	implementation("io.awspring.cloud:spring-cloud-aws-starter-s3:3.4.0")
 	implementation 'software.amazon.awssdk:sfn:2.25.64' // Step Function
+	implementation 'software.amazon.awssdk:sqs:2.31.54' // SQS (분석 작업 디스패치)
+	implementation 'software.amazon.awssdk:sns:2.31.54' // SNS (배치 완료 SMS)
+	implementation 'software.amazon.awssdk:kms:2.31.54' // KMS (GitHub 토큰 암호화 → Lambda)
 
 	// QueryDSL
 	implementation 'com.querydsl:querydsl-jpa:5.1.0:jakarta'

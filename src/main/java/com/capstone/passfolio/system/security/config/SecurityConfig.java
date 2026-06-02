@@ -53,8 +53,16 @@ public class SecurityConfig {
     private String allowedOrigins;
 
     @Bean
-    public InternalApiKeyFilter internalApiKeyFilter(@Value("${ai.internal-api-key}") String internalApiKey) {
-        return new InternalApiKeyFilter(internalApiKey, objectMapper);
+    public InternalApiKeyFilter internalApiKeyFilter(
+            @Value("${ai.internal-api-key}") String aiInternalApiKey,
+            @Value("${project-analysis.internal-api-key}") String analysisInternalApiKey) {
+        // 경로별 키 매핑. 기존 AI 콜백은 동일 키·AI_UNAUTHORIZED 그대로, 분석 콜백은 별도 키 사용.
+        return new InternalApiKeyFilter(List.of(
+                new InternalApiKeyFilter.ProtectedPath(
+                        "/api/v1/ai/jobs/complete", aiInternalApiKey, ErrorCode.AI_UNAUTHORIZED),
+                new InternalApiKeyFilter.ProtectedPath(
+                        "/api/v1/project-analysis/webhook", analysisInternalApiKey, ErrorCode.INTERNAL_API_UNAUTHORIZED)
+        ), objectMapper);
     }
 
     @Bean
@@ -86,7 +94,8 @@ public class SecurityConfig {
                             request.getDispatcherType() == DispatcherType.ASYNC
                             && (request.getRequestURI().startsWith("/api/v1/sse/")
                                 || request.getRequestURI().startsWith("/api/v1/notifications/")
-                                || request.getRequestURI().startsWith("/api/v1/ai/jobs/subscribe"))
+                                || request.getRequestURI().startsWith("/api/v1/ai/jobs/subscribe")
+                                || request.getRequestURI().startsWith("/api/v1/project-analysis/subscribe"))
                         ).permitAll()
                         // 1. 비인증 경로들 (RequestMatcherHolder에서 관리)
                         .requestMatchers(requestMatcherHolder.getRequestMatchersByMinRole(null)).permitAll()

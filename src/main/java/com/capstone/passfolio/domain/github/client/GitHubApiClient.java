@@ -95,6 +95,19 @@ public class GitHubApiClient {
                 .body(GitHubDto.ContributedReposResponse.class);
     }
 
+    /**
+     * 단일 repo 메타데이터 조회(REST GET /repos/{owner}/{repo}).
+     * 분석 디스패치 전 size(KB, history 포함) 등 검증용. size 게이트에 사용.
+     */
+    public GitHubDto.ApiRepo fetchRepo(String accessToken, String owner, String repo) {
+        return restClient.get()
+                .uri(BASE_URL + "/repos/{owner}/{repo}", owner, repo)
+                .headers(h -> applyHeaders(h, accessToken))
+                .retrieve()
+                .onStatus(status -> !status.is2xxSuccessful(), this::handleError)
+                .body(GitHubDto.ApiRepo.class);
+    }
+
     private void applyHeaders(org.springframework.http.HttpHeaders headers, String accessToken) {
         headers.set("Authorization", "Bearer " + accessToken);
         headers.set("Accept", "application/vnd.github+json");
