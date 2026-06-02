@@ -61,7 +61,9 @@ public class SecurityConfig {
                 new InternalApiKeyFilter.ProtectedPath(
                         "/api/v1/ai/jobs/complete", aiInternalApiKey, ErrorCode.AI_UNAUTHORIZED),
                 new InternalApiKeyFilter.ProtectedPath(
-                        "/api/v1/project-analysis/webhook", analysisInternalApiKey, ErrorCode.INTERNAL_API_UNAUTHORIZED)
+                        "/api/v1/project-analysis/webhook", analysisInternalApiKey, ErrorCode.INTERNAL_API_UNAUTHORIZED),
+                new InternalApiKeyFilter.ProtectedPath(
+                        "/api/v1/project-analysis/precheck/webhook", analysisInternalApiKey, ErrorCode.INTERNAL_API_UNAUTHORIZED)
         ), objectMapper);
     }
 

@@ -199,6 +199,7 @@ aws:
     arn: ${STEP_FUNCTION_ARN:}
   sqs:
     analysis-queue-url: ${AWS_SQS_ANALYSIS_QUEUE_URL:}   # DevSkill 분석 작업 큐(Lambda 트리거)
+    precheck-queue-url: ${AWS_SQS_PRECHECK_QUEUE_URL:}   # 사전 점검 작업 큐(Lambda PRECHECK 트리거)
   sns:
     enabled: ${AWS_SNS_ENABLED:false}                    # 배치 완료 SMS 발송(개발 false=로그만)
   kms:
