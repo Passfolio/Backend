@@ -39,7 +39,10 @@ public class AiApiClient {
 
     // 포트폴리오를 업그레이드한다(NONSTOP: 분석 결과 URL들을 함께 전달 가능, 없으면 rag만).
     public AiDto.AiJobInitResponse upgradePortfolio(String portfolioPdfUrl, java.util.List<String> codeAnalysisUrls, Long userId) {
-        return postWithRetry("/portfolio/from-pdf", () -> restClient.post()
+        int n = codeAnalysisUrls == null ? 0 : codeAnalysisUrls.size();
+        log.info("[NONSTOP] FastAPI POST {}/api/v1/portfolio/from-pdf — userId={}, pdfUrl={}, codeAnalysisUrls({})={}",
+                aiBaseUrl, userId, portfolioPdfUrl, n, codeAnalysisUrls);
+        AiDto.AiJobInitResponse resp = postWithRetry("/portfolio/from-pdf", () -> restClient.post()
                 .uri(aiBaseUrl + "/api/v1/portfolio/from-pdf")
                 .contentType(MediaType.APPLICATION_JSON)
                 .body(AiDto.AiPdfRequest.builder()
@@ -47,6 +50,8 @@ public class AiApiClient {
                 .retrieve()
                 .onStatus(status -> !status.is2xxSuccessful(), this::handleError)
                 .body(AiDto.AiJobInitResponse.class));
+        log.info("[NONSTOP] FastAPI 응답 — /portfolio/from-pdf, aiJobId={}", resp != null ? resp.getJobId() : null);
+        return resp;
     }
 
     // 자소서로 자소서를 업그레이드한다.
@@ -73,13 +78,18 @@ public class AiApiClient {
 
     // 자소서로 포트폴리오를 생성한다.
     public AiDto.AiJobInitResponse generatePortfolioFromCoverLetter(AiDto.AiCoverLetterRequest request) {
-        return postWithRetry("/portfolio/from-cover-letter", () -> restClient.post()
+        int n = request.getCodeAnalysisUrls() == null ? 0 : request.getCodeAnalysisUrls().size();
+        log.info("[NONSTOP] FastAPI POST {}/api/v1/portfolio/from-cover-letter — userId={}, pdfUrl={}, jobPosition={}, career={}, codeAnalysisUrls({})={}",
+                aiBaseUrl, request.getUserId(), request.getPdfUrl(), request.getJobPosition(), request.getCareer(), n, request.getCodeAnalysisUrls());
+        AiDto.AiJobInitResponse resp = postWithRetry("/portfolio/from-cover-letter", () -> restClient.post()
                 .uri(aiBaseUrl + "/api/v1/portfolio/from-cover-letter")
                 .contentType(MediaType.APPLICATION_JSON)
                 .body(request)
                 .retrieve()
                 .onStatus(status -> !status.is2xxSuccessful(), this::handleError)
                 .body(AiDto.AiJobInitResponse.class));
+        log.info("[NONSTOP] FastAPI 응답 — /portfolio/from-cover-letter, aiJobId={}", resp != null ? resp.getJobId() : null);
+        return resp;
     }
 
     private static final int MAX_ATTEMPTS = 2;          // 최초 1 + 재시도 1

@@ -135,6 +135,8 @@ public class ProjectAnalysisService {
         batchProgressTracker.createBatch(batchId, metas.size());
         batchPhoneStore.store(batchId, request.getPhone());
         // NONSTOP 포폴: 서버가 생성한 CDN URL·목적을 batch에 transient 저장(all-done·전원성공 시 FastAPI 핸드오프에 사용).
+        log.info("[NONSTOP] 시작 — batchId={}, userId={}, mode={}, repoCount={}, purpose={}, fileId={}, portfolioPdfUrl={}",
+                batchId, userId, mode, metas.size(), request.getPortfolioPurpose(), request.getFileId(), portfolioPdfUrl);
         batchPortfolioStore.store(batchId, portfolioPdfUrl, request.getPortfolioPurpose());
 
         // 6) repo별 디스패치
@@ -494,7 +496,8 @@ public class ProjectAnalysisService {
                         dto.getAnalysisId());
                 return;
             }
-            log.info("[ProjectAnalysisService] analysis {}. analysisId={}", r.statusName(), r.analysisId());
+            log.info("[ProjectAnalysisService] analysis {}. analysisId={}, repoUrl={}, cdnUrl={}, failed={}",
+                    r.statusName(), r.analysisId(), r.repoUrl(), r.cdnUrl(), r.failed());
 
             // 2) 커밋 후 통지(외부호출 — txn 밖)
             sseService.pushAnalysis(r.userId(), ProjectAnalysisDto.AnalysisSsePayload.builder()
@@ -520,9 +523,12 @@ public class ProjectAnalysisService {
         boolean portfolioRequested = false;
         boolean portfolioFailed = false;
 
+        log.info("[NONSTOP] all-done — batchId={}, userId={}, mode={}, allSuccess={}, total={}, failures={}",
+                batchId, userId, mode, outcome.allSuccess(), repos.size(), outcome.failures());
         if (outcome.allSuccess() && "NONSTOP".equalsIgnoreCase(mode)) {
             String pdfUrl = batchPortfolioStore.readPdfUrl(batchId);
             String purpose = batchPortfolioStore.readPurpose(batchId);
+            log.info("[NONSTOP] 핸드오프 메타 read — batchId={}, pdfUrl={}, purpose={}", batchId, pdfUrl, purpose);
             if (pdfUrl != null && !pdfUrl.isBlank() && purpose != null && !purpose.isBlank()) {
                 // in-flight 표시: all-done 후 FastAPI 호출(~1-2s) 동안 jobId 미링크라
                 // buildBatchStatus가 retryable=true로 오탐 → FE "생성 시작 실패" 오표시. 플래그로 차단.
@@ -562,12 +568,23 @@ public class ProjectAnalysisService {
     /** 분석 결과(final.json) CDN URL들을 모아 FastAPI 포폴 생성 호출 + batch↔job 매핑. 실패 시 예외 전파(호출부가 가시화/재시도 처리). */
     private Long dispatchPortfolioHandoff(String batchId, Long userId, String pdfUrl, String purpose,
                                           List<ProjectAnalysis> repos) {
+        // 조립 직전, repo별 입력 상태를 그대로 찍는다(어떤 repo가 cdnUrl 없이 빠지는지까지 가시화).
+        repos.forEach(a -> log.info("[NONSTOP] 핸드오프 입력 repo — batchId={}, repoUrl={}, flag={}, cdnUrl={}",
+                batchId, a.getRepoUrl(), a.getAnalysisFlag(), a.getResultCdnUrl()));
         List<String> codeAnalysisUrls = repos.stream()
                 .filter(a -> a.getAnalysisFlag() == AnalysisFlag.DONE && a.getResultCdnUrl() != null)
                 .map(ProjectAnalysis::getResultCdnUrl)
                 .toList();
+        long droppedDone = repos.stream()
+                .filter(a -> a.getAnalysisFlag() == AnalysisFlag.DONE && a.getResultCdnUrl() == null).count();
+        if (droppedDone > 0) {
+            log.warn("[NONSTOP] DONE이나 cdnUrl 없는 repo {}건 제외됨 — batchId={}", droppedDone, batchId);
+        }
+        log.info("[NONSTOP] codeAnalysisUrls 조립 완료 — batchId={}, userId={}, purpose={}, sent={}/{}(DONE+cdn), pdfUrl={}, urls={}",
+                batchId, userId, purpose, codeAnalysisUrls.size(), repos.size(), pdfUrl, codeAnalysisUrls);
         Long pfJobId = aiJobService.startPortfolioFromAnalyses(userId, pdfUrl, purpose, codeAnalysisUrls);
         batchPortfolioStore.linkJob(batchId, pfJobId); // 완료 콜백→batch 식별 + 진행중 페이지→jobId 노출
+        log.info("[NONSTOP] batch↔job 링크 완료 — batchId={}, pfJobId={}", batchId, pfJobId);
         return pfJobId;
     }
 

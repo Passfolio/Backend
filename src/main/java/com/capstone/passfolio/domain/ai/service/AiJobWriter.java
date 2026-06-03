@@ -7,12 +7,14 @@ import com.capstone.passfolio.domain.ai.repository.AiJobRepository;
 import com.capstone.passfolio.system.exception.model.ErrorCode;
 import com.capstone.passfolio.system.exception.model.RestException;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class AiJobWriter {
@@ -36,7 +38,10 @@ public class AiJobWriter {
                 .status(AiJobStatus.PENDING)
                 .inputFileId(fileId)
                 .build();
-        return aiJobRepository.save(job).getId();
+        Long jobId = aiJobRepository.save(job).getId();
+        log.info("[AiJob] PENDING 생성 — beJobId={}, userId={}, type={}, inputFileId={}{}",
+                jobId, userId, type, fileId, fileId == null ? " (NONSTOP, dedup 미적용)" : "");
+        return jobId;
     }
 
     @Transactional
