@@ -2,7 +2,7 @@ name: Deploy To EC2 (Compose)
 
 on:
   push:
-      branches: [ "main", "PASS-022-PROJECT-ANALYSIS-PRE-CHECKER" ]
+      branches: [ "main" ]
 
   workflow_dispatch:
 
