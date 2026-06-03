@@ -6,6 +6,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.time.LocalDateTime;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -28,4 +29,7 @@ public interface ProjectAnalysisRepository extends JpaRepository<ProjectAnalysis
 
     // stale 안전망 — 지정 시각 이전에 마지막 갱신된 채 특정 상태(IN_PROGRESS)로 멈춘 분석.
     List<ProjectAnalysis> findByAnalysisFlagAndLastModifiedAtBefore(AnalysisFlag flag, LocalDateTime cutoff);
+
+    // 로드맵 평가 시작 시 analysisIds → CDN URL 벌크 해석 (IDOR 가드: 타인 소유 자동 제외).
+    List<ProjectAnalysis> findAllByIdInAndUser_Id(Collection<String> ids, Long userId);
 }
