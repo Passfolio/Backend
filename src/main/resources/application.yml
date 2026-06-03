@@ -199,12 +199,20 @@ aws:
     arn: ${STEP_FUNCTION_ARN:}
   sqs:
     analysis-queue-url: ${AWS_SQS_ANALYSIS_QUEUE_URL:}   # DevSkill 분석 작업 큐(Lambda 트리거)
-  sns:
-    enabled: ${AWS_SNS_ENABLED:false}                    # 배치 완료 SMS 발송(개발 false=로그만)
+    precheck-queue-url: ${AWS_SQS_PRECHECK_QUEUE_URL:}   # 사전 점검 작업 큐(Lambda PRECHECK 트리거)
   kms:
     # GitHub 토큰 암호화 CMK(Lambda와 공유). 실제 값은 운영 APPLICATION_YML secret이 소스.
     # 키 ARN 권장(alias가 'alias/alias/...' 이중 prefix라 모호). 리포엔 구체값 미커밋.
     token-key-id: ${AWS_KMS_TOKEN_KEY_ID}
+
+# SMS 발송 — CoolSMS(솔라피). 배치 완료 알림 문자.
+sms:
+  coolsms:
+    enabled: ${SMS_COOLSMS_ENABLED:false}                # 개발 false=로그만, 실발송 시 true
+    base-url: ${SMS_COOLSMS_BASE_URL:https://api.solapi.com}
+    api-key: ${SMS_COOLSMS_API_KEY:}
+    api-secret: ${SMS_COOLSMS_API_SECRET:}
+    from: ${SMS_COOLSMS_FROM:}                            # 솔라피에 등록한 발신번호(로컬 형식, 예: 01012345678)
 
 # Project Analysis 디스패치(admission 페이서 + 토큰 유효성 임계값 + Lambda 공유 키)
 analysis:

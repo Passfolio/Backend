@@ -60,8 +60,10 @@ dependencies {
 	implementation("io.awspring.cloud:spring-cloud-aws-starter-s3:3.4.0")
 	implementation 'software.amazon.awssdk:sfn:2.25.64' // Step Function
 	implementation 'software.amazon.awssdk:sqs:2.31.54' // SQS (분석 작업 디스패치)
-	implementation 'software.amazon.awssdk:sns:2.31.54' // SNS (배치 완료 SMS)
 	implementation 'software.amazon.awssdk:kms:2.31.54' // KMS (GitHub 토큰 암호화 → Lambda)
+
+	// SMS (배치 완료 알림) — CoolSMS(솔라피) 국내 발송
+	implementation 'net.nurigo:sdk:4.3.0'
 
 	// QueryDSL
 	implementation 'com.querydsl:querydsl-jpa:5.1.0:jakarta'
