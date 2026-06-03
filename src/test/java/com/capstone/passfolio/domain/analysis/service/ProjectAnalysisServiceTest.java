@@ -18,6 +18,7 @@ import java.util.Optional;
 
 import com.capstone.passfolio.domain.ai.client.AiApiClient;
 import com.capstone.passfolio.domain.ai.dto.AiDto;
+import com.capstone.passfolio.domain.ai.service.AiJobService;
 import com.capstone.passfolio.domain.analysis.dto.ProjectAnalysisDto;
 import com.capstone.passfolio.domain.analysis.entity.ProjectAnalysis;
 import com.capstone.passfolio.domain.analysis.entity.enums.AnalysisFlag;
@@ -58,6 +59,9 @@ class ProjectAnalysisServiceTest {
     @Mock private ProjectAnalysisSseService sseService;
     @Mock private AiApiClient aiApiClient;
     @Mock private SmsNotifier smsNotifier;
+    @Mock private AiJobService aiJobService;
+    @Mock private BatchPortfolioStore batchPortfolioStore;
+    @Mock private RepoAvailabilityService repoAvailabilityService;
 
     @InjectMocks
     private ProjectAnalysisService projectAnalysisService;
@@ -71,7 +75,7 @@ class ProjectAnalysisServiceTest {
     // ---------- 배치 디스패치 ----------
 
     private ProjectAnalysisDto.StartRequest startReq(List<String> repoUrls) {
-        return new ProjectAnalysisDto.StartRequest(repoUrls, "NONSTOP", null);
+        return new ProjectAnalysisDto.StartRequest(repoUrls, "NONSTOP", null, null, null);
     }
 
     // size 게이트 직전까지 공통 스텁(단일 repo).
@@ -144,7 +148,7 @@ class ProjectAnalysisServiceTest {
 
         assertThat(res.getAnalyses().get(0).getStatus()).isEqualTo("FAILED");
         then(projectAnalysisWriter).should().markFailed(anyString(), anyString());
-        then(aiApiClient).should(never()).requestPortfolioFromAnalyses(any()); // 실패 포함 → 핸드오프 X
+        then(aiJobService).should(never()).startPortfolioFromAnalyses(any(), any(), any(), any()); // 실패 포함 → 핸드오프 X
         then(sseService).should().pushBatch(eq(7L), any());
     }
 
@@ -174,7 +178,7 @@ class ProjectAnalysisServiceTest {
     }
 
     @Test
-    @DisplayName("배치 all-done 전원성공 + NONSTOP → FastAPI 핸드오프 + 배치 SSE + SMS (커밋 후)")
+    @DisplayName("배치 all-done 전원성공 + NONSTOP + 포폴 PDF/목적 있음 → 포폴 핸드오프(startPortfolioFromAnalyses) + linkJob + 배치 SSE + SMS")
     void complete_batch_all_success_handoff() {
         given(projectAnalysisWriter.applyCompletion(any())).willReturn(result("b1", false, "NONSTOP"));
         given(batchProgressTracker.recordTerminal("b1", false))
@@ -183,12 +187,33 @@ class ProjectAnalysisServiceTest {
                 .id("a1").batchId("b1").repoUrl("repo").analysisFlag(AnalysisFlag.DONE)
                 .resultCdnUrl("https://cdn.x/r.json").serviceName("Svc").build();
         given(projectAnalysisRepository.findByBatchId("b1")).willReturn(List.of(done));
+        given(batchPortfolioStore.readPdfUrl("b1")).willReturn("https://cdn.x/upload.pdf");
+        given(batchPortfolioStore.readPurpose("b1")).willReturn("EDIT");
+        given(aiJobService.startPortfolioFromAnalyses(eq(7L), eq("https://cdn.x/upload.pdf"), eq("EDIT"), any()))
+                .willReturn(99L);
 
         projectAnalysisService.completeAnalysis(req("a1", "analyzed", "https://cdn.x/r.json", "Svc", null));
 
-        then(aiApiClient).should().requestPortfolioFromAnalyses(any(AiDto.AnalysisResultsRequest.class));
+        then(aiJobService).should().startPortfolioFromAnalyses(
+                eq(7L), eq("https://cdn.x/upload.pdf"), eq("EDIT"), eq(List.of("https://cdn.x/r.json")));
+        then(batchPortfolioStore).should().linkJob("b1", 99L);
         then(sseService).should().pushBatch(eq(7L), any());
         then(smsNotifier).should().notifyBatchCompleted(eq(7L), eq("b1"), eq(1), eq(true));
+    }
+
+    @Test
+    @DisplayName("배치 all-done 전원성공 + NONSTOP인데 포폴 PDF 미지정 → 핸드오프 생략")
+    void complete_batch_all_success_no_pdf_skips_handoff() {
+        given(projectAnalysisWriter.applyCompletion(any())).willReturn(result("b1", false, "NONSTOP"));
+        given(batchProgressTracker.recordTerminal("b1", false))
+                .willReturn(new BatchProgressTracker.BatchOutcome(true, true, 0));
+        given(projectAnalysisRepository.findByBatchId("b1")).willReturn(List.of());
+        given(batchPortfolioStore.readPdfUrl("b1")).willReturn(null);
+
+        projectAnalysisService.completeAnalysis(req("a1", "analyzed", "https://cdn.x/r.json", "Svc", null));
+
+        then(aiJobService).should(never()).startPortfolioFromAnalyses(any(), any(), any(), any());
+        then(sseService).should().pushBatch(eq(7L), any());
     }
 
     @Test
@@ -201,7 +226,7 @@ class ProjectAnalysisServiceTest {
 
         projectAnalysisService.completeAnalysis(req("a1", "failed", null, null, "boom"));
 
-        then(aiApiClient).should(never()).requestPortfolioFromAnalyses(any());
+        then(aiJobService).should(never()).startPortfolioFromAnalyses(any(), any(), any(), any());
         then(sseService).should().pushBatch(eq(7L), any());
     }
 
