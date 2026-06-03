@@ -35,17 +35,7 @@ public class AiApiClient {
         this.objectMapper = objectMapper;
     }
 
-    public AiDto.AiJobInitResponse requestPortfolioFromPdf(String pdfUrl, Long userId) {
-        return restClient.post()
-                .uri(aiBaseUrl + "/api/v1/portfolio/from-pdf")
-                .contentType(MediaType.APPLICATION_JSON)
-                .body(new AiDto.AiPdfRequest(pdfUrl, userId))
-                .retrieve()
-                .onStatus(status -> !status.is2xxSuccessful(), this::handleError)
-                .body(AiDto.AiJobInitResponse.class);
-    }
-
-    /** 배치 분석 결과(전원 성공) → 포트폴리오 생성 요청(FastAPI). */
+    /** 잘못된거 -> 배치 분석 결과(전원 성공) → 포트폴리오 생성 요청(FastAPI). */
     public AiDto.AiJobInitResponse requestPortfolioFromAnalyses(AiDto.AnalysisResultsRequest request) {
         return restClient.post()
                 .uri(aiBaseUrl + "/api/v1/portfolio/from-analyses")
@@ -56,17 +46,30 @@ public class AiApiClient {
                 .body(AiDto.AiJobInitResponse.class);
     }
 
-    public AiDto.AiJobInitResponse requestCoverLetterFromPdf(String pdfUrl, Long userId) {
+    // 포트폴리오를 업그레이드한다.
+    public AiDto.AiJobInitResponse upgradePortfolio(String portfolioPdfUrl, Long userId) {
         return restClient.post()
-                .uri(aiBaseUrl + "/api/v1/cover-letter/from-pdf")
+                .uri(aiBaseUrl + "/api/v1/portfolio/from-pdf")
                 .contentType(MediaType.APPLICATION_JSON)
-                .body(new AiDto.AiPdfRequest(pdfUrl, userId))
+                .body(new AiDto.AiPdfRequest(portfolioPdfUrl, userId))
                 .retrieve()
                 .onStatus(status -> !status.is2xxSuccessful(), this::handleError)
                 .body(AiDto.AiJobInitResponse.class);
     }
 
-    public AiDto.AiJobInitResponse requestCoverLetterFromPortfolio(AiDto.AiCoverLetterRequest request) {
+    // 자소서로 자소서를 업그레이드한다..
+    public AiDto.AiJobInitResponse upgradeCoverLetter(String coverLetterPdfUrl, Long userId) {
+        return restClient.post()
+                .uri(aiBaseUrl + "/api/v1/cover-letter/from-pdf")
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(new AiDto.AiPdfRequest(coverLetterPdfUrl, userId))
+                .retrieve()
+                .onStatus(status -> !status.is2xxSuccessful(), this::handleError)
+                .body(AiDto.AiJobInitResponse.class);
+    }
+
+    // 포트폴리오로 자소서를 생성한다.
+    public AiDto.AiJobInitResponse generateCoverLetterFromPortfolio(AiDto.AiCoverLetterRequest request) {
         return restClient.post()
                 .uri(aiBaseUrl + "/api/v1/cover-letter/from-portfolio")
                 .contentType(MediaType.APPLICATION_JSON)
@@ -76,7 +79,8 @@ public class AiApiClient {
                 .body(AiDto.AiJobInitResponse.class);
     }
 
-    public AiDto.AiJobInitResponse requestPortfolioFromCoverLetter(AiDto.AiCoverLetterRequest request) {
+    // 자소서로 포트폴리오를 생성한다.
+    public AiDto.AiJobInitResponse generatePortfolioFromCoverLetter(AiDto.AiCoverLetterRequest request) {
         return restClient.post()
                 .uri(aiBaseUrl + "/api/v1/portfolio/from-cover-letter")
                 .contentType(MediaType.APPLICATION_JSON)
