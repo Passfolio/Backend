@@ -40,6 +40,7 @@ class AiJobServiceTest {
     @Mock private AiSseService aiSseService;
     @Mock private BatchPortfolioStore batchPortfolioStore;
     @Mock private SmsNotifier smsNotifier;
+    @Mock private com.capstone.passfolio.common.notification.DiscordNotifier discordNotifier;
 
     @InjectMocks private AiJobService service;
 

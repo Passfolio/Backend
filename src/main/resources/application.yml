@@ -188,6 +188,10 @@ ai:
   base-url: ${AI_BASE_URL:http://localhost:8000}
   internal-api-key: ${PASSFOLIO_INTERNAL_API_KEY}
 
+# Discord 관측 알림(선택) — FastAPI 포폴 호출/완료 웹훅 가시화. 미설정이면 no-op.
+discord:
+  webhook-url: ${DISCORD_WEBHOOK_URL:}
+
 # Project Analysis (Lambda 연동) — 분석 완료 웹훅 검증용 별도 내부 키.
 # 값은 Lambda와 공유(운영: Secrets Manager/KMS, 로컬/dev: 환경변수).
 project-analysis:
