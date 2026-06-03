@@ -12,11 +12,13 @@ import org.springframework.http.HttpRequest;
 import org.springframework.http.MediaType;
 import org.springframework.http.client.ClientHttpResponse;
 import org.springframework.stereotype.Component;
+import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestClient;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
+import java.util.function.Supplier;
 
 @Slf4j
 @Component
@@ -37,47 +39,83 @@ public class AiApiClient {
 
     // 포트폴리오를 업그레이드한다(NONSTOP: 분석 결과 URL들을 함께 전달 가능, 없으면 rag만).
     public AiDto.AiJobInitResponse upgradePortfolio(String portfolioPdfUrl, java.util.List<String> codeAnalysisUrls, Long userId) {
-        return restClient.post()
+        return postWithRetry("/portfolio/from-pdf", () -> restClient.post()
                 .uri(aiBaseUrl + "/api/v1/portfolio/from-pdf")
                 .contentType(MediaType.APPLICATION_JSON)
                 .body(AiDto.AiPdfRequest.builder()
                         .pdfUrl(portfolioPdfUrl).userId(userId).codeAnalysisUrls(codeAnalysisUrls).build())
                 .retrieve()
                 .onStatus(status -> !status.is2xxSuccessful(), this::handleError)
-                .body(AiDto.AiJobInitResponse.class);
+                .body(AiDto.AiJobInitResponse.class));
     }
 
     // 자소서로 자소서를 업그레이드한다.
     public AiDto.AiJobInitResponse upgradeCoverLetter(String coverLetterPdfUrl, Long userId) {
-        return restClient.post()
+        return postWithRetry("/cover-letter/from-pdf", () -> restClient.post()
                 .uri(aiBaseUrl + "/api/v1/cover-letter/from-pdf")
                 .contentType(MediaType.APPLICATION_JSON)
                 .body(AiDto.AiPdfRequest.builder().pdfUrl(coverLetterPdfUrl).userId(userId).build())
                 .retrieve()
                 .onStatus(status -> !status.is2xxSuccessful(), this::handleError)
-                .body(AiDto.AiJobInitResponse.class);
+                .body(AiDto.AiJobInitResponse.class));
     }
 
     // 포트폴리오로 자소서를 생성한다.
     public AiDto.AiJobInitResponse generateCoverLetterFromPortfolio(AiDto.AiCoverLetterRequest request) {
-        return restClient.post()
+        return postWithRetry("/cover-letter/from-portfolio", () -> restClient.post()
                 .uri(aiBaseUrl + "/api/v1/cover-letter/from-portfolio")
                 .contentType(MediaType.APPLICATION_JSON)
                 .body(request)
                 .retrieve()
                 .onStatus(status -> !status.is2xxSuccessful(), this::handleError)
-                .body(AiDto.AiJobInitResponse.class);
+                .body(AiDto.AiJobInitResponse.class));
     }
 
     // 자소서로 포트폴리오를 생성한다.
     public AiDto.AiJobInitResponse generatePortfolioFromCoverLetter(AiDto.AiCoverLetterRequest request) {
-        return restClient.post()
+        return postWithRetry("/portfolio/from-cover-letter", () -> restClient.post()
                 .uri(aiBaseUrl + "/api/v1/portfolio/from-cover-letter")
                 .contentType(MediaType.APPLICATION_JSON)
                 .body(request)
                 .retrieve()
                 .onStatus(status -> !status.is2xxSuccessful(), this::handleError)
-                .body(AiDto.AiJobInitResponse.class);
+                .body(AiDto.AiJobInitResponse.class));
+    }
+
+    private static final int MAX_ATTEMPTS = 2;          // 최초 1 + 재시도 1
+    private static final long RETRY_BACKOFF_MS = 2000;
+
+    /**
+     * AI 서버 일시 오류면 짧은 백오프로 1회 재시도. 타팀 FastAPI가 잠깐 바쁘거나(read 타임아웃),
+     * 재시작 중(연결 오류), 5xx(502/503)일 때 두 번째 기회를 준다. 4xx(입력 거부)는 비일시 → 즉시 전파.
+     * read 타임아웃은 20s(RestClientConfig)이라 최악 ≈ 20+2+20s로 bounded(무한 대기 없음).
+     */
+    private AiDto.AiJobInitResponse postWithRetry(String label, Supplier<AiDto.AiJobInitResponse> call) {
+        RuntimeException last = null;
+        for (int attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+            try {
+                return call.get();
+            } catch (RestException e) {
+                if (e.getErrorCode() != ErrorCode.AI_SERVER_UNAVAILABLE
+                        && e.getErrorCode() != ErrorCode.AI_SERVER_ERROR) {
+                    throw e; // 4xx(AI_BAD_INPUT) 등 비일시 — 재시도 무의미
+                }
+                last = e;
+            } catch (ResourceAccessException e) {
+                last = e; // I/O(타임아웃·연결) 일시 오류
+            }
+            if (attempt < MAX_ATTEMPTS) {
+                log.warn("[AiApiClient] {} 일시 실패 → {}ms 후 재시도({}/{}). cause={}",
+                        label, RETRY_BACKOFF_MS, attempt, MAX_ATTEMPTS, last.toString());
+                try {
+                    Thread.sleep(RETRY_BACKOFF_MS);
+                } catch (InterruptedException ie) {
+                    Thread.currentThread().interrupt();
+                    throw new RestException(ErrorCode.AI_SERVER_UNAVAILABLE);
+                }
+            }
+        }
+        throw last;
     }
 
     public AiDto.AiJobStatusResponse getJobStatus(String aiJobId) {

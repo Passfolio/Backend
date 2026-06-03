@@ -37,7 +37,9 @@ public class RestClientConfig {
     }
 
     /**
-     * AI 서버 전용: AI 생성 작업이 길기 때문에 읽기 타임아웃을 60초로 설정한다.
+     * AI 서버 전용. initiate(job_id 즉시 반환)·status 조회 모두 빠르므로 read 타임아웃은 20초로 둔다.
+     * (실제 생성은 FastAPI 백그라운드 작업이라 동기 응답이 길지 않음. 길게 두면 서버가 막혔을 때 호출 스레드만 묶인다.)
+     * 일시 오류(타임아웃/연결/5xx)는 AiApiClient가 짧은 백오프로 1회 재시도한다.
      */
     @Bean
     @Qualifier(AI_REST_CLIENT)
@@ -49,7 +51,7 @@ public class RestClientConfig {
                 .build();
 
         JdkClientHttpRequestFactory requestFactory = new JdkClientHttpRequestFactory(jdkHttpClient);
-        requestFactory.setReadTimeout(Duration.ofSeconds(60));
+        requestFactory.setReadTimeout(Duration.ofSeconds(20));
 
         return RestClient.builder()
                 .requestFactory(requestFactory)
