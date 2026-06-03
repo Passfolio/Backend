@@ -140,6 +140,7 @@ public class ProjectAnalysisDto {
         private List<AdminBatchAnalysisItem> analyses;
         private Long portfolioJobId;                  // NONSTOP 포폴 AiJob beJobId(있으면 FE가 polling해 PDF 렌더). admin/STEP은 null.
         private boolean portfolioRetryable;           // NONSTOP 전원성공·포폴 의도했으나 핸드오프 미완(자동 실패) → FE 재시도 노출. 새로고침에도 유지(Redis 기반).
+        private boolean portfolioPending;             // 핸드오프 in-flight(FastAPI 호출 중) — FE는 폴링 지속·재시도 미노출(retryable과 상호배타).
     }
 
     @Getter

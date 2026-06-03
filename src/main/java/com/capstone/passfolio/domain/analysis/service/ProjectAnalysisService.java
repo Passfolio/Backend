@@ -368,11 +368,18 @@ public class ProjectAnalysisService {
         }
 
         int total = repos.size();
-        // 전원성공·포폴 의도(Redis에 pdfUrl 잔존)했으나 아직 핸드오프 미연결 → 자동 핸드오프 실패로 간주, 재시도 노출.
-        // (STEP/admin은 pdfUrl 미저장 → false. 이미 연결되면 portfolioJobId!=null → false.)
         boolean allSuccess = failed == 0 && done == total;
-        boolean portfolioRetryable = allSuccess && portfolioJobId == null
-                && batchPortfolioStore.readPdfUrl(batchId) != null;
+        // 전원성공·포폴 의도(Redis에 pdfUrl 잔존)·아직 jobId 미링크 상태를 in-flight(생성 시작 중) vs 실패(재시도)로 구분.
+        // (STEP/admin은 pdfUrl 미저장 → 둘 다 false. 이미 연결되면 portfolioJobId!=null → 둘 다 false.)
+        boolean portfolioPending = false;   // FastAPI 호출 중 — FE는 폴링 지속, 재시도 미노출
+        boolean portfolioRetryable = false; // 핸드오프 실패 — FE 재시도 노출
+        if (allSuccess && portfolioJobId == null && batchPortfolioStore.readPdfUrl(batchId) != null) {
+            if (batchPortfolioStore.isHandoffInProgress(batchId)) {
+                portfolioPending = true;
+            } else {
+                portfolioRetryable = true;
+            }
+        }
         return ProjectAnalysisDto.AdminBatchStatusResponse.builder()
                 .batchId(batchId)
                 .total(total)
@@ -382,6 +389,7 @@ public class ProjectAnalysisService {
                 .analyses(items)
                 .portfolioJobId(portfolioJobId)
                 .portfolioRetryable(portfolioRetryable)
+                .portfolioPending(portfolioPending)
                 .build();
     }
 
@@ -516,6 +524,9 @@ public class ProjectAnalysisService {
             String pdfUrl = batchPortfolioStore.readPdfUrl(batchId);
             String purpose = batchPortfolioStore.readPurpose(batchId);
             if (pdfUrl != null && !pdfUrl.isBlank() && purpose != null && !purpose.isBlank()) {
+                // in-flight 표시: all-done 후 FastAPI 호출(~1-2s) 동안 jobId 미링크라
+                // buildBatchStatus가 retryable=true로 오탐 → FE "생성 시작 실패" 오표시. 플래그로 차단.
+                batchPortfolioStore.markHandoffInProgress(batchId);
                 try {
                     Long pfJobId = dispatchPortfolioHandoff(batchId, userId, pdfUrl, purpose, repos);
                     portfolioRequested = true;
@@ -525,6 +536,8 @@ public class ProjectAnalysisService {
                     // FastAPI/AiJob 실패는 웹훅을 깨지 않음 — 대신 가시화(SSE portfolioFailed + 실패 SMS)해 사용자가 재시도하게 한다.
                     portfolioFailed = true;
                     log.error("[ProjectAnalysisService] 포트폴리오 핸드오프 실패(재시도 가능). batchId={}", batchId, e);
+                } finally {
+                    batchPortfolioStore.clearHandoffInProgress(batchId);
                 }
             } else {
                 log.info("[ProjectAnalysisService] NONSTOP이나 포폴 PDF/목적 미지정 → 핸드오프 생략. batchId={}", batchId);
