@@ -8,6 +8,9 @@ import com.capstone.passfolio.domain.ai.entity.AiJobType;
 import com.capstone.passfolio.domain.ai.repository.AiJobRepository;
 import com.capstone.passfolio.common.notification.DiscordNotifier;
 import com.capstone.passfolio.common.util.FileUrlUtils;
+import com.capstone.passfolio.domain.analysis.entity.ProjectAnalysis;
+import com.capstone.passfolio.domain.analysis.entity.enums.AnalysisFlag;
+import com.capstone.passfolio.domain.analysis.repository.ProjectAnalysisRepository;
 import com.capstone.passfolio.domain.analysis.service.BatchPortfolioStore;
 import com.capstone.passfolio.domain.analysis.service.SmsNotifier;
 import com.capstone.passfolio.domain.file.entity.File;
@@ -33,6 +36,7 @@ public class AiJobService {
     private final BatchPortfolioStore batchPortfolioStore; // NONSTOP 포폴 완료 시 batch 식별(SMS)
     private final SmsNotifier smsNotifier;
     private final DiscordNotifier discordNotifier; // 관측용: FastAPI 호출/완료 웹훅 가시화(best-effort)
+    private final ProjectAnalysisRepository projectAnalysisRepository; // 로드맵 평가 시 analysisIds → CDN URL 해석
 
     public AiDto.JobInitResponse startPortfolioFromPdf(Long userId, Long fileId) {
         return startJob(userId, fileId, AiJobType.PORTFOLIO_FROM_PDF, null, null);
@@ -109,6 +113,7 @@ public class AiJobService {
                 .jobId(job.getId())
                 .status(job.getStatus().name())
                 .outputPdfUrl(job.getOutputPdfUrl())
+                .resultJson(job.getResultJson())
                 .errorMessage(job.getErrorMessage())
                 .build();
     }
@@ -139,6 +144,77 @@ public class AiJobService {
             }
         } finally {
             MDC.remove("userId");
+        }
+    }
+
+    /**
+     * 수동 로드맵 평가 작업 시작.
+     * analysisIds → DONE 분석의 CDN URL 해석(IDOR 가드) → FastAPI /roadmap/assess 호출.
+     * PDF 없이 코드 분석 URL만 사용하므로 fileId = null.
+     * BE가 ai_job_id(UUID)를 직접 생성해 FastAPI에 전달 — FastAPI가 완료 시 동일 ID로 콜백.
+     */
+    public AiDto.JobInitResponse startRoadmapAssess(Long userId, java.util.List<String> analysisIds, boolean merge) {
+        java.util.List<String> codeUrls = resolveCodeAnalysisUrls(analysisIds, userId);
+        Long jobId = aiJobWriter.createPendingJob(userId, null, AiJobType.ROADMAP_FROM_ANALYSES);
+        log.info("[AiJobService] PENDING roadmap job created. beJobId={}, userId={}, urls={}", jobId, userId, codeUrls == null ? 0 : codeUrls.size());
+
+        String aiJobId = java.util.UUID.randomUUID().toString();
+        aiJobWriter.assignAiJobId(jobId, aiJobId);
+
+        try {
+            aiApiClient.assessRoadmap(AiDto.AiRoadmapRequest.builder()
+                    .aiJobId(aiJobId)
+                    .codeAnalysisUrls(codeUrls)
+                    .merge(merge)
+                    .build());
+            log.info("[AiJobService] Roadmap assess dispatched. beJobId={}, aiJobId={}", jobId, aiJobId);
+            return AiDto.JobInitResponse.builder().jobId(jobId).build();
+        } catch (Exception e) {
+            log.error("[AiJobService] Roadmap assess dispatch failed. beJobId={}", jobId, e);
+            aiJobWriter.markError(jobId, e.getMessage());
+            throw e;
+        }
+    }
+
+    /**
+     * 로드맵 평가 완료 콜백 처리 (POST /api/v1/ai/roadmap/complete — AI 서버 전용).
+     * PDF 계열의 completeJob과 별도 엔드포인트로 분리 — result가 JSON 배열이므로 outputPdfUrl 아님.
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public void completeRoadmapJob(AiDto.RoadmapCompleteRequest dto) {
+        MDC.put("aiJobId", dto.getAiJobId());
+        try {
+            AiJob job = aiJobRepository.findByAiJobId(dto.getAiJobId())
+                    .orElseThrow(() -> new RestException(ErrorCode.AI_JOB_NOT_FOUND));
+            MDC.put("beJobId", String.valueOf(job.getId()));
+
+            if (job.getStatus() != AiJobStatus.PENDING) {
+                log.info("[AiJobService] completeRoadmapJob skipped (already {}). aiJobId={}", job.getStatus(), dto.getAiJobId());
+                return;
+            }
+
+            if ("DONE".equalsIgnoreCase(dto.getStatus())) {
+                if (dto.getResult() == null || dto.getResult().isNull()) {
+                    log.warn("[AiJobService] Roadmap DONE with no result, forcing ERROR. aiJobId={}", dto.getAiJobId());
+                    job.markError("Roadmap AI reported DONE but provided no result");
+                    aiSseService.push(job.getUserId(), job.getId(), job.getStatus().name(), null);
+                    return;
+                }
+                job.markDoneWithResult(dto.getResult().toString());
+                log.info("[AiJobService] Roadmap Job DONE. beJobId={}, aiJobId={}", job.getId(), dto.getAiJobId());
+                aiSseService.pushRoadmap(job.getUserId(), job.getId(), job.getStatus().name(), job.getResultJson());
+                discordNotifier.send(String.format("📥 [로드맵 웹훅] DONE — aiJobId=%s, beJobId=%d",
+                        dto.getAiJobId(), job.getId()));
+            } else {
+                job.markError(dto.getErrorMessage());
+                log.info("[AiJobService] Roadmap Job ERROR. beJobId={}, aiJobId={}", job.getId(), dto.getAiJobId());
+                aiSseService.push(job.getUserId(), job.getId(), job.getStatus().name(), null);
+                discordNotifier.send(String.format("📥 [로드맵 웹훅] ERROR — aiJobId=%s, beJobId=%d, err=%s",
+                        dto.getAiJobId(), job.getId(), dto.getErrorMessage()));
+            }
+        } finally {
+            MDC.remove("aiJobId");
+            MDC.remove("beJobId");
         }
     }
 
@@ -201,7 +277,20 @@ public class AiJobService {
                             .userId(userId)
                             .codeAnalysisUrls(codeAnalysisUrls)
                             .build());
+            // ROADMAP_FROM_ANALYSES는 startRoadmapAssess에서 직접 호출하므로 여기 도달하지 않음
+            case ROADMAP_FROM_ANALYSES -> throw new IllegalStateException(
+                    "ROADMAP_FROM_ANALYSES는 startRoadmapAssess를 통해서만 시작됩니다.");
         };
+    }
+
+    private java.util.List<String> resolveCodeAnalysisUrls(java.util.List<String> analysisIds, Long userId) {
+        if (analysisIds == null || analysisIds.isEmpty()) return null;
+        java.util.List<String> urls = projectAnalysisRepository
+                .findAllByIdInAndUser_Id(analysisIds, userId).stream()
+                .filter(a -> a.getAnalysisFlag() == AnalysisFlag.DONE && a.getResultCdnUrl() != null)
+                .map(ProjectAnalysis::getResultCdnUrl)
+                .toList();
+        return urls.isEmpty() ? null : urls;
     }
 
     private String toOutputCdnUrl(String s3Url) {

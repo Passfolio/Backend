@@ -88,6 +88,23 @@ public interface AiApiSpecification {
 
     @SecurityRequirement(name = "bearerAuth")
     @Operation(
+            summary = "코드 분석 URL 기반 로드맵 평가 작업 시작",
+            description = "완료된 코드 분석(analysisIds)의 CDN URL을 FastAPI에 전달해 로드맵 커버리지 진단 + LLM 평가를 시작한다. 비동기 처리.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "작업 시작 성공"),
+            @ApiResponse(responseCode = "400", description = "유효하지 않은 요청",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+            @ApiResponse(responseCode = "401", description = "인증 필요",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+            @ApiResponse(responseCode = "502", description = "AI 서버 오류",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+    })
+    ResponseEntity<AiDto.JobInitResponse> startRoadmapAssess(
+            UserPrincipal userPrincipal,
+            @Valid AiDto.RoadmapJobRequest request);
+
+    @SecurityRequirement(name = "bearerAuth")
+    @Operation(
             summary = "AI 작업 상태 조회",
             description = "비동기 AI 작업의 현재 상태를 조회한다. 상태는 AI 서버 Webhook(POST /jobs/complete)으로 업데이트된다.")
     @ApiResponses({
@@ -103,13 +120,23 @@ public interface AiApiSpecification {
 
     @Operation(
             summary = "AI 작업 완료 콜백 (AI 서버 전용)",
-            description = "AI 서버가 작업 완료/실패 시 호출하는 내부 Webhook. 인증 불필요.")
+            description = "PDF 계열 AI 작업 완료/실패 시 AI 서버가 호출하는 내부 Webhook. 인증 불필요.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "처리 성공 (멱등성 보장 — 이미 완료된 잡도 200 반환)"),
             @ApiResponse(responseCode = "404", description = "작업을 찾을 수 없음",
                     content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     })
     ResponseEntity<Void> completeJob(@Valid AiDto.JobCompleteRequest request);
+
+    @Operation(
+            summary = "로드맵 평가 완료 콜백 (AI 서버 전용)",
+            description = "로드맵 평가 완료/실패 시 AI 서버가 호출하는 내부 Webhook. 인증 불필요.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "처리 성공 (멱등성 보장)"),
+            @ApiResponse(responseCode = "404", description = "작업을 찾을 수 없음",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+    })
+    ResponseEntity<Void> completeRoadmapJob(@Valid AiDto.RoadmapCompleteRequest request);
 
     @SecurityRequirement(name = "bearerAuth")
     @Operation(
