@@ -62,6 +62,7 @@ public class ProjectAnalysisService {
     private final SmsNotifier smsNotifier;
     private final RepoAvailabilityService repoAvailabilityService;
     private final FileService fileService; // NONSTOP 포폴 fileId 소유권 검증 + 서버측 CDN URL 생성
+    private final AnalysisArtifactPresigner analysisArtifactPresigner; // cdn 분석 URL → presigned S3 URL(봇룰 우회)
     private final ObjectMapper objectMapper;
 
     // 결과 CDN JSON 서버사이드 fetch용(CDN CORS 미설정 → 브라우저 직접 fetch 불가). 소규모 JSON.
@@ -571,7 +572,7 @@ public class ProjectAnalysisService {
         // 조립 직전, repo별 입력 상태를 그대로 찍는다(어떤 repo가 cdnUrl 없이 빠지는지까지 가시화).
         repos.forEach(a -> log.info("[NONSTOP] 핸드오프 입력 repo — batchId={}, repoUrl={}, flag={}, cdnUrl={}",
                 batchId, a.getRepoUrl(), a.getAnalysisFlag(), a.getResultCdnUrl()));
-        List<String> codeAnalysisUrls = repos.stream()
+        List<String> cdnUrls = repos.stream()
                 .filter(a -> a.getAnalysisFlag() == AnalysisFlag.DONE && a.getResultCdnUrl() != null)
                 .map(ProjectAnalysis::getResultCdnUrl)
                 .toList();
@@ -580,8 +581,11 @@ public class ProjectAnalysisService {
         if (droppedDone > 0) {
             log.warn("[NONSTOP] DONE이나 cdnUrl 없는 repo {}건 제외됨 — batchId={}", droppedDone, batchId);
         }
-        log.info("[NONSTOP] codeAnalysisUrls 조립 완료 — batchId={}, userId={}, purpose={}, sent={}/{}(DONE+cdn), pdfUrl={}, urls={}",
-                batchId, userId, purpose, codeAnalysisUrls.size(), repos.size(), pdfUrl, codeAnalysisUrls);
+        // FastAPI가 cdn.passfolio.dev를 직접 받으면 Cloudflare 봇룰에 403되므로, S3 presigned URL로 변환해 전달.
+        List<String> codeAnalysisUrls = cdnUrls.stream().map(analysisArtifactPresigner::presign).toList();
+        log.info("[NONSTOP] codeAnalysisUrls 조립 완료 — batchId={}, userId={}, purpose={}, sent={}/{}(DONE+cdn), pdfUrl={}, cdnUrls={}",
+                batchId, userId, purpose, codeAnalysisUrls.size(), repos.size(), pdfUrl, cdnUrls);
+        log.debug("[NONSTOP] presigned codeAnalysisUrls={}", codeAnalysisUrls); // 서명 포함 → DEBUG
         Long pfJobId = aiJobService.startPortfolioFromAnalyses(userId, pdfUrl, purpose, codeAnalysisUrls);
         batchPortfolioStore.linkJob(batchId, pfJobId); // 완료 콜백→batch 식별 + 진행중 페이지→jobId 노출
         log.info("[NONSTOP] batch↔job 링크 완료 — batchId={}, pfJobId={}", batchId, pfJobId);
