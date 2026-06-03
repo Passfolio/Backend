@@ -28,10 +28,16 @@ public class BatchPortfolioStore {
 
     /** NONSTOP 포폴 메타 저장. pdfUrl/purpose 둘 다 있을 때만(없으면 no-op = STEP 또는 포폴 미요청). */
     public void store(String batchId, String pdfUrl, String purpose) {
-        if (pdfUrl == null || pdfUrl.isBlank() || purpose == null || purpose.isBlank()) return;
+        if (pdfUrl == null || pdfUrl.isBlank() || purpose == null || purpose.isBlank()) {
+            log.info("[NONSTOP] 포폴 메타 저장 skip(미요청/불완전) — batchId={}, hasPdfUrl={}, purpose={}",
+                    batchId, pdfUrl != null && !pdfUrl.isBlank(), purpose);
+            return;
+        }
         Duration ttl = Duration.ofHours(batchTtlHours);
         stringRedisTemplate.opsForValue().set(pdfKey(batchId), pdfUrl.trim(), ttl);
         stringRedisTemplate.opsForValue().set(purposeKey(batchId), purpose.trim().toUpperCase(), ttl);
+        log.info("[NONSTOP] 포폴 메타 저장 OK — batchId={}, ttlH={}, purpose={}, pdfUrl={}",
+                batchId, batchTtlHours, purpose.trim().toUpperCase(), pdfUrl.trim());
     }
 
     /** 업로드 PDF URL(없으면 null = 포폴 미요청). */
