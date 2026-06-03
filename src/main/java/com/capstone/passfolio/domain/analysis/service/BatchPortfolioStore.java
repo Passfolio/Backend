@@ -65,4 +65,28 @@ public class BatchPortfolioStore {
     public String readBatchByJob(Long beJobId) {
         return beJobId == null ? null : stringRedisTemplate.opsForValue().get(batchByJobKey(beJobId));
     }
+
+    private String handoffKey(String batchId) { return "analysis:batch:" + batchId + ":pf:handoff"; }
+
+    // 핸드오프 in-flight 플래그: all-done 후 FastAPI 호출(~1-2s) 동안 batch는 전원성공·jobId 미링크라
+    // buildBatchStatus가 retryable=true로 오탐한다. 이 플래그가 켜진 동안은 retryable에서 제외해
+    // "생성 시작 실패" 오표시를 막는다. 짧은 TTL로 스레드 크래시 시 self-heal(이후 자연스레 retryable 노출).
+    private static final Duration HANDOFF_INFLIGHT_TTL = Duration.ofSeconds(120);
+
+    /** 핸드오프 시도 시작 표시(FastAPI 호출 직전). */
+    public void markHandoffInProgress(String batchId) {
+        if (batchId == null) return;
+        stringRedisTemplate.opsForValue().set(handoffKey(batchId), "1", HANDOFF_INFLIGHT_TTL);
+    }
+
+    /** 핸드오프 시도 종료 표시(성공/실패 무관, finally). */
+    public void clearHandoffInProgress(String batchId) {
+        if (batchId == null) return;
+        stringRedisTemplate.delete(handoffKey(batchId));
+    }
+
+    /** 핸드오프가 in-flight인지(true면 retryable 오탐 방지로 재시도 미노출). */
+    public boolean isHandoffInProgress(String batchId) {
+        return batchId != null && Boolean.TRUE.equals(stringRedisTemplate.hasKey(handoffKey(batchId)));
+    }
 }
