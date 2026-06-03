@@ -42,11 +42,9 @@ public class ProjectAnalysisDto {
                 example = "+821012345678", nullable = true)
         private String phone;
 
-        @Size(max = 2048)
-        @URL(message = "pdfUrl이 유효한 URL 형식이 아닙니다.")
-        @Schema(description = "NONSTOP 포트폴리오용 업로드 PDF의 CDN URL(자소서 또는 포폴). NONSTOP일 때 필수.",
-                nullable = true)
-        private String pdfUrl;
+        @Schema(description = "NONSTOP 포트폴리오용 업로드 PDF의 파일 ID. 소유권 검증과 CDN URL 생성은 서버가 수행(IDOR/SSRF 차단). NONSTOP일 때 필수.",
+                example = "1", nullable = true)
+        private Long fileId;
 
         @Schema(description = "NONSTOP 포트폴리오 목적: EDIT(기존 포폴 개선) | GENERATE(자소서로 포폴 생성). NONSTOP일 때 필수.",
                 example = "EDIT", nullable = true)
@@ -141,6 +139,7 @@ public class ProjectAnalysisDto {
         private BatchStatusCounts counts;
         private List<AdminBatchAnalysisItem> analyses;
         private Long portfolioJobId;                  // NONSTOP 포폴 AiJob beJobId(있으면 FE가 polling해 PDF 렌더). admin/STEP은 null.
+        private boolean portfolioRetryable;           // NONSTOP 전원성공·포폴 의도했으나 핸드오프 미완(자동 실패) → FE 재시도 노출. 새로고침에도 유지(Redis 기반).
     }
 
     @Getter
@@ -236,6 +235,7 @@ public class ProjectAnalysisDto {
         private int total;
         private int failures;
         private boolean portfolioRequested; // FastAPI 핸드오프 여부(NONSTOP·전원성공일 때만 true)
+        private boolean portfolioFailed;    // NONSTOP·전원성공이나 FastAPI 핸드오프 호출 실패(재시도 가능) — FE에 재시도 노출
     }
 
     // ============================================================

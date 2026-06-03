@@ -90,6 +90,33 @@ public class CoolSmsNotifier implements SmsNotifier {
         }
     }
 
+    @Override
+    public void notifyPortfolioHandoffFailed(Long userId, String batchId) {
+        String phone = phoneStore.read(batchId);
+        if (phone == null) {
+            log.info("[SMS] no phone for handoff-failed, skip. userId={}, batchId={}", userId, batchId);
+            return;
+        }
+        // 분석은 완료됐으나 포폴 생성 시작에 실패 — 사용자가 결과 페이지에서 재시도하도록 유도.
+        String message = "[Passfolio] 프로젝트 분석은 완료됐으나 포트폴리오 생성 시작에 실패했습니다. 결과 페이지에서 재시도해주세요."
+                + "\n결과 보기: " + resultLink(batchId);
+
+        if (!smsEnabled) {
+            log.info("[SMS] (disabled) would send handoff-failed. userId={}, batchId={}, msg={}", userId, batchId, message);
+            return;
+        }
+        try {
+            Message m = new Message();
+            m.setFrom(normalize(from));
+            m.setTo(normalize(phone));
+            m.setText(message);
+            messageService.sendOne(new SingleMessageSendingRequest(m));
+            log.info("[SMS] handoff-failed sent. userId={}, batchId={}", userId, batchId);
+        } catch (Exception e) { // best-effort
+            log.error("[SMS] handoff-failed send failed. userId={}, batchId={}", userId, batchId, e);
+        }
+    }
+
     /** 사용자에게 보낼 결과 페이지 링크: {front-base-url 맨 뒤 값}/analysis/{batchId}. */
     private String resultLink(String batchId) {
         List<String> bases = PropertiesParserUtils.propertiesParser(frontBaseUrlConfig);

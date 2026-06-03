@@ -9,7 +9,10 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.capstone.passfolio.domain.analysis.entity.RepoAvailability;
+import com.capstone.passfolio.domain.analysis.entity.enums.RepoAvailabilityStatus;
 import com.capstone.passfolio.domain.analysis.repository.ProjectAnalysisRepository;
+import com.capstone.passfolio.domain.analysis.repository.RepoAvailabilityRepository;
 import com.capstone.passfolio.domain.analysis.service.AnalysisAdmissionPacer;
 import com.capstone.passfolio.domain.analysis.service.AnalysisTokenPreparer;
 import com.capstone.passfolio.domain.analysis.service.BatchPhoneStore;
@@ -49,6 +52,7 @@ class ProjectAnalysisDispatchE2ETest extends AbstractIntegrationTest {
     @Autowired private MockMvc mockMvc;
     @Autowired private UserRepository userRepository;
     @Autowired private ProjectAnalysisRepository projectAnalysisRepository;
+    @Autowired private RepoAvailabilityRepository repoAvailabilityRepository;
 
     @MockitoBean private AnalysisTokenPreparer tokenPreparer;
     @MockitoBean private GitHubApiClient gitHubApiClient;
@@ -70,6 +74,7 @@ class ProjectAnalysisDispatchE2ETest extends AbstractIntegrationTest {
     @AfterEach
     void clean() {
         projectAnalysisRepository.deleteAll();
+        repoAvailabilityRepository.deleteAll();
         userRepository.deleteAll();
     }
 
@@ -106,9 +111,17 @@ class ProjectAnalysisDispatchE2ETest extends AbstractIntegrationTest {
         GitHubDto.ApiRepo repo = mock(GitHubDto.ApiRepo.class);
         given(repo.getSize()).willReturn(100);
         given(gitHubApiClient.fetchRepo("tok", "o", "r")).willReturn(repo);
+        // 사전 점검 게이트 통과 전제: 대상 repo가 AVAILABLE이어야 /start가 디스패치한다.
+        repoAvailabilityRepository.saveAndFlush(RepoAvailability.builder()
+                .id(java.util.UUID.randomUUID().toString())
+                .user(userRepository.findById(userId).orElseThrow())
+                .repoUrl("https://github.com/o/r")
+                .status(RepoAvailabilityStatus.AVAILABLE)
+                .build());
 
+        // STEP: 디스패치 메커닉만 검증(NONSTOP은 fileId+소유권이 필요 — 별도 단위 테스트가 커버).
         mockMvc.perform(post(URL).with(auth()).contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"repoUrls\":[\"https://github.com/o/r\"],\"mode\":\"NONSTOP\"}"))
+                        .content("{\"repoUrls\":[\"https://github.com/o/r\"],\"mode\":\"STEP\"}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.batchId").isNotEmpty())
                 .andExpect(jsonPath("$.analyses[0].status").value("IN_PROGRESS"));

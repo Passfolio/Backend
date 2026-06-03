@@ -43,6 +43,12 @@ public class ProjectAnalysis extends TimeBaseEntity {
     @Column(name = "analysis_flag", nullable = false, length = 16)
     private AnalysisFlag analysisFlag = AnalysisFlag.YET;
 
+    // 완료 콜백 멱등성 보호: 동시 중복 웹훅이 같은 analysis를 두 번 종료 전이시키지 못하게 낙관적 락.
+    // 패배한 트랜잭션은 ObjectOptimisticLockingFailureException → 호출부가 멱등 skip(배치 카운터 이중 감소 방지).
+    @Version
+    @Column(name = "version", nullable = false)
+    private Long version;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
     private User user;

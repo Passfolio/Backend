@@ -1,9 +1,13 @@
 package com.capstone.passfolio.domain.analysis.service;
 
+import com.capstone.passfolio.common.util.FileUrlUtils;
 import com.capstone.passfolio.domain.ai.client.AiApiClient;
 import com.capstone.passfolio.domain.ai.dto.AiDto;
 import com.capstone.passfolio.domain.ai.service.AiJobService;
 import com.capstone.passfolio.domain.analysis.dto.ProjectAnalysisDto;
+import com.capstone.passfolio.domain.file.entity.File;
+import com.capstone.passfolio.domain.file.entity.enums.DocumentType;
+import com.capstone.passfolio.domain.file.service.FileService;
 import com.capstone.passfolio.domain.analysis.entity.ProjectAnalysis;
 import com.capstone.passfolio.domain.analysis.entity.enums.AnalysisFlag;
 import com.capstone.passfolio.domain.analysis.repository.ProjectAnalysisRepository;
@@ -24,6 +28,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.slf4j.MDC;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
 
 import java.net.URI;
@@ -56,6 +61,7 @@ public class ProjectAnalysisService {
     private final AiJobService aiJobService;
     private final SmsNotifier smsNotifier;
     private final RepoAvailabilityService repoAvailabilityService;
+    private final FileService fileService; // NONSTOP 포폴 fileId 소유권 검증 + 서버측 CDN URL 생성
     private final ObjectMapper objectMapper;
 
     // 결과 CDN JSON 서버사이드 fetch용(CDN CORS 미설정 → 브라우저 직접 fetch 불가). 소규모 JSON.
@@ -96,6 +102,10 @@ public class ProjectAnalysisService {
         String githubUsername = user.getGithubLogin();
         String mode = normalizeMode(request.getMode());
 
+        // 0) NONSTOP 포폴 입력 검증 + 서버측 CDN URL 생성(IDOR/SSRF 차단). STEP이면 null(핸드오프 생략).
+        //    실패하면 SQS 디스패치/admission 전에 즉시 거부(자원 낭비 방지).
+        String portfolioPdfUrl = resolvePortfolioPdfUrl(userId, mode, request.getFileId(), request.getPortfolioPurpose());
+
         // 1) 토큰 1회 준비(복호 + TTL 점검)
         String plainToken = tokenPreparer.resolvePlaintextWithTtlCheck(userId);
 
@@ -124,8 +134,8 @@ public class ProjectAnalysisService {
         String batchId = UUID.randomUUID().toString();
         batchProgressTracker.createBatch(batchId, metas.size());
         batchPhoneStore.store(batchId, request.getPhone());
-        // NONSTOP 포폴: 업로드 PDF·목적을 batch에 transient 저장(all-done·전원성공 시 FastAPI 핸드오프에 사용).
-        batchPortfolioStore.store(batchId, request.getPdfUrl(), request.getPortfolioPurpose());
+        // NONSTOP 포폴: 서버가 생성한 CDN URL·목적을 batch에 transient 저장(all-done·전원성공 시 FastAPI 핸드오프에 사용).
+        batchPortfolioStore.store(batchId, portfolioPdfUrl, request.getPortfolioPurpose());
 
         // 6) repo별 디스패치
         List<ProjectAnalysisDto.DispatchedItem> dispatched = new ArrayList<>();
@@ -358,6 +368,11 @@ public class ProjectAnalysisService {
         }
 
         int total = repos.size();
+        // 전원성공·포폴 의도(Redis에 pdfUrl 잔존)했으나 아직 핸드오프 미연결 → 자동 핸드오프 실패로 간주, 재시도 노출.
+        // (STEP/admin은 pdfUrl 미저장 → false. 이미 연결되면 portfolioJobId!=null → false.)
+        boolean allSuccess = failed == 0 && done == total;
+        boolean portfolioRetryable = allSuccess && portfolioJobId == null
+                && batchPortfolioStore.readPdfUrl(batchId) != null;
         return ProjectAnalysisDto.AdminBatchStatusResponse.builder()
                 .batchId(batchId)
                 .total(total)
@@ -366,6 +381,7 @@ public class ProjectAnalysisService {
                         .yet(yet).inProgress(inProgress).done(done).failed(failed).build())
                 .analyses(items)
                 .portfolioJobId(portfolioJobId)
+                .portfolioRetryable(portfolioRetryable)
                 .build();
     }
 
@@ -402,6 +418,29 @@ public class ProjectAnalysisService {
         return (mode == null || mode.isBlank()) ? "NONSTOP" : mode.trim().toUpperCase();
     }
 
+    /**
+     * NONSTOP 포폴 입력 검증 + 서버측 CDN URL 생성. STEP이면 null(핸드오프 생략).
+     * - fileId 소유권 검증(IDOR 가드, 수동 AI 경로와 동일 패턴) — 원시 URL 통과 금지(SSRF 차단)
+     * - purpose ∈ {EDIT, GENERATE} + 업로드 문서종류 교차검증(EDIT⇔PORTFOLIO, GENERATE⇔COVER_LETTER)
+     * - CDN URL은 소유 파일의 s3ObjectKey로 서버가 생성
+     */
+    private String resolvePortfolioPdfUrl(Long userId, String mode, Long fileId, String purpose) {
+        if (!"NONSTOP".equalsIgnoreCase(mode)) {
+            return null; // STEP: 포폴 핸드오프 없음
+        }
+        boolean generate = "GENERATE".equalsIgnoreCase(purpose);
+        boolean edit = "EDIT".equalsIgnoreCase(purpose);
+        if (fileId == null || (!generate && !edit)) {
+            throw new RestException(ErrorCode.ANALYSIS_PORTFOLIO_INPUT_REQUIRED);
+        }
+        File file = fileService.validateFileOwner(fileId, userId); // 타인 파일 차단(AUTH_FORBIDDEN)
+        DocumentType expected = generate ? DocumentType.COVER_LETTER : DocumentType.PORTFOLIO;
+        if (file.getDocumentType() != expected) {
+            throw new RestException(ErrorCode.ANALYSIS_PORTFOLIO_FILE_TYPE_MISMATCH);
+        }
+        return FileUrlUtils.buildCdnUrl(file.getS3ObjectKey());
+    }
+
     private record OwnerRepo(String owner, String repo) { }
 
     private OwnerRepo parseOwnerRepo(String repoUrl) {
@@ -432,7 +471,16 @@ public class ProjectAnalysisService {
         MDC.put("analysisId", dto.getAnalysisId());
         try {
             // 1) DB 변경 + 커밋 (트랜잭션 경계는 writer)
-            ProjectAnalysisWriter.CompletionResult r = projectAnalysisWriter.applyCompletion(dto);
+            ProjectAnalysisWriter.CompletionResult r;
+            try {
+                r = projectAnalysisWriter.applyCompletion(dto);
+            } catch (ObjectOptimisticLockingFailureException e) {
+                // 동시 중복 웹훅: 다른 트랜잭션이 먼저 종료 전이를 커밋함 → 멱등 skip.
+                // recordTerminal에 도달하지 않게 하여 배치 카운터 이중 감소(조기/불완전 핸드오프)를 방지한다.
+                log.info("[ProjectAnalysisService] completeAnalysis skipped (concurrent terminal). analysisId={}",
+                        dto.getAnalysisId());
+                return;
+            }
             if (r == null) {
                 log.info("[ProjectAnalysisService] completeAnalysis skipped (already terminal). analysisId={}",
                         dto.getAnalysisId());
@@ -462,25 +510,21 @@ public class ProjectAnalysisService {
     private void handleBatchOutcome(String batchId, Long userId, String mode, BatchOutcome outcome) {
         List<ProjectAnalysis> repos = projectAnalysisRepository.findByBatchId(batchId);
         boolean portfolioRequested = false;
+        boolean portfolioFailed = false;
 
         if (outcome.allSuccess() && "NONSTOP".equalsIgnoreCase(mode)) {
             String pdfUrl = batchPortfolioStore.readPdfUrl(batchId);
             String purpose = batchPortfolioStore.readPurpose(batchId);
             if (pdfUrl != null && !pdfUrl.isBlank() && purpose != null && !purpose.isBlank()) {
                 try {
-                    // 분석 결과(final.json) CDN URL 리스트 → FastAPI 포폴 생성(purpose별 from-pdf/from-cover-letter).
-                    List<String> codeAnalysisUrls = repos.stream()
-                            .filter(a -> a.getAnalysisFlag() == AnalysisFlag.DONE && a.getResultCdnUrl() != null)
-                            .map(ProjectAnalysis::getResultCdnUrl)
-                            .toList();
-                    Long pfJobId = aiJobService.startPortfolioFromAnalyses(userId, pdfUrl, purpose, codeAnalysisUrls);
-                    batchPortfolioStore.linkJob(batchId, pfJobId); // 완료 콜백→batch 식별 + 진행중 페이지→jobId 노출
+                    Long pfJobId = dispatchPortfolioHandoff(batchId, userId, pdfUrl, purpose, repos);
                     portfolioRequested = true;
-                    log.info("[ProjectAnalysisService] portfolio handoff requested. batchId={}, purpose={}, analyses={}",
-                            batchId, purpose, codeAnalysisUrls.size());
+                    log.info("[ProjectAnalysisService] portfolio handoff requested. batchId={}, purpose={}, pfJobId={}",
+                            batchId, purpose, pfJobId);
                 } catch (Exception e) {
-                    // FastAPI/AiJob 실패는 웹훅을 깨지 않음(로그). 배치 SSE/SMS는 그대로.
-                    log.error("[ProjectAnalysisService] 포트폴리오 핸드오프 실패. batchId={}", batchId, e);
+                    // FastAPI/AiJob 실패는 웹훅을 깨지 않음 — 대신 가시화(SSE portfolioFailed + 실패 SMS)해 사용자가 재시도하게 한다.
+                    portfolioFailed = true;
+                    log.error("[ProjectAnalysisService] 포트폴리오 핸드오프 실패(재시도 가능). batchId={}", batchId, e);
                 }
             } else {
                 log.info("[ProjectAnalysisService] NONSTOP이나 포폴 PDF/목적 미지정 → 핸드오프 생략. batchId={}", batchId);
@@ -493,7 +537,50 @@ public class ProjectAnalysisService {
                 .total(repos.size())
                 .failures(outcome.failures())
                 .portfolioRequested(portfolioRequested)
+                .portfolioFailed(portfolioFailed)
                 .build());
-        smsNotifier.notifyBatchCompleted(userId, batchId, repos.size(), outcome.allSuccess());
+        if (portfolioFailed) {
+            smsNotifier.notifyPortfolioHandoffFailed(userId, batchId);
+        } else {
+            smsNotifier.notifyBatchCompleted(userId, batchId, repos.size(), outcome.allSuccess());
+        }
+    }
+
+    /** 분석 결과(final.json) CDN URL들을 모아 FastAPI 포폴 생성 호출 + batch↔job 매핑. 실패 시 예외 전파(호출부가 가시화/재시도 처리). */
+    private Long dispatchPortfolioHandoff(String batchId, Long userId, String pdfUrl, String purpose,
+                                          List<ProjectAnalysis> repos) {
+        List<String> codeAnalysisUrls = repos.stream()
+                .filter(a -> a.getAnalysisFlag() == AnalysisFlag.DONE && a.getResultCdnUrl() != null)
+                .map(ProjectAnalysis::getResultCdnUrl)
+                .toList();
+        Long pfJobId = aiJobService.startPortfolioFromAnalyses(userId, pdfUrl, purpose, codeAnalysisUrls);
+        batchPortfolioStore.linkJob(batchId, pfJobId); // 완료 콜백→batch 식별 + 진행중 페이지→jobId 노출
+        return pfJobId;
+    }
+
+    /**
+     * NONSTOP 포폴 핸드오프 수동 재시도 — 자동 핸드오프가 FastAPI 장애로 실패한 배치를 사용자가 복구.
+     * 소유권 검증 → 이미 핸드오프됨/전원성공 아님/포폴 메타(Redis TTL) 만료면 재시도 불가(409).
+     */
+    public void retryPortfolioHandoff(Long userId, String batchId) {
+        List<ProjectAnalysis> repos = projectAnalysisRepository.findByBatchIdAndUser_Id(batchId, userId);
+        if (repos.isEmpty()) {
+            throw new RestException(ErrorCode.PROJECT_ANALYSIS_NOT_FOUND);
+        }
+        if (batchPortfolioStore.readJobByBatch(batchId) != null) {
+            throw new RestException(ErrorCode.ANALYSIS_PORTFOLIO_HANDOFF_NOT_RETRYABLE); // 이미 핸드오프됨(중복 방지)
+        }
+        boolean allSuccess = repos.stream().allMatch(a -> a.getAnalysisFlag() == AnalysisFlag.DONE);
+        String pdfUrl = batchPortfolioStore.readPdfUrl(batchId);
+        String purpose = batchPortfolioStore.readPurpose(batchId);
+        if (!allSuccess || pdfUrl == null || pdfUrl.isBlank() || purpose == null || purpose.isBlank()) {
+            throw new RestException(ErrorCode.ANALYSIS_PORTFOLIO_HANDOFF_NOT_RETRYABLE); // 전원성공 아님 또는 포폴 메타 만료
+        }
+        Long pfJobId = dispatchPortfolioHandoff(batchId, userId, pdfUrl, purpose, repos); // 실패 시 AI 에러 그대로 전파
+        log.info("[ProjectAnalysisService] portfolio handoff retried. batchId={}, pfJobId={}", batchId, pfJobId);
+        sseService.pushBatch(userId, ProjectAnalysisDto.BatchSsePayload.builder()
+                .batchId(batchId).status("ALL_DONE").total(repos.size()).failures(0)
+                .portfolioRequested(true).portfolioFailed(false)
+                .build());
     }
 }
