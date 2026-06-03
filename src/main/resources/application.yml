@@ -233,6 +233,12 @@ analysis:
     batch-ttl-hours: ${ANALYSIS_BATCH_TTL_HOURS:6}
     # stale 안전망: IN_PROGRESS가 이 시간 이상 정체되면 실패 처리(Lambda 최대 15분 → 여유).
     stale-timeout-minutes: ${ANALYSIS_STALE_TIMEOUT_MINUTES:30}
+  # NONSTOP 핸드오프: FastAPI에 넘길 분석 JSON을 presigned S3 URL로 변환(Cloudflare 봇룰 우회).
+  artifact:
+    # DevSkill이 분석 결과 JSON을 올리는 버킷(= DevSkill OUTPUT_BUCKET). BE 역할에 s3:GetObject 필요.
+    output-bucket: ${ANALYSIS_OUTPUT_BUCKET:REDACTED-ANALYSIS-BUCKET}
+    # presigned GET URL 만료(분). FastAPI 백그라운드 큐 지연 대비 업로드용(10분)보다 길게.
+    presign-ttl-minutes: ${ANALYSIS_PRESIGN_TTL_MINUTES:60}
   admin-test:
     # 여기 등록된 username(=가입 이메일, 소문자) 만 최대 300개 디스패치 가능. 그 외 ADMIN은 11개 제한.
     # 콤마 구분. 미설정 시 전원 11개로 제한. 예: ANALYSIS_ADMIN_TEST_PRIVILEGED_USERNAMES=owner@example.com

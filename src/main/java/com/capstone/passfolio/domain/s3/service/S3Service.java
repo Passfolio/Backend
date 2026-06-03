@@ -198,6 +198,21 @@ public class S3Service {
         return s3Presigner.presignGetObject(presignRequest).url().toString();
     }
 
+    /**
+     * 임의 버킷·TTL로 GET presigned URL을 발급한다(기본 버킷이 아닌 타 버킷 객체용).
+     *
+     * <p>NONSTOP 핸드오프에서 DevSkill 분석 버킷의 결과 JSON을 FastAPI가 S3 직결로 받게 하기 위해 사용
+     * (cdn.passfolio.dev 경유 시 Cloudflare 봇룰이 데이터센터 IP를 차단하므로 우회). 서명은 호출 시점의
+     * SDK 자격증명(운영=EC2 역할)으로 이뤄지므로 해당 역할이 대상 버킷에 {@code s3:GetObject} 권한을 가져야 한다.
+     */
+    public String generateGetPresignedUrl(String bucket, String key, Duration ttl) {
+        GetObjectPresignRequest presignRequest = GetObjectPresignRequest.builder()
+                .signatureDuration(ttl)
+                .getObjectRequest(r -> r.bucket(bucket).key(key))
+                .build();
+        return s3Presigner.presignGetObject(presignRequest).url().toString();
+    }
+
     // ============================================================
     // 2-c) 모든 Part Presigned URL 일괄 발급
     // ============================================================
