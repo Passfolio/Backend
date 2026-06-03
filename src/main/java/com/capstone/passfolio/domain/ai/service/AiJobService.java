@@ -6,6 +6,7 @@ import com.capstone.passfolio.domain.ai.entity.AiJob;
 import com.capstone.passfolio.domain.ai.entity.AiJobStatus;
 import com.capstone.passfolio.domain.ai.entity.AiJobType;
 import com.capstone.passfolio.domain.ai.repository.AiJobRepository;
+import com.capstone.passfolio.common.notification.DiscordNotifier;
 import com.capstone.passfolio.common.util.FileUrlUtils;
 import com.capstone.passfolio.domain.analysis.service.BatchPortfolioStore;
 import com.capstone.passfolio.domain.analysis.service.SmsNotifier;
@@ -31,6 +32,7 @@ public class AiJobService {
     private final AiSseService aiSseService;
     private final BatchPortfolioStore batchPortfolioStore; // NONSTOP 포폴 완료 시 batch 식별(SMS)
     private final SmsNotifier smsNotifier;
+    private final DiscordNotifier discordNotifier; // 관측용: FastAPI 호출/완료 웹훅 가시화(best-effort)
 
     public AiDto.JobInitResponse startPortfolioFromPdf(Long userId, Long fileId) {
         return startJob(userId, fileId, AiJobType.PORTFOLIO_FROM_PDF, null, null);
@@ -68,21 +70,29 @@ public class AiJobService {
                 log.warn("[AiJobService] DONE with no outputPdfUrl, forcing ERROR. aiJobId={}", dto.getAiJobId());
                 job.markError("AI reported DONE but provided no output URL");
                 aiSseService.push(job.getUserId(), job.getId(), job.getStatus().name(), null);
+                discordNotifier.send(String.format(
+                        "📥 [AI 웹훅] DONE이나 output 없음 → ERROR 처리. aiJobId=%s, beJobId=%d",
+                        dto.getAiJobId(), job.getId()));
                 return;
             }
 
             // NONSTOP 포폴 작업이면(배치 매핑 존재) 완료 후 SMS 통지. 일반 /upload 작업이면 null → 통지 없음.
             String pfBatchId = batchPortfolioStore.readBatchByJob(job.getId());
+            String origin = pfBatchId != null ? "NONSTOP batch=" + pfBatchId : "manual";
             if ("DONE".equalsIgnoreCase(dto.getStatus())) {
                 job.markDone(toOutputCdnUrl(dto.getOutputPdfUrl()));
                 log.info("[AiJobService] Job DONE. beJobId={}, aiJobId={}", job.getId(), dto.getAiJobId());
                 aiSseService.push(job.getUserId(), job.getId(), job.getStatus().name(), job.getOutputPdfUrl());
                 if (pfBatchId != null) smsNotifier.notifyPortfolioCompleted(job.getUserId(), pfBatchId, true);
+                discordNotifier.send(String.format("📥 [AI 웹훅] DONE — aiJobId=%s, beJobId=%d, %s, outputPdfUrl=%s",
+                        dto.getAiJobId(), job.getId(), origin, job.getOutputPdfUrl()));
             } else {
                 job.markError(dto.getErrorMessage());
                 log.info("[AiJobService] Job ERROR. beJobId={}, aiJobId={}", job.getId(), dto.getAiJobId());
                 aiSseService.push(job.getUserId(), job.getId(), job.getStatus().name(), null);
                 if (pfBatchId != null) smsNotifier.notifyPortfolioCompleted(job.getUserId(), pfBatchId, false);
+                discordNotifier.send(String.format("📥 [AI 웹훅] ERROR — aiJobId=%s, beJobId=%d, %s, err=%s",
+                        dto.getAiJobId(), job.getId(), origin, dto.getErrorMessage()));
             }
         } finally {
             MDC.remove("aiJobId");
@@ -144,14 +154,22 @@ public class AiJobService {
                 ? AiJobType.PORTFOLIO_FROM_COVER_LETTER
                 : AiJobType.PORTFOLIO_FROM_PDF;
         Long jobId = aiJobWriter.createPendingJob(userId, null, type);
+        int analyses = codeAnalysisUrls == null ? 0 : codeAnalysisUrls.size();
+        discordNotifier.send(String.format(
+                "🚀 [NONSTOP] FastAPI 포폴 호출 — userId=%d, beJobId=%d, type=%s, codeAnalysisUrls=%d, pdfUrl=%s",
+                userId, jobId, type, analyses, pdfUrl));
         try {
             AiDto.AiJobInitResponse aiResponse = callAiForJobStart(type, pdfUrl, null, null, userId, codeAnalysisUrls);
             if (aiResponse == null || aiResponse.getJobId() == null) {
                 throw new RestException(ErrorCode.AI_SERVER_ERROR, "AI 서버가 유효한 jobId를 반환하지 않았습니다.");
             }
             aiJobWriter.assignAiJobId(jobId, aiResponse.getJobId());
+            discordNotifier.send(String.format("✅ FastAPI 응답 OK — beJobId=%d, aiJobId=%s",
+                    jobId, aiResponse.getJobId()));
             return jobId;
         } catch (Exception e) {
+            discordNotifier.send(String.format("❌ FastAPI 호출 실패 — userId=%d, beJobId=%d, type=%s, err=%s",
+                    userId, jobId, type, e.getMessage()));
             aiJobWriter.markError(jobId, e.getMessage());
             throw e;
         }

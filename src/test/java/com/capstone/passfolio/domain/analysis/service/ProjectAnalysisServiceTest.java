@@ -396,4 +396,57 @@ class ProjectAnalysisServiceTest {
                 .extracting(e -> ((RestException) e).getErrorCode())
                 .isEqualTo(ErrorCode.PROJECT_ANALYSIS_NOT_FOUND);
     }
+
+    // ---------- 핸드오프 in-flight 레이스: retryable 오탐 방지 ----------
+
+    private ProjectAnalysis doneRepo() {
+        return ProjectAnalysis.builder()
+                .id("a1").batchId("b1").repoUrl("r").analysisFlag(AnalysisFlag.DONE)
+                .resultCdnUrl("https://cdn.x/r.json").build();
+    }
+
+    @Test
+    @DisplayName("핸드오프 in-flight(FastAPI 호출 중) → portfolioRetryable=false (오탐 방지)")
+    void batch_status_handoff_inflight_not_retryable() {
+        given(projectAnalysisRepository.findByBatchIdAndUser_Id("b1", 7L)).willReturn(List.of(doneRepo()));
+        given(batchPortfolioStore.readJobByBatch("b1")).willReturn(null);          // 아직 미링크
+        given(batchPortfolioStore.readPdfUrl("b1")).willReturn("https://cdn.x/u.pdf");
+        given(batchPortfolioStore.isHandoffInProgress("b1")).willReturn(true);     // in-flight
+
+        ProjectAnalysisDto.AdminBatchStatusResponse res = projectAnalysisService.getUserBatchStatus(7L, "b1");
+
+        assertThat(res.isPortfolioRetryable()).isFalse();
+        assertThat(res.getPortfolioJobId()).isNull();
+    }
+
+    @Test
+    @DisplayName("핸드오프 종료·미링크(진짜 실패) → portfolioRetryable=true")
+    void batch_status_handoff_failed_retryable() {
+        given(projectAnalysisRepository.findByBatchIdAndUser_Id("b1", 7L)).willReturn(List.of(doneRepo()));
+        given(batchPortfolioStore.readJobByBatch("b1")).willReturn(null);
+        given(batchPortfolioStore.readPdfUrl("b1")).willReturn("https://cdn.x/u.pdf");
+        given(batchPortfolioStore.isHandoffInProgress("b1")).willReturn(false);    // 종료됨 + 미링크 → 실패
+
+        ProjectAnalysisDto.AdminBatchStatusResponse res = projectAnalysisService.getUserBatchStatus(7L, "b1");
+
+        assertThat(res.isPortfolioRetryable()).isTrue();
+    }
+
+    @Test
+    @DisplayName("complete all-done 핸드오프: in-flight mark/clear 호출(레이스 창 보호)")
+    void complete_handoff_marks_and_clears_inflight() {
+        given(projectAnalysisWriter.applyCompletion(any())).willReturn(result("b1", false, "NONSTOP"));
+        given(batchProgressTracker.recordTerminal("b1", false))
+                .willReturn(new BatchProgressTracker.BatchOutcome(true, true, 0));
+        given(projectAnalysisRepository.findByBatchId("b1")).willReturn(List.of(doneRepo()));
+        given(batchPortfolioStore.readPdfUrl("b1")).willReturn("https://cdn.x/u.pdf");
+        given(batchPortfolioStore.readPurpose("b1")).willReturn("EDIT");
+        given(aiJobService.startPortfolioFromAnalyses(eq(7L), any(), eq("EDIT"), any())).willReturn(99L);
+
+        projectAnalysisService.completeAnalysis(req("a1", "analyzed", "https://cdn.x/r.json", "Svc", null));
+
+        then(batchPortfolioStore).should().markHandoffInProgress("b1");
+        then(batchPortfolioStore).should().clearHandoffInProgress("b1");
+        then(batchPortfolioStore).should().linkJob("b1", 99L);
+    }
 }
