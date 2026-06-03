@@ -1,6 +1,7 @@
 package com.capstone.passfolio.domain.analysis.service;
 
 import com.capstone.passfolio.domain.analysis.dto.ProjectAnalysisDto;
+import com.capstone.passfolio.domain.analysis.dto.RepoAvailabilityDto;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
@@ -21,6 +22,7 @@ public class ProjectAnalysisSseService {
     private static final long SSE_TIMEOUT_MS = 5 * 60 * 1000L;
     private static final String ANALYSIS_EVENT = "PROJECT_ANALYSIS_STATUS";
     private static final String BATCH_EVENT = "PROJECT_ANALYSIS_BATCH_STATUS";
+    private static final String PRECHECK_EVENT = "PROJECT_ANALYSIS_PRECHECK_STATUS";
 
     private final ConcurrentHashMap<Long, Set<SseEmitter>> emitters = new ConcurrentHashMap<>();
 
@@ -60,6 +62,11 @@ public class ProjectAnalysisSseService {
     /** 배치 전체 완료 통지. */
     public void pushBatch(Long userId, ProjectAnalysisDto.BatchSsePayload payload) {
         fanout(userId, BATCH_EVENT, payload, "batchId=" + payload.getBatchId());
+    }
+
+    /** repo 사전 점검 결과 통지(AVAILABLE/DISABLED). */
+    public void pushPrecheck(Long userId, RepoAvailabilityDto.PrecheckSsePayload payload) {
+        fanout(userId, PRECHECK_EVENT, payload, "repoUrl=" + payload.getRepoUrl());
     }
 
     private void fanout(Long userId, String event, Object data, String logCtx) {

@@ -108,6 +108,8 @@ public enum ErrorCode {
     ANALYSIS_BATCH_SIZE_EXCEEDED(HttpStatus.BAD_REQUEST, "ANALYSIS_BATCH_SIZE_EXCEEDED", "한 번에 요청 가능한 저장소는 최대 3개입니다."),
     ANALYSIS_TOKEN_EXPIRING_SOON(HttpStatus.UNAUTHORIZED, "ANALYSIS_TOKEN_EXPIRING_SOON", "GitHub 토큰 잔여 유효기간이 부족합니다. GitHub으로 다시 로그인해주세요."),
     ANALYSIS_DISPATCH_FAILED(HttpStatus.BAD_GATEWAY, "ANALYSIS_DISPATCH_FAILED", "분석 작업 디스패치 중 오류가 발생했습니다."),
+    ANALYSIS_PRECHECK_BATCH_SIZE_EXCEEDED(HttpStatus.BAD_REQUEST, "ANALYSIS_PRECHECK_BATCH_SIZE_EXCEEDED", "한 번에 점검 가능한 저장소는 최대 5개입니다."),
+    ANALYSIS_REPO_NOT_AVAILABLE(HttpStatus.CONFLICT, "ANALYSIS_REPO_NOT_AVAILABLE", "분석 가능 상태(AVAILABLE)인 저장소만 분석할 수 있습니다. 먼저 사전 점검을 완료해주세요."),
 
     // GITHUB Errors
     GITHUB_TOKEN_NOT_FOUND(HttpStatus.UNAUTHORIZED, "GITHUB_TOKEN_NOT_FOUND", "GitHub 연동 토큰이 없습니다. GitHub으로 다시 로그인해주세요."),

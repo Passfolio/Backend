@@ -1,6 +1,7 @@
 package com.capstone.passfolio.domain.analysis.dto;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.PropertyNamingStrategies;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -157,6 +158,43 @@ public class ProjectAnalysisDto {
         private String failureReason;     // FAILED 시
         private LocalDateTime createdAt;
         private LocalDateTime lastModifiedAt;
+    }
+
+    // ============================================================
+    // 사용자 단건 분석 리포트 (리포트 페이지 — 본인 소유)
+    //  - result CDN JSON은 CORS 미설정이라 BE가 서버사이드로 fetch해 report에 인라인 전달.
+    // ============================================================
+    @Getter
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Schema(description = "단건 분석 리포트(리포트 페이지용, 본인 소유). report는 DONE 시 CDN 결과 JSON.")
+    public static class UserAnalysisReportResponse {
+        private String analysisId;
+        private String batchId;
+        private String repoUrl;
+        private String status;          // YET / IN_PROGRESS / DONE / FAILED
+        private String serviceName;     // DONE 시
+        private String failureReason;   // FAILED 시
+        private JsonNode report;        // DONE 시 — CDN 결과 JSON(window.REPORT 스키마), 그 외 null
+    }
+
+    // ============================================================
+    // 사용자 분석 이력 (프로필 '분석 이력' 탭 — 본인 소유, 최근순)
+    // ============================================================
+    @Getter
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Schema(description = "분석 이력 항목(본인 분석, 최근순)")
+    public static class HistoryItem {
+        private String analysisId;
+        private String batchId;
+        private String repoUrl;
+        private String status;          // YET / IN_PROGRESS / DONE / FAILED
+        private String serviceName;     // DONE 시
+        private String failureReason;   // FAILED 시
+        private LocalDateTime createdAt;
     }
 
     // ============================================================
