@@ -155,6 +155,8 @@ public class AiJobService {
                 : AiJobType.PORTFOLIO_FROM_PDF;
         Long jobId = aiJobWriter.createPendingJob(userId, null, type);
         int analyses = codeAnalysisUrls == null ? 0 : codeAnalysisUrls.size();
+        log.info("[NONSTOP] FastAPI 핸드오프 시작 — userId={}, beJobId={}, type={}, purpose={}, pdfUrl={}, codeAnalysisUrls({})={}",
+                userId, jobId, type, purpose, pdfUrl, analyses, codeAnalysisUrls);
         discordNotifier.send(String.format(
                 "🚀 [NONSTOP] FastAPI 포폴 호출 — userId=%d, beJobId=%d, type=%s, codeAnalysisUrls=%d, pdfUrl=%s",
                 userId, jobId, type, analyses, pdfUrl));
@@ -164,10 +166,13 @@ public class AiJobService {
                 throw new RestException(ErrorCode.AI_SERVER_ERROR, "AI 서버가 유효한 jobId를 반환하지 않았습니다.");
             }
             aiJobWriter.assignAiJobId(jobId, aiResponse.getJobId());
+            log.info("[NONSTOP] FastAPI 응답 OK — beJobId={}, aiJobId={}", jobId, aiResponse.getJobId());
             discordNotifier.send(String.format("✅ FastAPI 응답 OK — beJobId=%d, aiJobId=%s",
                     jobId, aiResponse.getJobId()));
             return jobId;
         } catch (Exception e) {
+            log.warn("[NONSTOP] FastAPI 핸드오프 실패 — userId={}, beJobId={}, type={}, pdfUrl={}, codeAnalysisUrls={}, err={}",
+                    userId, jobId, type, pdfUrl, codeAnalysisUrls, e.toString());
             discordNotifier.send(String.format("❌ FastAPI 호출 실패 — userId=%d, beJobId=%d, type=%s, err=%s",
                     userId, jobId, type, e.getMessage()));
             aiJobWriter.markError(jobId, e.getMessage());
