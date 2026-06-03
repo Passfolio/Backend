@@ -127,16 +127,16 @@ public class AiJobService {
     private AiDto.AiJobInitResponse callAiForJobStart(AiJobType type, String pdfUrl,
                                                         String jobPosition, String career, Long userId) {
         return switch (type) {
-            case PORTFOLIO_FROM_PDF -> aiApiClient.requestPortfolioFromPdf(pdfUrl, userId);
-            case COVER_LETTER_FROM_PDF -> aiApiClient.requestCoverLetterFromPdf(pdfUrl, userId);
-            case COVER_LETTER_FROM_PORTFOLIO -> aiApiClient.requestCoverLetterFromPortfolio(
+            case PORTFOLIO_FROM_PDF -> aiApiClient.upgradePortfolio(pdfUrl, userId);
+            case COVER_LETTER_FROM_PDF -> aiApiClient.upgradeCoverLetter(pdfUrl, userId);
+            case COVER_LETTER_FROM_PORTFOLIO -> aiApiClient.generateCoverLetterFromPortfolio(
                     AiDto.AiCoverLetterRequest.builder()
                             .pdfUrl(pdfUrl)
                             .jobPosition(jobPosition)
                             .career(career)
                             .userId(userId)
                             .build());
-            case PORTFOLIO_FROM_COVER_LETTER -> aiApiClient.requestPortfolioFromCoverLetter(
+            case PORTFOLIO_FROM_COVER_LETTER -> aiApiClient.generatePortfolioFromCoverLetter(
                     AiDto.AiCoverLetterRequest.builder()
                             .pdfUrl(pdfUrl)
                             .jobPosition(jobPosition)
