@@ -16,13 +16,18 @@ import static org.mockito.Mockito.times;
 import java.util.List;
 import java.util.Optional;
 
+import com.capstone.passfolio.common.util.FileUrlUtils;
 import com.capstone.passfolio.domain.ai.client.AiApiClient;
 import com.capstone.passfolio.domain.ai.dto.AiDto;
+import com.capstone.passfolio.domain.ai.service.AiJobService;
 import com.capstone.passfolio.domain.analysis.dto.ProjectAnalysisDto;
 import com.capstone.passfolio.domain.analysis.entity.ProjectAnalysis;
 import com.capstone.passfolio.domain.analysis.entity.enums.AnalysisFlag;
 import com.capstone.passfolio.domain.analysis.repository.ProjectAnalysisRepository;
 import com.capstone.passfolio.domain.aws.sqs.SqsMessageSender;
+import com.capstone.passfolio.domain.file.entity.File;
+import com.capstone.passfolio.domain.file.entity.enums.DocumentType;
+import com.capstone.passfolio.domain.file.service.FileService;
 import com.capstone.passfolio.domain.github.client.GitHubApiClient;
 import com.capstone.passfolio.domain.github.dto.GitHubDto;
 import com.capstone.passfolio.domain.user.entity.User;
@@ -58,6 +63,10 @@ class ProjectAnalysisServiceTest {
     @Mock private ProjectAnalysisSseService sseService;
     @Mock private AiApiClient aiApiClient;
     @Mock private SmsNotifier smsNotifier;
+    @Mock private AiJobService aiJobService;
+    @Mock private BatchPortfolioStore batchPortfolioStore;
+    @Mock private RepoAvailabilityService repoAvailabilityService;
+    @Mock private FileService fileService;
 
     @InjectMocks
     private ProjectAnalysisService projectAnalysisService;
@@ -66,12 +75,27 @@ class ProjectAnalysisServiceTest {
     void setUp() {
         ReflectionTestUtils.setField(projectAnalysisService, "analysisQueueUrl", "https://sqs/q");
         ReflectionTestUtils.setField(projectAnalysisService, "maxRepoSizeKb", 1_048_576L); // 1GiB
+        // FileUrlUtils.buildCdnUrl는 정적 cdnBaseUrl을 읽음 — NONSTOP fileId→CDN URL 변환 테스트용 주입.
+        ReflectionTestUtils.setField(FileUrlUtils.class, "cdnBaseUrl", "https://cdn.x");
     }
 
     // ---------- 배치 디스패치 ----------
 
+    // 디스패치 메커닉 검증용 — 모드는 디스패치에 무관하므로 STEP(포폴 핸드오프 경로 비활성).
     private ProjectAnalysisDto.StartRequest startReq(List<String> repoUrls) {
-        return new ProjectAnalysisDto.StartRequest(repoUrls, "NONSTOP", null);
+        return new ProjectAnalysisDto.StartRequest(repoUrls, "STEP", null, null, null);
+    }
+
+    // NONSTOP 포폴 입력 검증용.
+    private ProjectAnalysisDto.StartRequest nonstopReq(List<String> repoUrls, Long fileId, String purpose) {
+        return new ProjectAnalysisDto.StartRequest(repoUrls, "NONSTOP", null, fileId, purpose);
+    }
+
+    // resolvePortfolioPdfUrl 도달 전까지의 최소 스텁(user 로드 + githubLogin).
+    private void stubUserOnly() {
+        User user = mock(User.class);
+        given(userRepository.findById(7L)).willReturn(Optional.of(user));
+        given(user.getGithubLogin()).willReturn("octocat");
     }
 
     // size 게이트 직전까지 공통 스텁(단일 repo).
@@ -144,7 +168,7 @@ class ProjectAnalysisServiceTest {
 
         assertThat(res.getAnalyses().get(0).getStatus()).isEqualTo("FAILED");
         then(projectAnalysisWriter).should().markFailed(anyString(), anyString());
-        then(aiApiClient).should(never()).requestPortfolioFromAnalyses(any()); // 실패 포함 → 핸드오프 X
+        then(aiJobService).should(never()).startPortfolioFromAnalyses(any(), any(), any(), any()); // 실패 포함 → 핸드오프 X
         then(sseService).should().pushBatch(eq(7L), any());
     }
 
@@ -174,7 +198,7 @@ class ProjectAnalysisServiceTest {
     }
 
     @Test
-    @DisplayName("배치 all-done 전원성공 + NONSTOP → FastAPI 핸드오프 + 배치 SSE + SMS (커밋 후)")
+    @DisplayName("배치 all-done 전원성공 + NONSTOP + 포폴 PDF/목적 있음 → 포폴 핸드오프(startPortfolioFromAnalyses) + linkJob + 배치 SSE + SMS")
     void complete_batch_all_success_handoff() {
         given(projectAnalysisWriter.applyCompletion(any())).willReturn(result("b1", false, "NONSTOP"));
         given(batchProgressTracker.recordTerminal("b1", false))
@@ -183,12 +207,33 @@ class ProjectAnalysisServiceTest {
                 .id("a1").batchId("b1").repoUrl("repo").analysisFlag(AnalysisFlag.DONE)
                 .resultCdnUrl("https://cdn.x/r.json").serviceName("Svc").build();
         given(projectAnalysisRepository.findByBatchId("b1")).willReturn(List.of(done));
+        given(batchPortfolioStore.readPdfUrl("b1")).willReturn("https://cdn.x/upload.pdf");
+        given(batchPortfolioStore.readPurpose("b1")).willReturn("EDIT");
+        given(aiJobService.startPortfolioFromAnalyses(eq(7L), eq("https://cdn.x/upload.pdf"), eq("EDIT"), any()))
+                .willReturn(99L);
 
         projectAnalysisService.completeAnalysis(req("a1", "analyzed", "https://cdn.x/r.json", "Svc", null));
 
-        then(aiApiClient).should().requestPortfolioFromAnalyses(any(AiDto.AnalysisResultsRequest.class));
+        then(aiJobService).should().startPortfolioFromAnalyses(
+                eq(7L), eq("https://cdn.x/upload.pdf"), eq("EDIT"), eq(List.of("https://cdn.x/r.json")));
+        then(batchPortfolioStore).should().linkJob("b1", 99L);
         then(sseService).should().pushBatch(eq(7L), any());
         then(smsNotifier).should().notifyBatchCompleted(eq(7L), eq("b1"), eq(1), eq(true));
+    }
+
+    @Test
+    @DisplayName("배치 all-done 전원성공 + NONSTOP인데 포폴 PDF 미지정 → 핸드오프 생략")
+    void complete_batch_all_success_no_pdf_skips_handoff() {
+        given(projectAnalysisWriter.applyCompletion(any())).willReturn(result("b1", false, "NONSTOP"));
+        given(batchProgressTracker.recordTerminal("b1", false))
+                .willReturn(new BatchProgressTracker.BatchOutcome(true, true, 0));
+        given(projectAnalysisRepository.findByBatchId("b1")).willReturn(List.of());
+        given(batchPortfolioStore.readPdfUrl("b1")).willReturn(null);
+
+        projectAnalysisService.completeAnalysis(req("a1", "analyzed", "https://cdn.x/r.json", "Svc", null));
+
+        then(aiJobService).should(never()).startPortfolioFromAnalyses(any(), any(), any(), any());
+        then(sseService).should().pushBatch(eq(7L), any());
     }
 
     @Test
@@ -201,7 +246,7 @@ class ProjectAnalysisServiceTest {
 
         projectAnalysisService.completeAnalysis(req("a1", "failed", null, null, "boom"));
 
-        then(aiApiClient).should(never()).requestPortfolioFromAnalyses(any());
+        then(aiJobService).should(never()).startPortfolioFromAnalyses(any(), any(), any(), any());
         then(sseService).should().pushBatch(eq(7L), any());
     }
 
@@ -225,6 +270,128 @@ class ProjectAnalysisServiceTest {
 
         assertThatThrownBy(() -> projectAnalysisService.completeAnalysis(
                 req("missing", "analyzed", "https://cdn.x/r.json", "S", null)))
+                .isInstanceOf(RestException.class)
+                .extracting(e -> ((RestException) e).getErrorCode())
+                .isEqualTo(ErrorCode.PROJECT_ANALYSIS_NOT_FOUND);
+    }
+
+    // ---------- NONSTOP 포폴 입력 검증 (Fix 1: fileId 소유권 + 문서종류 정렬) ----------
+
+    @Test
+    @DisplayName("NONSTOP인데 fileId 미지정 → ANALYSIS_PORTFOLIO_INPUT_REQUIRED, 디스패치 X")
+    void nonstop_requires_file() {
+        stubUserOnly();
+        assertThatThrownBy(() -> projectAnalysisService.initiateBatch(
+                7L, nonstopReq(List.of("https://github.com/owner/repo"), null, "EDIT")))
+                .isInstanceOf(RestException.class)
+                .extracting(e -> ((RestException) e).getErrorCode())
+                .isEqualTo(ErrorCode.ANALYSIS_PORTFOLIO_INPUT_REQUIRED);
+        then(sqsMessageSender).should(never()).send(anyString(), any());
+    }
+
+    @Test
+    @DisplayName("NONSTOP GENERATE인데 업로드가 PORTFOLIO 문서 → ANALYSIS_PORTFOLIO_FILE_TYPE_MISMATCH")
+    void nonstop_file_type_mismatch() {
+        stubUserOnly();
+        File file = mock(File.class);
+        given(fileService.validateFileOwner(5L, 7L)).willReturn(file);
+        given(file.getDocumentType()).willReturn(DocumentType.PORTFOLIO); // GENERATE는 COVER_LETTER여야 함
+
+        assertThatThrownBy(() -> projectAnalysisService.initiateBatch(
+                7L, nonstopReq(List.of("https://github.com/owner/repo"), 5L, "GENERATE")))
+                .isInstanceOf(RestException.class)
+                .extracting(e -> ((RestException) e).getErrorCode())
+                .isEqualTo(ErrorCode.ANALYSIS_PORTFOLIO_FILE_TYPE_MISMATCH);
+        then(sqsMessageSender).should(never()).send(anyString(), any());
+    }
+
+    @Test
+    @DisplayName("NONSTOP EDIT + PORTFOLIO 파일 → 소유권검증 후 서버 CDN URL 생성·저장 + 디스패치")
+    void nonstop_resolves_cdn_and_dispatches() {
+        stubCoreSingle(100);
+        given(tokenPreparer.reencryptForLambda("ghp_plain")).willReturn("enc");
+        File file = mock(File.class);
+        given(fileService.validateFileOwner(5L, 7L)).willReturn(file);
+        given(file.getDocumentType()).willReturn(DocumentType.PORTFOLIO);
+        given(file.getS3ObjectKey()).willReturn("uploads/p.pdf");
+
+        ProjectAnalysisDto.StartResponse res = projectAnalysisService.initiateBatch(
+                7L, nonstopReq(List.of("https://github.com/owner/repo"), 5L, "EDIT"));
+
+        assertThat(res.getAnalyses().get(0).getStatus()).isEqualTo("IN_PROGRESS");
+        // 원시 URL 통과가 아니라 소유 파일의 s3ObjectKey로 서버가 생성한 CDN URL을 저장.
+        then(batchPortfolioStore).should().store(anyString(),
+                org.mockito.ArgumentMatchers.contains("uploads/p.pdf"), eq("EDIT"));
+        then(sqsMessageSender).should().send(eq("https://sqs/q"), any());
+    }
+
+    // ---------- 핸드오프 실패 가시화 (Fix 3) ----------
+
+    @Test
+    @DisplayName("핸드오프 실패 → portfolioFailed SSE + notifyPortfolioHandoffFailed (배치 완료 SMS 대신)")
+    void complete_handoff_failure_visualized() {
+        given(projectAnalysisWriter.applyCompletion(any())).willReturn(result("b1", false, "NONSTOP"));
+        given(batchProgressTracker.recordTerminal("b1", false))
+                .willReturn(new BatchProgressTracker.BatchOutcome(true, true, 0));
+        ProjectAnalysis done = ProjectAnalysis.builder()
+                .id("a1").batchId("b1").repoUrl("repo").analysisFlag(AnalysisFlag.DONE)
+                .resultCdnUrl("https://cdn.x/r.json").build();
+        given(projectAnalysisRepository.findByBatchId("b1")).willReturn(List.of(done));
+        given(batchPortfolioStore.readPdfUrl("b1")).willReturn("https://cdn.x/u.pdf");
+        given(batchPortfolioStore.readPurpose("b1")).willReturn("EDIT");
+        willThrow(new RestException(ErrorCode.AI_SERVER_UNAVAILABLE))
+                .given(aiJobService).startPortfolioFromAnalyses(any(), any(), any(), any());
+
+        projectAnalysisService.completeAnalysis(req("a1", "analyzed", "https://cdn.x/r.json", "Svc", null));
+
+        then(smsNotifier).should().notifyPortfolioHandoffFailed(7L, "b1");
+        then(smsNotifier).should(never())
+                .notifyBatchCompleted(any(), anyString(), anyInt(), org.mockito.ArgumentMatchers.anyBoolean());
+        then(sseService).should().pushBatch(eq(7L), any());
+    }
+
+    // ---------- 수동 재시도 (Fix 3) ----------
+
+    @Test
+    @DisplayName("재시도: 소유 배치 + 전원성공 + 미핸드오프 → 핸드오프 + linkJob + SSE")
+    void retry_success() {
+        ProjectAnalysis done = ProjectAnalysis.builder()
+                .id("a1").batchId("b1").repoUrl("repo").analysisFlag(AnalysisFlag.DONE)
+                .resultCdnUrl("https://cdn.x/r.json").build();
+        given(projectAnalysisRepository.findByBatchIdAndUser_Id("b1", 7L)).willReturn(List.of(done));
+        given(batchPortfolioStore.readJobByBatch("b1")).willReturn(null);
+        given(batchPortfolioStore.readPdfUrl("b1")).willReturn("https://cdn.x/u.pdf");
+        given(batchPortfolioStore.readPurpose("b1")).willReturn("EDIT");
+        given(aiJobService.startPortfolioFromAnalyses(eq(7L), eq("https://cdn.x/u.pdf"), eq("EDIT"), any()))
+                .willReturn(42L);
+
+        projectAnalysisService.retryPortfolioHandoff(7L, "b1");
+
+        then(batchPortfolioStore).should().linkJob("b1", 42L);
+        then(sseService).should().pushBatch(eq(7L), any());
+    }
+
+    @Test
+    @DisplayName("재시도: 이미 핸드오프된 배치 → ANALYSIS_PORTFOLIO_HANDOFF_NOT_RETRYABLE")
+    void retry_already_handed_off() {
+        ProjectAnalysis done = ProjectAnalysis.builder()
+                .id("a1").batchId("b1").analysisFlag(AnalysisFlag.DONE).build();
+        given(projectAnalysisRepository.findByBatchIdAndUser_Id("b1", 7L)).willReturn(List.of(done));
+        given(batchPortfolioStore.readJobByBatch("b1")).willReturn(50L);
+
+        assertThatThrownBy(() -> projectAnalysisService.retryPortfolioHandoff(7L, "b1"))
+                .isInstanceOf(RestException.class)
+                .extracting(e -> ((RestException) e).getErrorCode())
+                .isEqualTo(ErrorCode.ANALYSIS_PORTFOLIO_HANDOFF_NOT_RETRYABLE);
+        then(aiJobService).should(never()).startPortfolioFromAnalyses(any(), any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("재시도: 타인/미존재 배치 → PROJECT_ANALYSIS_NOT_FOUND")
+    void retry_not_owned() {
+        given(projectAnalysisRepository.findByBatchIdAndUser_Id("bX", 7L)).willReturn(List.of());
+
+        assertThatThrownBy(() -> projectAnalysisService.retryPortfolioHandoff(7L, "bX"))
                 .isInstanceOf(RestException.class)
                 .extracting(e -> ((RestException) e).getErrorCode())
                 .isEqualTo(ErrorCode.PROJECT_ANALYSIS_NOT_FOUND);
