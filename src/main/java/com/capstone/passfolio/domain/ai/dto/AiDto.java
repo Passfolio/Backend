@@ -2,10 +2,12 @@ package com.capstone.passfolio.domain.ai.dto;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.PropertyNamingStrategies;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
@@ -50,6 +52,19 @@ public class AiDto {
         private Long userId;
         // @JsonNaming(SnakeCase) → JSON 키 code_analysis_urls(복수, FastAPI 계약과 일치). NONSTOP: 없으면 rag만.
         private java.util.List<String> codeAnalysisUrls;
+    }
+
+    // 로드맵 평가 요청 (BE → FastAPI)
+    @Getter
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    public static class AiRoadmapRequest {
+        private String aiJobId;           // JSON: ai_job_id — BE가 생성한 UUID, FastAPI가 콜백에 그대로 사용
+        private List<String> codeAnalysisUrls;
+        private boolean merge;
     }
 
     // AI → BE 즉시 응답 (jobId)
@@ -117,9 +132,46 @@ public class AiDto {
         private String errorMessage;
     }
 
+    // 로드맵 평가 완료 콜백 (POST /api/v1/ai/roadmap/complete — AI 서버 전용)
+    @Getter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
+    @Schema(description = "로드맵 평가 완료 콜백 요청 (AI 서버 전용)")
+    public static class RoadmapCompleteRequest {
+        @NotBlank(message = "aiJobId는 필수입니다.")
+        @Schema(description = "BE가 /roadmap/assess 요청 시 전달한 ai_job_id", example = "uuid-123")
+        private String aiJobId;
+
+        @NotBlank(message = "status는 필수입니다.")
+        @Pattern(regexp = "^(DONE|ERROR)$", message = "status는 DONE 또는 ERROR만 허용됩니다.")
+        @Schema(description = "작업 결과 상태 (DONE 또는 ERROR)", example = "DONE")
+        private String status;
+
+        @Schema(description = "로드맵 평가 결과 JSON 배열 (DONE 상태일 때)", nullable = true)
+        private JsonNode result;
+
+        @Schema(description = "오류 메시지 (ERROR 상태일 때)", nullable = true)
+        private String errorMessage;
+    }
+
     // ============================================================
     // User-facing request DTOs (FE → BE)
     // ============================================================
+
+    @Getter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Schema(description = "로드맵 평가 AI 작업 시작 요청")
+    public static class RoadmapJobRequest {
+        @NotEmpty(message = "analysisIds는 최소 1개 필요합니다.")
+        @Size(max = 3, message = "analysisIds는 최대 3개까지 지정할 수 있습니다.")
+        @Schema(description = "완료된 코드 분석 ID 목록 (1~3개)", example = "[\"uuid-1\", \"uuid-2\"]")
+        private List<String> analysisIds;
+
+        @Schema(description = "여러 분석 결과를 합산해 단일 로드맵 반환 여부 (기본 false)", example = "false")
+        private boolean merge = false;
+    }
 
     @Getter
     @NoArgsConstructor
@@ -177,6 +229,7 @@ public class AiDto {
     @Builder
     @NoArgsConstructor
     @AllArgsConstructor
+    @JsonInclude(JsonInclude.Include.NON_NULL)
     @Schema(description = "AI 작업 상태 조회 응답")
     public static class JobStatusResponse {
         @Schema(description = "BE 내부 작업 ID", example = "1")
@@ -185,8 +238,11 @@ public class AiDto {
         @Schema(description = "작업 상태 (PENDING / DONE / ERROR)", example = "DONE")
         private String status;
 
-        @Schema(description = "완료된 output PDF의 S3 URL (DONE 상태일 때만 non-null)", nullable = true)
+        @Schema(description = "완료된 output PDF URL (PDF 작업 DONE 상태일 때만 non-null)", nullable = true)
         private String outputPdfUrl;
+
+        @Schema(description = "로드맵 평가 결과 JSON 문자열 (로드맵 작업 DONE 상태일 때만 non-null)", nullable = true)
+        private String resultJson;
 
         @Schema(description = "오류 메시지 (ERROR 상태일 때만 non-null)", nullable = true)
         private String errorMessage;
@@ -200,6 +256,7 @@ public class AiDto {
     @Builder
     @NoArgsConstructor
     @AllArgsConstructor
+    @JsonInclude(JsonInclude.Include.NON_NULL)
     @Schema(description = "AI 작업 완료 SSE 이벤트 페이로드")
     public static class AiJobSsePayload {
         @Schema(description = "BE 내부 작업 ID", example = "1")
@@ -208,7 +265,10 @@ public class AiDto {
         @Schema(description = "작업 상태 (DONE / ERROR)", example = "DONE")
         private String status;
 
-        @Schema(description = "완료된 output PDF URL (DONE 상태일 때)", nullable = true)
+        @Schema(description = "완료된 output PDF URL (PDF 작업 DONE 상태일 때)", nullable = true)
         private String outputPdfUrl;
+
+        @Schema(description = "로드맵 평가 결과 JSON 문자열 (로드맵 작업 DONE 상태일 때)", nullable = true)
+        private String resultJson;
     }
 }

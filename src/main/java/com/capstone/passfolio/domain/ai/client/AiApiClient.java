@@ -76,6 +76,17 @@ public class AiApiClient {
                 .body(AiDto.AiJobInitResponse.class));
     }
 
+    // 코드 분석 URL로 로드맵 평가를 시작한다.
+    public AiDto.AiJobInitResponse assessRoadmap(AiDto.AiRoadmapRequest request) {
+        return postWithRetry("/roadmap/assess", () -> restClient.post()
+                .uri(aiBaseUrl + "/roadmap/assess")
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(request)
+                .retrieve()
+                .onStatus(status -> !status.is2xxSuccessful(), this::handleError)
+                .body(AiDto.AiJobInitResponse.class));
+    }
+
     // 자소서로 포트폴리오를 생성한다.
     public AiDto.AiJobInitResponse generatePortfolioFromCoverLetter(AiDto.AiCoverLetterRequest request) {
         int n = request.getCodeAnalysisUrls() == null ? 0 : request.getCodeAnalysisUrls().size();
