@@ -143,7 +143,7 @@ public class AiDto {
         @NotBlank(message = "jobPosition은 필수입니다.")
         @Size(max = 100, message = "jobPosition은 100자를 초과할 수 없습니다.")
         @Pattern(
-                regexp = "^[a-zA-Z0-9가-힣\\s,\\-\\(\\)]+$",
+                regexp = "^[a-zA-Z0-9가-힣\\s,.~/&+\\-\\(\\)]+$",
                 message = "jobPosition에 허용되지 않는 문자가 포함되어 있습니다."
         )
         @Schema(description = "직무 포지션", example = "백엔드 개발자")
@@ -152,7 +152,7 @@ public class AiDto {
         @NotBlank(message = "career는 필수입니다.")
         @Size(max = 100, message = "career는 100자를 초과할 수 없습니다.")
         @Pattern(
-                regexp = "^[a-zA-Z0-9가-힣\\s,\\-\\(\\)]+$",
+                regexp = "^[a-zA-Z0-9가-힣\\s,.~/&+\\-\\(\\)]+$",
                 message = "career에 허용되지 않는 문자가 포함되어 있습니다."
         )
         @Schema(description = "경력 구분", example = "신입")
