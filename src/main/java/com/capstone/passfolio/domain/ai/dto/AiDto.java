@@ -1,5 +1,6 @@
 package com.capstone.passfolio.domain.ai.dto;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.PropertyNamingStrategies;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
@@ -27,9 +28,12 @@ public class AiDto {
     @NoArgsConstructor
     @AllArgsConstructor
     @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
+    @JsonInclude(JsonInclude.Include.NON_NULL) // null 필드 생략 → FastAPI Pydantic 기본값(code_analysis_urls=[]) 적용(명시적 null은 422)
     public static class AiPdfRequest {
         private String pdfUrl;
         private Long userId;
+        // @JsonNaming(SnakeCase) → JSON 키 code_analysis_urls(복수, FastAPI 계약과 일치). NONSTOP: 없으면 rag만.
+        private java.util.List<String> codeAnalysisUrls;
     }
 
     @Getter
@@ -37,12 +41,15 @@ public class AiDto {
     @NoArgsConstructor
     @AllArgsConstructor
     @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
+    @JsonInclude(JsonInclude.Include.NON_NULL) // null 필드 생략 → FastAPI Pydantic 기본값 적용(명시적 null은 422)
     public static class AiCoverLetterRequest {
         private String pdfUrl;
         @JsonProperty("job_position")
         private String jobPosition;
         private String career;
         private Long userId;
+        // @JsonNaming(SnakeCase) → JSON 키 code_analysis_urls(복수, FastAPI 계약과 일치). NONSTOP: 없으면 rag만.
+        private java.util.List<String> codeAnalysisUrls;
     }
 
     // AI → BE 즉시 응답 (jobId)
@@ -108,31 +115,6 @@ public class AiDto {
 
         @Schema(description = "오류 메시지 (ERROR 상태일 때)", nullable = true)
         private String errorMessage;
-    }
-
-    // ============================================================
-    // BE → AI(FastAPI) 분석결과 기반 포트폴리오 생성 (배치 all-done·NONSTOP 시)
-    // ============================================================
-    @Getter
-    @Builder
-    @NoArgsConstructor
-    @AllArgsConstructor
-    @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
-    public static class AnalysisResultsRequest {
-        private java.util.List<AnalysisItem> analyses;
-        private Long userId;
-    }
-
-    @Getter
-    @Builder
-    @NoArgsConstructor
-    @AllArgsConstructor
-    @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
-    public static class AnalysisItem {
-        private String analysisId;
-        private String repoUrl;
-        private String resultCdnUrl; // Lambda 산출물(final.json) CDN URL
-        private String serviceName;
     }
 
     // ============================================================

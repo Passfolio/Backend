@@ -55,6 +55,16 @@ public class ProjectAnalysisController implements ProjectAnalysisApiSpecificatio
         return ResponseEntity.ok(projectAnalysisService.getUserBatchStatus(userPrincipal.getUserId(), batchId));
     }
 
+    // NONSTOP 포폴 핸드오프 수동 재시도: 자동 핸드오프가 FastAPI 장애로 실패한 본인 배치를 복구.
+    // 성공 후 FE는 GET /batch/{batchId}로 새 portfolioJobId를 읽는다.
+    @PostMapping("/batch/{batchId}/portfolio")
+    public ResponseEntity<Void> retryPortfolio(
+            @AuthenticationPrincipal UserPrincipal userPrincipal,
+            @PathVariable String batchId) {
+        projectAnalysisService.retryPortfolioHandoff(userPrincipal.getUserId(), batchId);
+        return ResponseEntity.ok().build();
+    }
+
     // 프로필 '분석 이력' 탭: 본인 분석 최근순 목록(재방문 진입점). 고정 경로라 변수경로보다 우선 매칭.
     @GetMapping("/history")
     public ResponseEntity<java.util.List<ProjectAnalysisDto.HistoryItem>> userHistory(
