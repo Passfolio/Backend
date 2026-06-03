@@ -236,7 +236,7 @@ analysis:
   # NONSTOP 핸드오프: FastAPI에 넘길 분석 JSON을 presigned S3 URL로 변환(Cloudflare 봇룰 우회).
   artifact:
     # DevSkill이 분석 결과 JSON을 올리는 버킷(= DevSkill OUTPUT_BUCKET). BE 역할에 s3:GetObject 필요.
-    output-bucket: ${ANALYSIS_OUTPUT_BUCKET:REDACTED-ANALYSIS-BUCKET}
+    output-bucket: ${ANALYSIS_OUTPUT_BUCKET}
     # presigned GET URL 만료(분). FastAPI 백그라운드 큐 지연 대비 업로드용(10분)보다 길게.
     presign-ttl-minutes: ${ANALYSIS_PRESIGN_TTL_MINUTES:60}
   admin-test:
