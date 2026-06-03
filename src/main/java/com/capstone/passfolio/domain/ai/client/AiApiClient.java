@@ -35,34 +35,24 @@ public class AiApiClient {
         this.objectMapper = objectMapper;
     }
 
-    /** 잘못된거 -> 배치 분석 결과(전원 성공) → 포트폴리오 생성 요청(FastAPI). */
-    public AiDto.AiJobInitResponse requestPortfolioFromAnalyses(AiDto.AnalysisResultsRequest request) {
-        return restClient.post()
-                .uri(aiBaseUrl + "/api/v1/portfolio/from-analyses")
-                .contentType(MediaType.APPLICATION_JSON)
-                .body(request)
-                .retrieve()
-                .onStatus(status -> !status.is2xxSuccessful(), this::handleError)
-                .body(AiDto.AiJobInitResponse.class);
-    }
-
-    // 포트폴리오를 업그레이드한다.
-    public AiDto.AiJobInitResponse upgradePortfolio(String portfolioPdfUrl, Long userId) {
+    // 포트폴리오를 업그레이드한다(NONSTOP: 분석 결과 URL들을 함께 전달 가능, 없으면 rag만).
+    public AiDto.AiJobInitResponse upgradePortfolio(String portfolioPdfUrl, java.util.List<String> codeAnalysisUrls, Long userId) {
         return restClient.post()
                 .uri(aiBaseUrl + "/api/v1/portfolio/from-pdf")
                 .contentType(MediaType.APPLICATION_JSON)
-                .body(new AiDto.AiPdfRequest(portfolioPdfUrl, userId))
+                .body(AiDto.AiPdfRequest.builder()
+                        .pdfUrl(portfolioPdfUrl).userId(userId).codeAnalysisUrls(codeAnalysisUrls).build())
                 .retrieve()
                 .onStatus(status -> !status.is2xxSuccessful(), this::handleError)
                 .body(AiDto.AiJobInitResponse.class);
     }
 
-    // 자소서로 자소서를 업그레이드한다..
+    // 자소서로 자소서를 업그레이드한다.
     public AiDto.AiJobInitResponse upgradeCoverLetter(String coverLetterPdfUrl, Long userId) {
         return restClient.post()
                 .uri(aiBaseUrl + "/api/v1/cover-letter/from-pdf")
                 .contentType(MediaType.APPLICATION_JSON)
-                .body(new AiDto.AiPdfRequest(coverLetterPdfUrl, userId))
+                .body(AiDto.AiPdfRequest.builder().pdfUrl(coverLetterPdfUrl).userId(userId).build())
                 .retrieve()
                 .onStatus(status -> !status.is2xxSuccessful(), this::handleError)
                 .body(AiDto.AiJobInitResponse.class);

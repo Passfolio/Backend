@@ -2,6 +2,7 @@ package com.capstone.passfolio.domain.analysis.service;
 
 import com.capstone.passfolio.domain.ai.client.AiApiClient;
 import com.capstone.passfolio.domain.ai.dto.AiDto;
+import com.capstone.passfolio.domain.ai.service.AiJobService;
 import com.capstone.passfolio.domain.analysis.dto.ProjectAnalysisDto;
 import com.capstone.passfolio.domain.analysis.entity.ProjectAnalysis;
 import com.capstone.passfolio.domain.analysis.entity.enums.AnalysisFlag;
@@ -49,8 +50,10 @@ public class ProjectAnalysisService {
     private final SqsMessageSender sqsMessageSender;
     private final BatchProgressTracker batchProgressTracker;
     private final BatchPhoneStore batchPhoneStore;
+    private final BatchPortfolioStore batchPortfolioStore;
     private final ProjectAnalysisSseService sseService;
     private final AiApiClient aiApiClient;
+    private final AiJobService aiJobService;
     private final SmsNotifier smsNotifier;
     private final RepoAvailabilityService repoAvailabilityService;
     private final ObjectMapper objectMapper;
@@ -121,6 +124,8 @@ public class ProjectAnalysisService {
         String batchId = UUID.randomUUID().toString();
         batchProgressTracker.createBatch(batchId, metas.size());
         batchPhoneStore.store(batchId, request.getPhone());
+        // NONSTOP 포폴: 업로드 PDF·목적을 batch에 transient 저장(all-done·전원성공 시 FastAPI 핸드오프에 사용).
+        batchPortfolioStore.store(batchId, request.getPdfUrl(), request.getPortfolioPurpose());
 
         // 6) repo별 디스패치
         List<ProjectAnalysisDto.DispatchedItem> dispatched = new ArrayList<>();
@@ -251,7 +256,8 @@ public class ProjectAnalysisService {
      * 응답 shape은 admin과 동일(AdminBatchStatusResponse 재사용 — 배치상태 공용 형태).
      */
     public ProjectAnalysisDto.AdminBatchStatusResponse getUserBatchStatus(Long userId, String batchId) {
-        return buildBatchStatus(batchId, projectAnalysisRepository.findByBatchIdAndUser_Id(batchId, userId));
+        return buildBatchStatus(batchId, projectAnalysisRepository.findByBatchIdAndUser_Id(batchId, userId),
+                batchPortfolioStore.readJobByBatch(batchId));
     }
 
     /**
@@ -322,6 +328,10 @@ public class ProjectAnalysisService {
     }
 
     private ProjectAnalysisDto.AdminBatchStatusResponse buildBatchStatus(String batchId, List<ProjectAnalysis> repos) {
+        return buildBatchStatus(batchId, repos, null);
+    }
+
+    private ProjectAnalysisDto.AdminBatchStatusResponse buildBatchStatus(String batchId, List<ProjectAnalysis> repos, Long portfolioJobId) {
         if (repos.isEmpty()) {
             throw new RestException(ErrorCode.PROJECT_ANALYSIS_NOT_FOUND);
         }
@@ -355,6 +365,7 @@ public class ProjectAnalysisService {
                 .counts(ProjectAnalysisDto.BatchStatusCounts.builder()
                         .yet(yet).inProgress(inProgress).done(done).failed(failed).build())
                 .analyses(items)
+                .portfolioJobId(portfolioJobId)
                 .build();
     }
 
@@ -453,23 +464,26 @@ public class ProjectAnalysisService {
         boolean portfolioRequested = false;
 
         if (outcome.allSuccess() && "NONSTOP".equalsIgnoreCase(mode)) {
-            try {
-                List<AiDto.AnalysisItem> items = repos.stream()
-                        .filter(a -> a.getAnalysisFlag() == AnalysisFlag.DONE)
-                        .map(a -> AiDto.AnalysisItem.builder()
-                                .analysisId(a.getId())
-                                .repoUrl(a.getRepoUrl())
-                                .resultCdnUrl(a.getResultCdnUrl())
-                                .serviceName(a.getServiceName())
-                                .build())
-                        .toList();
-                aiApiClient.requestPortfolioFromAnalyses(
-                        AiDto.AnalysisResultsRequest.builder().analyses(items).userId(userId).build());
-                portfolioRequested = true;
-                log.info("[ProjectAnalysisService] portfolio handoff requested. batchId={}, repos={}", batchId, items.size());
-            } catch (Exception e) {
-                // FastAPI 실패는 웹훅을 깨지 않음(로그). 배치 SSE/SMS는 그대로.
-                log.error("[ProjectAnalysisService] FastAPI 핸드오프 실패. batchId={}", batchId, e);
+            String pdfUrl = batchPortfolioStore.readPdfUrl(batchId);
+            String purpose = batchPortfolioStore.readPurpose(batchId);
+            if (pdfUrl != null && !pdfUrl.isBlank() && purpose != null && !purpose.isBlank()) {
+                try {
+                    // 분석 결과(final.json) CDN URL 리스트 → FastAPI 포폴 생성(purpose별 from-pdf/from-cover-letter).
+                    List<String> codeAnalysisUrls = repos.stream()
+                            .filter(a -> a.getAnalysisFlag() == AnalysisFlag.DONE && a.getResultCdnUrl() != null)
+                            .map(ProjectAnalysis::getResultCdnUrl)
+                            .toList();
+                    Long pfJobId = aiJobService.startPortfolioFromAnalyses(userId, pdfUrl, purpose, codeAnalysisUrls);
+                    batchPortfolioStore.linkJob(batchId, pfJobId); // 완료 콜백→batch 식별 + 진행중 페이지→jobId 노출
+                    portfolioRequested = true;
+                    log.info("[ProjectAnalysisService] portfolio handoff requested. batchId={}, purpose={}, analyses={}",
+                            batchId, purpose, codeAnalysisUrls.size());
+                } catch (Exception e) {
+                    // FastAPI/AiJob 실패는 웹훅을 깨지 않음(로그). 배치 SSE/SMS는 그대로.
+                    log.error("[ProjectAnalysisService] 포트폴리오 핸드오프 실패. batchId={}", batchId, e);
+                }
+            } else {
+                log.info("[ProjectAnalysisService] NONSTOP이나 포폴 PDF/목적 미지정 → 핸드오프 생략. batchId={}", batchId);
             }
         }
 

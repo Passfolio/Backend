@@ -6,4 +6,7 @@ package com.capstone.passfolio.domain.analysis.service;
  */
 public interface SmsNotifier {
     void notifyBatchCompleted(Long userId, String batchId, int total, boolean allSuccess);
+
+    /** NONSTOP 포트폴리오 생성 완료/실패 통지(phone은 batchId로 transient 조회). */
+    void notifyPortfolioCompleted(Long userId, String batchId, boolean success);
 }

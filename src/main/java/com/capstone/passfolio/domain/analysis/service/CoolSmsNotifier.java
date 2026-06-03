@@ -62,6 +62,34 @@ public class CoolSmsNotifier implements SmsNotifier {
         }
     }
 
+    @Override
+    public void notifyPortfolioCompleted(Long userId, String batchId, boolean success) {
+        String phone = phoneStore.read(batchId);
+        if (phone == null) {
+            log.info("[SMS] no phone for portfolio, skip. userId={}, batchId={}", userId, batchId);
+            return;
+        }
+        String summary = success
+                ? "[Passfolio] 포트폴리오 생성이 완료되었습니다."
+                : "[Passfolio] 포트폴리오 생성에 실패했습니다.";
+        String message = summary + "\n결과 보기: " + resultLink(batchId);
+
+        if (!smsEnabled) {
+            log.info("[SMS] (disabled) would send portfolio. userId={}, batchId={}, msg={}", userId, batchId, message);
+            return;
+        }
+        try {
+            Message m = new Message();
+            m.setFrom(normalize(from));
+            m.setTo(normalize(phone));
+            m.setText(message);
+            messageService.sendOne(new SingleMessageSendingRequest(m));
+            log.info("[SMS] portfolio sent. userId={}, batchId={}", userId, batchId);
+        } catch (Exception e) { // best-effort
+            log.error("[SMS] portfolio send failed. userId={}, batchId={}", userId, batchId, e);
+        }
+    }
+
     /** 사용자에게 보낼 결과 페이지 링크: {front-base-url 맨 뒤 값}/analysis/{batchId}. */
     private String resultLink(String batchId) {
         List<String> bases = PropertiesParserUtils.propertiesParser(frontBaseUrlConfig);
