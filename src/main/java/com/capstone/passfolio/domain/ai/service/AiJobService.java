@@ -95,14 +95,14 @@ public class AiJobService {
                 job.markDone(toOutputCdnUrl(dto.getOutputPdfUrl()));
                 log.info("[AiJobService] Job DONE. beJobId={}, aiJobId={}", job.getId(), dto.getAiJobId());
                 aiSseService.push(job.getUserId(), job.getId(), job.getStatus().name(), job.getOutputPdfUrl());
-                if (pfBatchId != null) smsNotifier.notifyPortfolioCompleted(job.getUserId(), pfBatchId, true);
+                if (pfBatchId != null) smsNotifier.notifyPortfolioCompleted(job.getUserId(), pfBatchId, true, job.getOutputPdfUrl());
                 discordNotifier.send(String.format("📥 [AI 웹훅] DONE — aiJobId=%s, beJobId=%d, %s, outputPdfUrl=%s",
                         dto.getAiJobId(), job.getId(), origin, job.getOutputPdfUrl()));
             } else {
                 job.markError(dto.getErrorMessage());
                 log.info("[AiJobService] Job ERROR. beJobId={}, aiJobId={}", job.getId(), dto.getAiJobId());
                 aiSseService.push(job.getUserId(), job.getId(), job.getStatus().name(), null);
-                if (pfBatchId != null) smsNotifier.notifyPortfolioCompleted(job.getUserId(), pfBatchId, false);
+                if (pfBatchId != null) smsNotifier.notifyPortfolioCompleted(job.getUserId(), pfBatchId, false, null);
                 discordNotifier.send(String.format("📥 [AI 웹훅] ERROR — aiJobId=%s, beJobId=%d, %s, err=%s",
                         dto.getAiJobId(), job.getId(), origin, dto.getErrorMessage()));
             }

@@ -95,7 +95,7 @@ class AiJobServiceTest {
                 "ai-x", "DONE", "https://bucket.s3.ap-northeast-2.amazonaws.com/files/ai/1/p.pdf", null));
 
         then(job).should().markDone(anyString());
-        then(smsNotifier).should().notifyPortfolioCompleted(1L, "batch-1", true);
+        then(smsNotifier).should().notifyPortfolioCompleted(eq(1L), eq("batch-1"), eq(true), any());
         then(aiSseService).should().push(eq(1L), eq(20L), any(), any());
     }
 
@@ -112,7 +112,7 @@ class AiJobServiceTest {
         service.completeJob(new AiDto.JobCompleteRequest(
                 "ai-y", "DONE", "https://bucket.s3.ap-northeast-2.amazonaws.com/files/ai/2/p.pdf", null));
 
-        then(smsNotifier).should(never()).notifyPortfolioCompleted(any(), any(), any(Boolean.class));
+        then(smsNotifier).should(never()).notifyPortfolioCompleted(any(), any(), any(Boolean.class), any());
         then(aiSseService).should().push(eq(2L), eq(21L), any(), any());
     }
 }
