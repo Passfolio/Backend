@@ -79,7 +79,7 @@ public class AiApiClient {
     // 코드 분석 URL로 로드맵 평가를 시작한다.
     public AiDto.AiJobInitResponse assessRoadmap(AiDto.AiRoadmapRequest request) {
         return postWithRetry("/roadmap/assess", () -> restClient.post()
-                .uri(aiBaseUrl + "/roadmap/assess")
+                .uri(aiBaseUrl + "/api/v1/roadmap/assess")
                 .contentType(MediaType.APPLICATION_JSON)
                 .body(request)
                 .retrieve()
