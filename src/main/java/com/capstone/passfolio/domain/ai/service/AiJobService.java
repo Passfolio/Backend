@@ -65,6 +65,13 @@ public class AiJobService {
                     .orElseThrow(() -> new RestException(ErrorCode.AI_JOB_NOT_FOUND));
             MDC.put("beJobId", String.valueOf(job.getId()));
 
+            // 로드맵 잡은 결과(result_json)가 있는 전용 웹훅(completeRoadmapJob)으로 완료된다.
+            // PDF 없는 공용 웹훅이 잘못 도달해도 여기서 DONE-no-output→ERROR로 강등되지 않도록 방어.
+            if (job.getType() == AiJobType.ROADMAP_FROM_ANALYSES) {
+                log.warn("[AiJobService] completeJob ignored for ROADMAP job — use /roadmap/complete. aiJobId={}", dto.getAiJobId());
+                return;
+            }
+
             if (job.getStatus() != AiJobStatus.PENDING) {
                 log.info("[AiJobService] completeJob skipped (already {}). aiJobId={}", job.getStatus(), dto.getAiJobId());
                 return;
