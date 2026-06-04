@@ -63,16 +63,21 @@ public class CoolSmsNotifier implements SmsNotifier {
     }
 
     @Override
-    public void notifyPortfolioCompleted(Long userId, String batchId, boolean success) {
+    public void notifyPortfolioCompleted(Long userId, String batchId, boolean success, String pdfUrl) {
         String phone = phoneStore.read(batchId);
         if (phone == null) {
             log.info("[SMS] no phone for portfolio, skip. userId={}, batchId={}", userId, batchId);
             return;
         }
-        String summary = success
-                ? "[Passfolio] 포트폴리오 생성이 완료되었습니다."
-                : "[Passfolio] 포트폴리오 생성에 실패했습니다.";
-        String message = summary + "\n결과 보기: " + resultLink(batchId);
+        String message;
+        if (success && pdfUrl != null && !pdfUrl.isBlank()) {
+            // 사이트 링크 대신 완성 포폴 PDF의 CDN URL을 그대로 — 메시지에서 바로 받기.
+            message = "[Passfolio] 포트폴리오 생성이 완료되었습니다.\n포트폴리오 받기: " + pdfUrl;
+        } else if (success) {
+            message = "[Passfolio] 포트폴리오 생성이 완료되었습니다.\n결과 보기: " + resultLink(batchId);
+        } else {
+            message = "[Passfolio] 포트폴리오 생성에 실패했습니다.\n결과 보기: " + resultLink(batchId);
+        }
 
         if (!smsEnabled) {
             log.info("[SMS] (disabled) would send portfolio. userId={}, batchId={}, msg={}", userId, batchId, message);
