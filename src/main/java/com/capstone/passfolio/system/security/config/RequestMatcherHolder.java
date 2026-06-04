@@ -29,6 +29,8 @@ public class RequestMatcherHolder {
     private static final List<RequestInfo> REQUEST_INFO_LIST = List.of(
             // AI webhook (AI 서버 → BE, VPC 내부 호출)
             new RequestInfo(HttpMethod.POST, "/api/v1/ai/jobs/complete", null),
+            // 로드맵 평가 완료 webhook (AI 서버 → BE, 내부 호출; X-INTERNAL-API-KEY로 별도 검증)
+            new RequestInfo(HttpMethod.POST, "/api/v1/ai/roadmap/complete", null),
 
             // Project Analysis webhook (Lambda → BE, 내부 호출; X-INTERNAL-API-KEY로 별도 검증)
             new RequestInfo(HttpMethod.POST, "/api/v1/project-analysis/webhook", null),

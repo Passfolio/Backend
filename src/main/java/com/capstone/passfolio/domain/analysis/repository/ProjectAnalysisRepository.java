@@ -23,6 +23,9 @@ public interface ProjectAnalysisRepository extends JpaRepository<ProjectAnalysis
     // 사용자 소유 단건 조회 — 리포트 페이지(타인 분석 접근 차단).
     Optional<ProjectAnalysis> findByIdAndUser_Id(String id, Long userId);
 
+    // 사용자 소유 다건 조회(IN 절) — 로드맵 평가 시 analysisIds → CDN URL 해석(IDOR 가드).
+    List<ProjectAnalysis> findAllByIdInAndUser_Id(List<String> ids, Long userId);
+
     // 사용자 분석 이력(최근순) — 프로필 '분석 이력' 탭. Pageable로 최근 N건 제한.
     List<ProjectAnalysis> findByUser_IdOrderByCreatedAtDesc(Long userId, Pageable pageable);
 

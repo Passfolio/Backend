@@ -44,6 +44,9 @@ public class AiJob extends TimeBaseEntity {
     @Column(name = "error_message", columnDefinition = "TEXT")
     private String errorMessage;
 
+    @Column(name = "result_json", columnDefinition = "TEXT")
+    private String resultJson;
+
     public void assignAiJobId(String aiJobId) {
         this.aiJobId = aiJobId;
     }
@@ -51,6 +54,11 @@ public class AiJob extends TimeBaseEntity {
     public void markDone(String outputPdfUrl) {
         this.status = AiJobStatus.DONE;
         this.outputPdfUrl = outputPdfUrl;
+    }
+
+    public void markDoneWithResult(String resultJson) {
+        this.status = AiJobStatus.DONE;
+        this.resultJson = resultJson;
     }
 
     public void markError(String errorMessage) {

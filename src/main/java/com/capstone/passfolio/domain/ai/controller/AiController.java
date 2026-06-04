@@ -62,6 +62,16 @@ public class AiController implements AiApiSpecification {
     }
 
     @Override
+    @PostMapping("/jobs/roadmap/assess")
+    public ResponseEntity<AiDto.JobInitResponse> startRoadmapAssess(
+            @AuthenticationPrincipal UserPrincipal userPrincipal,
+            @Valid @RequestBody AiDto.RoadmapJobRequest request) {
+        AiDto.JobInitResponse response = aiJobService.startRoadmapAssess(
+                userPrincipal.getUserId(), request.getAnalysisIds(), request.isMerge());
+        return ResponseEntity.ok(response);
+    }
+
+    @Override
     @GetMapping("/jobs/{jobId}")
     public ResponseEntity<AiDto.JobStatusResponse> getJobStatus(
             @AuthenticationPrincipal UserPrincipal userPrincipal,
@@ -75,6 +85,13 @@ public class AiController implements AiApiSpecification {
     @PostMapping("/jobs/complete")
     public ResponseEntity<Void> completeJob(@Valid @RequestBody AiDto.JobCompleteRequest request) {
         aiJobService.completeJob(request);
+        return ResponseEntity.ok().build();
+    }
+
+    @Override
+    @PostMapping("/roadmap/complete")
+    public ResponseEntity<Void> completeRoadmapJob(@Valid @RequestBody AiDto.RoadmapCompleteRequest request) {
+        aiJobService.completeRoadmapJob(request);
         return ResponseEntity.ok().build();
     }
 
