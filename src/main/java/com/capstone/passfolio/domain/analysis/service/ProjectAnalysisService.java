@@ -189,6 +189,9 @@ public class ProjectAnalysisService {
         User adminUser = userRepository.findById(caller.getUserId())
                 .orElseThrow(() -> new RestException(ErrorCode.AUTH_USER_NOT_FOUND));
         String mode = normalizeMode(request.getMode() == null || request.getMode().isBlank() ? "STEP" : request.getMode());
+        // 단건 정밀 테스트: username 지정 시 그 핸들을 정확 해석(dominant 미사용) → PR-creator/push-actor 앵커 검증용.
+        String usernameOverride = (request.getGithubUsername() == null || request.getGithubUsername().isBlank())
+                ? null : request.getGithubUsername().trim();
 
         String batchId = UUID.randomUUID().toString();
         batchProgressTracker.createBatch(batchId, repoUrls.size());
@@ -202,7 +205,7 @@ public class ProjectAnalysisService {
             projectAnalysisWriter.createYet(batchId, analysisId, repoUrl, adminUser, mode);
             String status;
             try {
-                sqsMessageSender.send(analysisQueueUrl, buildAdminMessage(analysisId, or.owner(), repoUrl, caller.getUserId(), mode));
+                sqsMessageSender.send(analysisQueueUrl, buildAdminMessage(analysisId, or.owner(), repoUrl, caller.getUserId(), mode, usernameOverride));
                 projectAnalysisWriter.markInProgress(analysisId);
                 status = AnalysisFlag.IN_PROGRESS.name();
             } catch (Exception e) {
@@ -397,17 +400,19 @@ public class ProjectAnalysisService {
     }
 
     private ProjectAnalysisDto.LambdaJobMessage buildAdminMessage(
-            String analysisId, String owner, String repoUrl, Long adminId, String mode) {
+            String analysisId, String owner, String repoUrl, Long adminId, String mode, String githubUsernameOverride) {
+        boolean hasOverride = githubUsernameOverride != null && !githubUsernameOverride.isBlank();
         return ProjectAnalysisDto.LambdaJobMessage.builder()
                 .analysisId(analysisId)
-                .githubUsername(owner)        // dominant 모드라 핸들 불일치여도 최다 기여자로 해석
+                // username 지정 시 그 핸들을 정확 해석(dominant 미사용), 미지정 시 repo owner + dominant.
+                .githubUsername(hasOverride ? githubUsernameOverride : owner)
                 .repoUrl(repoUrl)
                 .userPk(String.valueOf(adminId))
                 .isPrivate(false)
                 .repoSizeMb(0.0)              // size 게이트 우회(Lambda p0 정밀 가드가 담당)
                 .encryptedToken(null)         // 공개 repo — 토큰 불필요
                 .mode(mode)
-                .dominantFallback(true)
+                .dominantFallback(!hasOverride)
                 .build();
     }
 

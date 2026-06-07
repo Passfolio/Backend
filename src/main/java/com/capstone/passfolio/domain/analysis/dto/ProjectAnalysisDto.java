@@ -90,6 +90,11 @@ public class ProjectAnalysisDto {
 
         @Schema(description = "분석 모드(기본 STEP — FastAPI 핸드오프 없이 분석만).", nullable = true)
         private String mode;
+
+        @Schema(description = "특정 기여자 GitHub username으로 정밀 분석(단건 테스트용). 지정 시 dominant 모드 대신 "
+                + "그 username을 정확 해석. 미지정/공백이면 repo owner + dominant 모드(기존 부하테스트 동작).",
+                nullable = true)
+        private String githubUsername;
     }
 
     @Getter
