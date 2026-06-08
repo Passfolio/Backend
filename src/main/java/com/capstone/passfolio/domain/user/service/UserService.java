@@ -1,7 +1,6 @@
 package com.capstone.passfolio.domain.user.service;
 
 import com.capstone.passfolio.common.dto.PageDto;
-import com.capstone.passfolio.domain.article.service.ArticleService;
 import com.capstone.passfolio.domain.user.dto.UserDto;
 import com.capstone.passfolio.domain.user.entity.User;
 import com.capstone.passfolio.domain.user.entity.enums.Role;
@@ -26,7 +25,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class UserService {
     private final UserRepository userRepository;
-    private final ArticleService articleService;
+    private final AccountDeletionService accountDeletionService;
 
     @Transactional(readOnly = true)
     public UserDto.UserResponse retrieveMe(UserPrincipal userPrincipal) {
@@ -118,12 +117,9 @@ public class UserService {
             throw new RestException(ErrorCode.GLOBAL_INVALID_PARAMETER);
         }
 
-        // 1) Article bulk delete + S3 cleanup — user row 삭제 이전에 수행 (FK 무결성 + audit trail).
-        //    같은 트랜잭션 (REQUIRED) 으로 묶이므로 article DELETE 가 실패하면 user 도 살아남는다.
-        articleService.deleteAllByWriter(targetUserId);
-
-        // 2) User row 하드 딜리트 — AuthService.delete 와 동일한 bulk DELETE 경로 사용.
-        userRepository.deleteByUserId(targetUserId);
+        // 관련 데이터(article+S3·file+S3·analysis·repo_availability·dev_spec·ai_jobs) 정리 + User 행 처리.
+        // 대상이 ADMIN 이므로 purge 내부에서 User 행은 Hard Delete 된다(자식 먼저 정리 → FK 위반 없음).
+        accountDeletionService.purge(target);
 
         log.info("[User] Admin deleted: targetUserId={}, by callerId={}", targetUserId, caller.getUserId());
     }

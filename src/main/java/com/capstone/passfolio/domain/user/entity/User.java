@@ -1,6 +1,7 @@
 package com.capstone.passfolio.domain.user.entity;
 
 import com.capstone.passfolio.common.auditor.TimeBaseEntity;
+import com.capstone.passfolio.domain.user.dto.UserSoftDeleteDto;
 import com.capstone.passfolio.domain.user.entity.enums.Role;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
@@ -54,14 +55,21 @@ public class User extends TimeBaseEntity {
         if (this.nickname != null) this.nickname = this.nickname.trim(); // "hades " 같은 공백 포함 문자열 방지
     }
 
-    // JPA Dirty Checking
-    // public void softDelete(AuthDto.SoftDeleteDto dto) {
-    //     if (dto == null) return;
-    //
-    //     this.username = dto.getUsername();
-    //     this.nickname = dto.getNickname();
-    //     this.profileImageUrl = dto.getProfileImageUrl();
-    // }
+    /**
+     * USER 회원탈퇴 — Soft Delete(JPA dirty checking). 행은 유지하되 unique/PII 필드를 익명화한다.
+     * unique 컬럼(username/github_id)을 익명화/null 처리해 동일 GitHub 계정 재가입 시 충돌이 없고,
+     * 익명화된 자격증명으로는 로그인이 불가하다. (ADMIN은 hard delete 경로를 사용한다.)
+     */
+    public void softDelete(UserSoftDeleteDto dto) {
+        if (dto == null) return;
+
+        this.username = dto.getUsername();
+        this.nickname = dto.getNickname();
+        this.profileImageUrl = dto.getProfileImageUrl();
+        this.githubId = null;       // UNIQUE(github_id) 해제 → 동일 계정 재가입 허용
+        this.githubLogin = null;
+        this.password = null;       // 시스템 로그인 차단
+    }
 
     // OAuth2 사용자 정보 업데이트 (login 시점에서 기존 DB 데이터와 매칭해서 다르면 업데이트. 사용자가 직접 수정 X)
     public void updateOAuth2Info(String nickname, String profileImageUrl, String githubLogin) {

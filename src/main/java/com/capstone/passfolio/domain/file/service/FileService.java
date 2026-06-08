@@ -288,6 +288,28 @@ public class FileService {
                 .toList();
     }
 
+    /**
+     * 회원탈퇴 — 사용자가 업로드한 모든 File의 S3 객체 + 메타 행을 일괄 삭제한다.
+     *
+     * <p>{@link ArticleService#deleteAllByWriter(Long)} 와 동일 패턴: S3 키를 모아 단일
+     * {@link S3Service#deleteObjects(List)} 후 메타를 단일 DELETE. 업로드한 파일이 없으면 no-op.
+     *
+     * @param userId 삭제 대상 사용자 PK. {@code null} 이면 no-op(방어적).
+     */
+    public void deleteAllByOwner(Long userId) {
+        if (userId == null) {
+            return;
+        }
+        List<File> files = fileRepository.findAllByCreatedByOrderByCreatedAtDesc(userId);
+        if (files.isEmpty()) {
+            return;
+        }
+        List<String> keys = files.stream().map(File::getS3ObjectKey).toList();
+        s3Service.deleteObjects(keys);
+        fileRepository.deleteAllByCreatedBy(userId);
+        log.info("[File] bulk-deleted files for userId={}: files={}", userId, files.size());
+    }
+
     // ============================================================
     // 7) AI 서버용 임시 다운로드 Presigned URL 발급
     // ============================================================

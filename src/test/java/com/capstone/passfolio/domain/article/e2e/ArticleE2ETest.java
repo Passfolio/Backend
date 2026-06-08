@@ -16,6 +16,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.capstone.passfolio.domain.article.entity.Article;
 import com.capstone.passfolio.domain.article.repository.ArticleRepository;
+import com.capstone.passfolio.domain.github.repository.GitHubTokenRedisRepository;
 import com.capstone.passfolio.domain.s3.service.S3Service;
 import com.capstone.passfolio.domain.user.entity.User;
 import com.capstone.passfolio.domain.user.entity.enums.Role;
@@ -140,6 +141,14 @@ class ArticleE2ETest extends AbstractIntegrationTest {
      */
     @MockitoBean
     private S3Service s3Service;
+
+    /**
+     * GitHub OAuth 토큰 저장소 — A10 의 admin user 삭제는 {@code AccountDeletionService.purge} 로 위임되어
+     * 토큰 회수(getAccessToken)를 시도한다. 실제 Redis 연결을 막기 위해 mock 으로 차단(기본 Optional.empty()
+     * → revoke skip).
+     */
+    @MockitoBean
+    private GitHubTokenRedisRepository githubTokenRedisRepository;
 
     /** 테스트마다 새로 만든 admin user 의 DB id (auditor createdBy 와 일치). */
     private Long adminUserId;
