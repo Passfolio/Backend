@@ -28,4 +28,10 @@ public interface AiJobRepository extends JpaRepository<AiJob, Long> {
             @Param("errorStatus")   AiJobStatus errorStatus,
             @Param("cutoff")        LocalDateTime cutoff,
             @Param("message")       String message);
+
+    // 회원탈퇴 — 사용자 AiJob 일괄 삭제. (ai_jobs는 user FK ON DELETE CASCADE이나 USER soft-delete 시
+    // user 행이 남아 cascade가 안 타므로 명시 삭제가 필요하다. 없으면 no-op.)
+    @Modifying
+    @Query("DELETE FROM AiJob a WHERE a.userId = :userId")
+    void deleteAllByUserId(@Param("userId") Long userId);
 }

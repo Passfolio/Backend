@@ -9,10 +9,12 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
 import static org.mockito.BDDMockito.willThrow;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.List;
 import java.util.Optional;
 
@@ -67,6 +69,8 @@ class ProjectAnalysisServiceTest {
     @Mock private BatchPortfolioStore batchPortfolioStore;
     @Mock private RepoAvailabilityService repoAvailabilityService;
     @Mock private FileService fileService;
+    @Mock private AnalysisArtifactPresigner analysisArtifactPresigner; // 동일 패키지 → import 불필요
+    @Mock private ObjectMapper objectMapper;
 
     @InjectMocks
     private ProjectAnalysisService projectAnalysisService;
@@ -77,6 +81,9 @@ class ProjectAnalysisServiceTest {
         ReflectionTestUtils.setField(projectAnalysisService, "maxRepoSizeKb", 1_048_576L); // 1GiB
         // FileUrlUtils.buildCdnUrl는 정적 cdnBaseUrl을 읽음 — NONSTOP fileId→CDN URL 변환 테스트용 주입.
         ReflectionTestUtils.setField(FileUrlUtils.class, "cdnBaseUrl", "https://cdn.x");
+        // presign은 봇룰 우회용 URL 변환(별도 단위테스트 책임) — 핸드오프 오케스트레이션 검증에선 항등 취급.
+        lenient().when(analysisArtifactPresigner.presign(anyString()))
+                .thenAnswer(inv -> inv.getArgument(0));
     }
 
     // ---------- 배치 디스패치 ----------

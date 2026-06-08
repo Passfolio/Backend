@@ -11,7 +11,6 @@ import static org.mockito.Mockito.times;
 
 import java.util.Optional;
 
-import com.capstone.passfolio.domain.article.service.ArticleService;
 import com.capstone.passfolio.domain.user.entity.User;
 import com.capstone.passfolio.domain.user.entity.enums.Role;
 import com.capstone.passfolio.domain.user.repository.UserRepository;
@@ -24,9 +23,7 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
-import org.mockito.InOrder;
 import org.mockito.Mock;
-import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 
@@ -39,8 +36,8 @@ import org.springframework.test.util.ReflectionTestUtils;
  *   <li>self-delete 방지: caller 가 자기 자신을 삭제 → {@code GLOBAL_INVALID_PARAMETER}.</li>
  *   <li>대상 미존재 → {@code USER_NOT_FOUND}.</li>
  *   <li>대상이 USER (ADMIN 이 아닌 경우) → {@code GLOBAL_INVALID_PARAMETER}.</li>
- *   <li>정상 흐름: {@code articleService.deleteAllByWriter(targetId)} 가 user row delete 보다 먼저 호출
- *       (FK 무결성 + audit trail 순서 보장).</li>
+ *   <li>정상 흐름: RBAC·입력·대상 검증을 통과하면 {@code accountDeletionService.purge(target)} 에 위임한다.
+ *       (자식 정리 순서/FK 무결성/role 분기 자체는 {@code AccountDeletionServiceTest} 가 담당.)</li>
  *   <li>{@code targetUserId == null} → {@code GLOBAL_INVALID_PARAMETER}.</li>
  * </ul>
  *
@@ -51,7 +48,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 class UserServiceTest {
 
     @Mock UserRepository userRepository;
-    @Mock ArticleService articleService;
+    @Mock AccountDeletionService accountDeletionService;
 
     @InjectMocks UserService userService;
 
@@ -82,7 +79,7 @@ class UserServiceTest {
                             .isEqualTo(ErrorCode.AUTH_FORBIDDEN));
 
             then(userRepository).shouldHaveNoInteractions();
-            then(articleService).shouldHaveNoInteractions();
+            then(accountDeletionService).shouldHaveNoInteractions();
         }
 
         @Test
@@ -94,7 +91,7 @@ class UserServiceTest {
                             .isEqualTo(ErrorCode.AUTH_FORBIDDEN));
 
             then(userRepository).shouldHaveNoInteractions();
-            then(articleService).shouldHaveNoInteractions();
+            then(accountDeletionService).shouldHaveNoInteractions();
         }
 
         @Test
@@ -132,7 +129,7 @@ class UserServiceTest {
                             .isEqualTo(ErrorCode.GLOBAL_INVALID_PARAMETER));
 
             then(userRepository).should(never()).findById(anyLong());
-            then(articleService).shouldHaveNoInteractions();
+            then(accountDeletionService).shouldHaveNoInteractions();
         }
     }
 
@@ -150,7 +147,7 @@ class UserServiceTest {
                     .satisfies(e -> assertThat(((RestException) e).getErrorCode())
                             .isEqualTo(ErrorCode.USER_NOT_FOUND));
 
-            then(articleService).shouldHaveNoInteractions();
+            then(accountDeletionService).shouldHaveNoInteractions();
         }
 
         @Test
@@ -163,38 +160,37 @@ class UserServiceTest {
                     .satisfies(e -> assertThat(((RestException) e).getErrorCode())
                             .isEqualTo(ErrorCode.GLOBAL_INVALID_PARAMETER));
 
-            then(articleService).shouldHaveNoInteractions();
+            then(accountDeletionService).shouldHaveNoInteractions();
             then(userRepository).should(never()).deleteByUserId(anyLong());
         }
     }
 
     @Nested
-    @DisplayName("deleteAdmin(): 정상 흐름 — Article 정리 → User row 삭제")
+    @DisplayName("deleteAdmin(): 정상 흐름 — 검증 통과 후 purge 위임")
     class HappyPath {
 
         @Test
-        @DisplayName("Article bulk delete 가 user row delete 보다 먼저 호출된다 (FK + audit 순서)")
-        void articleDeleteBeforeUserDelete() {
-            given(userRepository.findById(2L)).willReturn(Optional.of(persistedUser(2L, Role.ADMIN)));
+        @DisplayName("검증을 통과한 대상 user 를 accountDeletionService.purge 에 위임한다")
+        void delegatesToPurge() {
+            User target = persistedUser(2L, Role.ADMIN);
+            given(userRepository.findById(2L)).willReturn(Optional.of(target));
 
             userService.deleteAdmin(2L, admin(1L));
 
-            InOrder inOrder = Mockito.inOrder(articleService, userRepository);
-            inOrder.verify(articleService).deleteAllByWriter(2L);
-            inOrder.verify(userRepository).deleteByUserId(2L);
-
-            then(articleService).should(times(1)).deleteAllByWriter(2L);
-            then(userRepository).should(times(1)).deleteByUserId(2L);
+            then(accountDeletionService).should(times(1)).purge(target);
+            // 자식 정리·user row 삭제는 purge 내부 책임 → UserService 가 직접 deleteByUserId 호출하지 않는다.
+            then(userRepository).should(never()).deleteByUserId(anyLong());
         }
 
         @Test
-        @DisplayName("ArticleService.deleteAllByWriter 에 정확히 targetUserId 가 전달된다")
-        void targetIdPassedToArticleService() {
-            given(userRepository.findById(42L)).willReturn(Optional.of(persistedUser(42L, Role.ADMIN)));
+        @DisplayName("findById 로 해석된 바로 그 user 인스턴스가 purge 로 전달된다")
+        void resolvedTargetPassedToPurge() {
+            User target = persistedUser(42L, Role.ADMIN);
+            given(userRepository.findById(42L)).willReturn(Optional.of(target));
 
             userService.deleteAdmin(42L, admin(1L));
 
-            then(articleService).should(times(1)).deleteAllByWriter(42L);
+            then(accountDeletionService).should(times(1)).purge(target);
         }
     }
 }

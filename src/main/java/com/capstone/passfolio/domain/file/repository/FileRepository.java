@@ -2,6 +2,9 @@ package com.capstone.passfolio.domain.file.repository;
 
 import com.capstone.passfolio.domain.file.entity.File;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import java.util.List;
 
@@ -35,4 +38,9 @@ public interface FileRepository extends JpaRepository<File, Long> {
      * 반환할 때 호출된다.
      */
     List<File> findAllByCreatedByOrderByCreatedAtDesc(Long userId);
+
+    // 회원탈퇴 — 사용자 File 메타 일괄 삭제(S3 객체는 FileService.deleteAllByOwner가 먼저 제거). 없으면 no-op.
+    @Modifying
+    @Query("DELETE FROM File f WHERE f.createdBy = :userId")
+    void deleteAllByCreatedBy(@Param("userId") Long userId);
 }

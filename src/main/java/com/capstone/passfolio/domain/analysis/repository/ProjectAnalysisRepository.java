@@ -4,6 +4,9 @@ import com.capstone.passfolio.domain.analysis.entity.ProjectAnalysis;
 import com.capstone.passfolio.domain.analysis.entity.enums.AnalysisFlag;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -31,4 +34,9 @@ public interface ProjectAnalysisRepository extends JpaRepository<ProjectAnalysis
 
     // stale 안전망 — 지정 시각 이전에 마지막 갱신된 채 특정 상태(IN_PROGRESS)로 멈춘 분석.
     List<ProjectAnalysis> findByAnalysisFlagAndLastModifiedAtBefore(AnalysisFlag flag, LocalDateTime cutoff);
+
+    // 회원탈퇴 — 사용자 분석 행 일괄 삭제(없으면 no-op).
+    @Modifying
+    @Query("DELETE FROM ProjectAnalysis p WHERE p.user.id = :userId")
+    void deleteAllByUserId(@Param("userId") Long userId);
 }

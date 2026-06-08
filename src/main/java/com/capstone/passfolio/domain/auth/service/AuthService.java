@@ -4,6 +4,7 @@ import com.capstone.passfolio.domain.github.client.GitHubOAuthRevokeClient;
 import com.capstone.passfolio.domain.github.repository.GitHubTokenRedisRepository;
 import com.capstone.passfolio.domain.user.entity.User;
 import com.capstone.passfolio.domain.user.repository.UserRepository;
+import com.capstone.passfolio.domain.user.service.AccountDeletionService;
 import com.capstone.passfolio.system.config.encryption.AesEncryptor;
 import com.capstone.passfolio.system.exception.model.ErrorCode;
 import com.capstone.passfolio.system.exception.model.RestException;
@@ -33,6 +34,7 @@ public class AuthService {
     private final GitHubTokenRedisRepository githubTokenRedisRepository;
     private final GitHubOAuthRevokeClient githubOAuthRevokeClient;
     private final AesEncryptor aesEncryptor;
+    private final AccountDeletionService accountDeletionService;
 
     private final ClientRegistrationRepository clientRegistrationRepository;
 
@@ -96,8 +98,8 @@ public class AuthService {
 
         tokenService.clearTokensByAtkWithValidation(accessToken, refreshToken);
 
-        // Hard Delete Bulk 연산으로 명시적으로 한번에 지운다.
-        userRepository.deleteByUserId(foundUser.getId()); // TODO: Bulk 연산 userRepository에 반영할 것
+        // 관련 데이터 정리 + User 행 처리(USER=Soft Delete 익명화 / ADMIN=Hard Delete). 단일 트랜잭션.
+        accountDeletionService.purge(foundUser);
 
         clearCookies(response);
     }

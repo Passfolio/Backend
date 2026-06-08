@@ -49,7 +49,7 @@ public class AuthController implements AuthApiSpecification {
             HttpServletRequest request,
             HttpServletResponse response) {
         authService.delete(userPrincipal, request, response);
-        return ResponseEntity.ok("Soft Delete User Successful");
+        return ResponseEntity.ok("Account deletion processed");
     }
 
     @Override

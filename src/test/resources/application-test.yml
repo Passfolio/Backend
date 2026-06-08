@@ -105,3 +105,9 @@ ratelimit:
   enabled: false
   proxy:
     trusted-cidrs: 127.0.0.1/32
+
+# application.yml 의 analysis.artifact.output-bucket (${ANALYSIS_OUTPUT_BUCKET}, default 없음) 자리채우기
+# AnalysisArtifactPresigner 빈이 컨텍스트 부팅 시 즉시 생성되므로 더미 버킷명 필요(실 S3 호출은 mock).
+analysis:
+  artifact:
+    output-bucket: test-analysis-output-bucket
