@@ -32,6 +32,117 @@
 - 동일 포트폴리오 기준, 단순 문장 교정은 평가 점수 **+1.15**에 그쳤지만 **코드 분석을 결합한 개선은 60.2 → 77.8(+17.5)** 을 달성 — '근거 있는 내용 개선'의 효과를 정량적으로 확인했습니다.
 - 기여도·핵심 기능·성과가 코드에서 자동 도출되므로, 지원자는 **객관적 근거로 실력을 증명**할 수 있습니다.
 
+<br>
+
+<details>
+  <summary style="font-weight: bold;"> 🧐 평가 기준?</summary>
+
+<br>
+Passfolio는 포트폴리오·자소서를 개선(생성) 전후로 각각 채점하여 점수 변화(delta)를 함께 제공합니다. 
+<br>
+
+### 평가 방식 개요
+
+- **LLM Model**: `gemini-3.1-flash-lite` (temperature=0)
+- **구조화 출력**: 항목별 `score / reason(근거) / fix(개선 제안)` 반환
+- **전후 비교**: 원문과 개선안을 병렬 평가한 뒤 최종 점수·항목별 delta를 산출
+
+### 등급 기준 (공통)
+
+| 점수 | 등급 |
+|:---:|:---:|
+| 85 이상 | 우수 ★★★ |
+| 70 ~ 84 | 양호 ★★ |
+| 55 ~ 69 | 보통 ★ |
+| 55 미만 | 미흡 |
+
+<br>
+
+<details>
+  <summary>📁 포트폴리오 평가 기준 (5개 항목)</summary>
+
+#### 항목 및 가중치
+
+| 항목 | 가중치 | 평가 내용 |
+|---|:---:|---|
+| **A. 과정/판단력** | 35% | 배경→문제인식→판단→실행 흐름의 명확성, 기술/도구 선택 이유("왜 이 기술인가", 대안 대비 근거) |
+| **B. 역할/기여도** | 25% | 본인 역할의 구체성, 1인칭 기여 표현("내가/주도/직접 설계"), 트러블슈팅 서술(문제→원인→해결) |
+| **C. 성과/인사이트** | 20% | 정량적 성과 우선, 경험→성장→직무 기여 연결 |
+| **D. 작성품질** | 10% | 아래 세부 채점표로 합산 |
+| **E. 직무연관성** | 10% | 목표 직무 관련 기술·경험·역량 증명 여부 |
+
+#### D. 작성품질 세부 채점표
+
+| 세부 항목 | 배점 | 기준 |
+|---|:---:|---|
+| **D1. 분량** | 0~40 | 400자 이상 40점 / 200~399자 20점 / 200자 미만 0점 |
+| **D2. 수치 성과 밀도** | 0~40 | 정량 성과(%, ms, 배수, 건수) 3개 이상 40점 / 2개 25점 / 1개 10점 / 0개 0점<br>※ 날짜·기간·전화번호는 제외 |
+| **D3. 감점** | -20~0 | 추상 표현("열심히" 등) 1개당 -3점(최대 -10) / 동일 의미 중복 1건당 -4점(최대 -8) / 근거 없는 bullet 단순 나열 4개 이상 -5점 |
+
+> D = max(0, D1 + D2 + D3), 최대 80점 — LLM 반환값을 신뢰하지 않고 코드에서 재계산
+
+#### 최종 점수 산식
+
+```
+최종 점수 = A×0.35 + B×0.25 + C×0.20 + D×0.10 + E×0.10
+```
+
+<br>
+
+</details>
+
+<details>
+  <summary>📝 자소서 평가 기준 (4개 항목)</summary>
+
+#### 항목 및 가중치
+
+| 항목 | 가중치 | 평가 내용 |
+|---|:---:|---|
+| **A. 지원동기** | 20% | 두괄식 구성, 기업 이해도 반영, 입사 설득력 |
+| **B. 직무역량** | 40% | STAR 구조(상황-과제-행동-결과) 충족, 수치/정성 성과, 경험→성장→기여 연결 |
+| **C. 인재상** | 25% | 핵심 가치관 부합, 소통/협업 경험, 갈등 해결 사례 |
+| **D. 작성품질** | 15% | 아래 세부 채점표로 합산 |
+
+#### 문항 유형 인식
+
+평가 시 문항 제목과 글자 수 제한을 함께 전달하여 문항 맥락에 맞게 채점합니다.
+
+- 성장과정·자기소개 문항 → A에서 '기업 이해도' 대신 **서술 구조·진정성** 중점 평가
+- 직무역량 문항 → B에 더 높은 기대치 적용
+- 섹션 제목에서 글자 수 제한 자동 파싱 (예: "최대 1,000자", "500자 이내", "제한없음")
+
+#### D. 작성품질 세부 채점표
+
+| 세부 항목 | 배점 | 기준 |
+|---|:---:|---|
+| **D1. 분량** | 0~40 | 글자 수 제한이 있으면 **충족률** 기준: 90% 이상 40점 / 70\~89% 25점 / 50\~69% 15점 / 50% 미만 0점<br>제한이 없으면: 800자 이상 40점 / 600\~799자 20점 / 600자 미만 0점 |
+| **D2. 성과 밀도** | 0~40 | 정량 성과 3개 이상 30점 / 2개 20점 / 1개 10점<br>+ 구체적 정성 성과("무엇이→어떻게→어떤 변화" 충족 시만 인정) 2개 이상 10점 / 1개 5점<br>※ 정량이 없어도 정성으로 최대 10점 획득 가능 |
+| **D3. 감점** | -20~0 | 추상 표현 1개당 -3점(최대 -10) / 동일 의미 중복 1건당 -2점(최대 -8) / 내용 없는 bullet 4개 이상 -5점 |
+
+> D = max(0, D1 + D2 + D3), 최대 80점
+
+#### 최종 점수 산식
+
+```
+최종 점수 = A×0.20 + B×0.40 + C×0.25 + D×0.15
+```
+
+</details>
+
+<br>
+
+### 전후 비교 결과 형식
+
+개선 전후 텍스트를 각각 채점한 뒤 아래 정보를 반환합니다.
+
+- `eval_before` / `eval_after` : 개선 전/후 가중 총점
+- `eval_delta` : 점수 변화량 (after − before)
+- `eval_detail` : 항목별 전후 점수·변화량·근거·개선 제안
+
+</details>
+
+<br>
+
 ## Main Target
 
 - **연령대** : 20대 초반 ~ 30대 초반의 IT 취업 준비생·주니어 개발자
@@ -109,7 +220,7 @@ Backend 파트가 담당하는 서비스 핵심 기능입니다. 모든 비동�
 
 - **인증 · 보안** : GitHub OAuth2 + JWT 인증, GitHub 토큰은 AES(Redis) + AWS KMS **이중 봉투 암호화**로 보관
 - **분석 오케스트레이션** : 분석 요청을 SQS로 디스패치(precheck · analysis)하고, Lambda 웹훅으로 결과를 수신해 배치 단위로 집계
-- **NONSTOP 파이프라인** : 배치 전건 성공 시 FastAPI(Portfolio-AI)로 포트폴리오·로드맵 생성을 자동 핸드오프 (private 내부 호출)
+- **분석 → 포트폴리오 파이프라인** : 배치 전건 성공 시 FastAPI(Portfolio-AI)로 포트폴리오·로드맵 생성을 자동 핸드오프 (private 내부 호출)
 - **실시간 알림** : SSE 기반 저장소별 분석 진행률·상태 스트리밍
 - **동시성 · 안정성** : Redisson 분산 락, Bucket4j + Redis 분산 레이트 리밋(Fail-Open/Fail-Closed), Caffeine L1 캐시
 - **파일 처리** : S3 멀티파트 업로드 + Presigned URL, Spring Batch 기반 미사용 파일 정리
@@ -135,11 +246,19 @@ Backend 파트가 담당하는 서비스 핵심 기능입니다. 모든 비동�
 ### Team Documentation
 - **서비스 Documentation** : [@passfolio.dev/docs](https://www.passfolio.dev/docs)
 - **발표 자료 (Web PPT)** : [@Passfolio Deck](https://www.passfolio.dev/docs/passfolio-deck)
+- **BE Deployment** : [@Notion-BE Deployment](https://hooby.notion.site/Passfolio-BE-Deployment-347f6c063f3e80f9885ac51a5fbbc202?source=copy_link)
+- **Cloudflare** : [@Notion-Cloudflare](https://hooby.notion.site/Cloudflare-ALB-EC2-347f6c063f3e80e4a81ee77a6ffd5b54?source=copy_link)
+- **OpenAPI Data Pipeline** : [@Notion-Open API Data Pipeline : data.go.kr](https://hooby.notion.site/OpenAPI-Data-Pipeline-DATA-GO-KR-33ff6c063f3e807db82cc1e7830eb2ef?source=copy_link)
+- **BE Convention** : [@Notion-BE Convention](https://hooby.notion.site/BE-Convention-393f6c063f3e809b9138d32a8220cd7d?source=copy_link)
 
-💡 Architecture는 PPT 참조
+<br>
+
+💡 Architecture는 PPT 참조  
+
+<br>
 
 ### Member's Personal Documentation
-- **Harness Engineering** : [@Notion-Harness Engineering](https://hooby.notion.site/Harness-Engineering-351f6c063f3e80f79dcef01bdaced788?source=copy_link)  
+- **Harness Engineering** : [@Notion-Harness Engineering](https://hooby.notion.site/Harness-Engineering-351f6c063f3e80f79dcef01bdaced788?source=copy_link)
 
 <br>
 
